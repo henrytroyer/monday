@@ -52,7 +52,7 @@ This project includes a GitHub Actions workflow to automatically sync contacts f
    - Select "Sync Contacts to Mailchimp"
    - Click "Run workflow"
 
-See [.github/workflows/README.md](./.github/workflows/README.md) for more details.
+The workflow file is at `.github/workflows/sync-contacts.yml`.
 
 ## Prerequisites
 
