@@ -32,6 +32,28 @@ npm run sync:contacts
 
 See [SETUP_OTHER_MACHINE.md](./SETUP_OTHER_MACHINE.md) for detailed setup instructions.
 
+## GitHub Actions
+
+This project includes a GitHub Actions workflow to automatically sync contacts from monday.com to Mailchimp.
+
+### Setup GitHub Actions
+
+1. **Add Secrets to Repository:**
+   - Go to GitHub → Your Repository → Settings → Secrets and variables → Actions
+   - Add these secrets:
+     - `MONDAY_API_TOKEN`
+     - `MAILCHIMP_API_KEY`
+     - `MAILCHIMP_LIST_ID`
+     - `MAILCHIMP_DATACENTER` (e.g., `us1`)
+     - `MONDAY_BOARD_NAME` (optional, defaults to "Contacts Test")
+
+2. **Run Workflow:**
+   - Go to Actions tab
+   - Select "Sync Contacts to Mailchimp"
+   - Click "Run workflow"
+
+See [.github/workflows/README.md](./.github/workflows/README.md) for more details.
+
 ## Prerequisites
 
 - Node.js (v18 or higher) and npm
