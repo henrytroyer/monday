@@ -28,26 +28,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Set up environment variables
+      - name: Run contact sync
         env:
+          # Pass secrets directly as environment variables (no .env file needed)
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
           MAILCHIMP_LIST_ID: ${{ secrets.MAILCHIMP_LIST_ID }}
           MAILCHIMP_DATACENTER: ${{ secrets.MAILCHIMP_DATACENTER }}
           MONDAY_BOARD_NAME: ${{ secrets.MONDAY_BOARD_NAME }}
-        run: |
-          # Sanitize environment variables (remove quotes, newlines, extra whitespace)
-          echo "MONDAY_API_TOKEN=$(echo -n "$MONDAY_API_TOKEN" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
-          echo "MAILCHIMP_API_KEY=$(echo -n "$MAILCHIMP_API_KEY" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
-          echo "MAILCHIMP_LIST_ID=$(echo -n "$MAILCHIMP_LIST_ID" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
-          echo "MAILCHIMP_DATACENTER=$(echo -n "$MAILCHIMP_DATACENTER" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
-          echo "MONDAY_BOARD_NAME=$(echo -n "${MONDAY_BOARD_NAME:-Contacts Test}" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
-          
-          # Verify .env file was created correctly
-          echo "✅ Environment variables set"
-          echo "   Token length: $(grep MONDAY_API_TOKEN .env | cut -d= -f2 | wc -c) characters"
-      
-      - name: Run contact sync
+          # Mark as CI environment so script uses env vars directly
+          CI: 'true'
+          GITHUB_ACTIONS: 'true'
         run: npm run sync:contacts
       
       - name: Upload logs (if sync fails)

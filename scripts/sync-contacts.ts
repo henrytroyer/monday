@@ -16,13 +16,20 @@ import mondaySdk from 'monday-sdk-js';
 import mailchimp from '@mailchimp/mailchimp_marketing';
 import crypto from 'crypto';
 
-// Load .env file from project root (not from scripts directory)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const envPath = resolve(__dirname, '..', '.env');
-dotenv.config({ path: envPath });
+// Load .env file from project root (only if not running in CI/GitHub Actions)
+// In GitHub Actions, environment variables are already set from secrets
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
-console.log(`📁 Loading .env from: ${envPath}`);
+if (!isCI) {
+  // Only load .env file in local development
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const envPath = resolve(__dirname, '..', '.env');
+  dotenv.config({ path: envPath });
+  console.log(`📁 Loading .env from: ${envPath}`);
+} else {
+  console.log(`📁 Running in CI environment - using environment variables directly`);
+}
 
 // Environment variables - sanitize to remove whitespace, newlines, and quotes
 const sanitizeEnvVar = (value: string | undefined): string | undefined => {
