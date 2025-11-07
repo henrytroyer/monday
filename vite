@@ -1,0 +1,17 @@
+
+
+  VITE v7.2.0  ready in 537 ms
+
+  ➜  Local:   http://localhost:4040/
+  ➜  Network: http://192.168.1.77:4040/
+  ➜  press h + enter to show help
+npm run monday:tunnel 
+9:10:18 PM [vite] (client) hmr update /src/components/HelloWorld.tsx
+9:10:19 PM [vite] (client) hmr update /src/components/HelloWorld.tsx (x2)
+9:10:21 PM [vite] (client) hmr update /src/components/HelloWorld.tsx (x3)
+9:10:24 PM [vite] (client) hmr update /src/components/HelloWorld.tsx (x4)
+9:10:34 PM [vite] (client) hmr update /src/components/HelloWorld.tsx (x5)
+9:10:34 PM [vite] (client) hmr update /src/components/HelloWorld.tsx (x6)
+9:14:43 PM [vite] vite.config.ts changed, restarting server...
+9:14:43 PM [vite] server restarted.
+9:14:52 PM [vite] vite.config.ts changed, restarting server...
