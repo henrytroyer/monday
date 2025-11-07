@@ -17,7 +17,9 @@
     "firebase:init": "firebase init hosting",
     "sync:contacts": "tsx scripts/sync-contacts.ts",
     "git:sync": "./scripts/sync-git.sh",
-    "git:push": "git push origin main"
+    "git:pull": "git pull origin main",
+    "git:push": "git push origin main",
+    "git:status": "git status"
   },
   "dependencies": {
     "@mailchimp/mailchimp_marketing": "^3.0.80",

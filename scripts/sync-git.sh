@@ -1,10 +1,11 @@
 #!/bin/bash
 # Git sync script: Pull latest changes, then push local changes
-# Usage: ./scripts/sync-git.sh
+# Team-friendly: Always pulls before pushing to avoid conflicts
+# Usage: ./scripts/sync-git.sh or npm run git:sync
 
 set -e
 
-echo "🔄 Syncing with GitHub..."
+echo "🔄 Syncing with GitHub (team-friendly mode)..."
 echo ""
 
 # Fetch latest changes

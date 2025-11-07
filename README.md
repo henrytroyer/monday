@@ -9,6 +9,28 @@ This project provides a foundation for building customizable systems on monday.c
 - **Board Views** - Custom ways to visualize and interact with board data
 - **Forms** - Custom data collection forms
 - **Integrations** - Connect external services and automate workflows
+- **Contact Sync Script** - Sync contacts from monday.com to Mailchimp
+
+## Quick Start (New Machine)
+
+To set up this project on a new machine:
+
+```bash
+# Clone the repository
+git clone https://github.com/henrytroyer/monday.git
+cd monday
+
+# Install dependencies
+npm install
+
+# Set up environment variables (create .env file)
+# See SETUP_OTHER_MACHINE.md for details
+
+# Test the sync script
+npm run sync:contacts
+```
+
+See [SETUP_OTHER_MACHINE.md](./SETUP_OTHER_MACHINE.md) for detailed setup instructions.
 
 ## Prerequisites
 
