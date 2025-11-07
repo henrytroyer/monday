@@ -24,12 +24,17 @@ dotenv.config({ path: envPath });
 
 console.log(`📁 Loading .env from: ${envPath}`);
 
-// Environment variables
-const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
-const MAILCHIMP_API_KEY = process.env.MAILCHIMP_API_KEY;
-const MAILCHIMP_LIST_ID = process.env.MAILCHIMP_LIST_ID;
-const MAILCHIMP_DATACENTER = process.env.MAILCHIMP_DATACENTER; // Optional: override datacenter
-const MONDAY_BOARD_NAME = process.env.MONDAY_BOARD_NAME || 'Contacts Test';
+// Environment variables - sanitize to remove whitespace, newlines, and quotes
+const sanitizeEnvVar = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  return value.trim().replace(/^["']|["']$/g, '').replace(/\n|\r/g, '');
+};
+
+const MONDAY_API_TOKEN = sanitizeEnvVar(process.env.MONDAY_API_TOKEN);
+const MAILCHIMP_API_KEY = sanitizeEnvVar(process.env.MAILCHIMP_API_KEY);
+const MAILCHIMP_LIST_ID = sanitizeEnvVar(process.env.MAILCHIMP_LIST_ID);
+const MAILCHIMP_DATACENTER = sanitizeEnvVar(process.env.MAILCHIMP_DATACENTER); // Optional: override datacenter
+const MONDAY_BOARD_NAME = sanitizeEnvVar(process.env.MONDAY_BOARD_NAME) || 'Contacts Test';
 
 // Validate environment variables
 if (!MONDAY_API_TOKEN) {
@@ -834,8 +839,23 @@ async function verifyConnection(): Promise<boolean> {
     return false;
   }
   
+  // Validate token format (should be a valid string without newlines)
+  if (MONDAY_API_TOKEN.includes('\n') || MONDAY_API_TOKEN.includes('\r')) {
+    console.error('❌ MONDAY_API_TOKEN contains invalid characters (newlines)');
+    console.error('   Please check your GitHub secret - it may have extra whitespace');
+    return false;
+  }
+  
+  // Check for common invalid characters in HTTP headers
+  const invalidChars = /[\x00-\x1F\x7F]/;
+  if (invalidChars.test(MONDAY_API_TOKEN)) {
+    console.error('❌ MONDAY_API_TOKEN contains invalid characters for HTTP headers');
+    return false;
+  }
+  
   console.log(`   Token length: ${MONDAY_API_TOKEN.length} characters`);
-  console.log(`   Token preview: ${MONDAY_API_TOKEN.substring(0, 10)}...\n`);
+  console.log(`   Token preview: ${MONDAY_API_TOKEN.substring(0, 10)}...`);
+  console.log(`   Token format: ${MONDAY_API_TOKEN.startsWith('eyJ') ? 'JWT format' : 'Other format'}\n`);
   
   try {
     // Test with a simple "me" query to verify authentication

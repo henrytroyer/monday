@@ -36,11 +36,16 @@ jobs:
           MAILCHIMP_DATACENTER: ${{ secrets.MAILCHIMP_DATACENTER }}
           MONDAY_BOARD_NAME: ${{ secrets.MONDAY_BOARD_NAME }}
         run: |
-          echo "MONDAY_API_TOKEN=$MONDAY_API_TOKEN" >> .env
-          echo "MAILCHIMP_API_KEY=$MAILCHIMP_API_KEY" >> .env
-          echo "MAILCHIMP_LIST_ID=$MAILCHIMP_LIST_ID" >> .env
-          echo "MAILCHIMP_DATACENTER=$MAILCHIMP_DATACENTER" >> .env
-          echo "MONDAY_BOARD_NAME=${MONDAY_BOARD_NAME:-Contacts Test}" >> .env
+          # Sanitize environment variables (remove quotes, newlines, extra whitespace)
+          echo "MONDAY_API_TOKEN=$(echo -n "$MONDAY_API_TOKEN" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
+          echo "MAILCHIMP_API_KEY=$(echo -n "$MAILCHIMP_API_KEY" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
+          echo "MAILCHIMP_LIST_ID=$(echo -n "$MAILCHIMP_LIST_ID" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
+          echo "MAILCHIMP_DATACENTER=$(echo -n "$MAILCHIMP_DATACENTER" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
+          echo "MONDAY_BOARD_NAME=$(echo -n "${MONDAY_BOARD_NAME:-Contacts Test}" | tr -d '\n\r' | sed 's/^["'\'']*//;s/["'\'']*$//')" >> .env
+          
+          # Verify .env file was created correctly
+          echo "✅ Environment variables set"
+          echo "   Token length: $(grep MONDAY_API_TOKEN .env | cut -d= -f2 | wc -c) characters"
       
       - name: Run contact sync
         run: npm run sync:contacts
