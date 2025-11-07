@@ -15,7 +15,9 @@
     "monday:deploy": "npm run build && echo 'Deploy using monday.com Developer Center or API'",
     "firebase:deploy": "npm run build && firebase deploy --only hosting",
     "firebase:init": "firebase init hosting",
-    "sync:contacts": "tsx scripts/sync-contacts.ts"
+    "sync:contacts": "tsx scripts/sync-contacts.ts",
+    "git:sync": "./scripts/sync-git.sh",
+    "git:push": "git push origin main"
   },
   "dependencies": {
     "@mailchimp/mailchimp_marketing": "^3.0.80",
