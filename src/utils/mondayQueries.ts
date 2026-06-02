@@ -39,10 +39,46 @@ export const queries = {
           text
           value
           type
+          column {
+            title
+          }
         }
         group {
           id
           title
+        }
+        created_at
+        updated_at
+      }
+    }
+  }`,
+
+  /**
+   * Board pipeline: groups order + items with column values
+   */
+  getBoardPipeline: `query ($boardId: [ID!]) {
+    boards(ids: $boardId) {
+      id
+      name
+      groups {
+        id
+        title
+      }
+      items {
+        id
+        name
+        group {
+          id
+          title
+        }
+        column_values {
+          id
+          text
+          value
+          type
+          column {
+            title
+          }
         }
         created_at
         updated_at
@@ -82,6 +118,9 @@ export const queries = {
         text
         value
         type
+        column {
+          title
+        }
       }
       created_at
       updated_at
@@ -89,6 +128,14 @@ export const queries = {
         id
         name
         email
+      }
+      updates(limit: 100) {
+        id
+        text_body
+        created_at
+        creator {
+          name
+        }
       }
     }
   }`,

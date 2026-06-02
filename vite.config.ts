@@ -1,21 +1,30 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: 4040,
-    host: true, // Allow external connections for monday.com tunneling
+    host: true,
+    proxy: {
+      '/api/quickbooks': {
+        target: 'http://localhost:4041',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/quickbooks/, ''),
+      },
+    },
     hmr: {
       clientPort: 4040,
     },
-    // Allow ngrok and other tunnel hosts
     allowedHosts: [
       '.ngrok.io',
       '.ngrok-free.app',
       '.ngrok.app',
       'localhost',
+      '.loca.lt',
+      '.trycloudflare.com',
     ],
   },
   build: {
