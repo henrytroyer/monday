@@ -1,4 +1,5 @@
 import { useMockData } from '../config/boards';
+import { buildMockDonorHistory } from '../data/mockDonorHistory';
 import type { FinancialRecord } from '../types/contact';
 import { quickbooksInvoiceUrl } from '../types/quickbooks';
 
@@ -50,10 +51,20 @@ export async function fetchContactFinancials(options: {
 }): Promise<FinancialRecord[]> {
   const customerId = options.quickbooksCustomerId?.trim();
   const email = options.email.trim();
+  const mockContactId = options.mockContactId?.trim();
 
   if (useMockData() || customerId?.startsWith('qbo-') || customerId?.startsWith('mock-')) {
+    if (mockContactId) {
+      return buildMockDonorHistory(mockContactId, {
+        includeProgramFees: mockContactId === 'contact-1',
+      });
+    }
     if (customerId && MOCK_FINANCIALS[customerId]) {
       return MOCK_FINANCIALS[customerId];
+    }
+    if (customerId?.startsWith('qbo-customer-contact-')) {
+      const contactId = customerId.replace('qbo-customer-', '');
+      return buildMockDonorHistory(contactId);
     }
     return [];
   }

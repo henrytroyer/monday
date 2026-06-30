@@ -75,3 +75,28 @@ export function hasActiveFilters(filters: ApplicationFilterState): boolean {
     filters.searchQuery.trim().length > 0
   );
 }
+
+export function findVolunteerInPipeline(
+  pipeline: PipelineSection[],
+  applicationId: string,
+): Volunteer | undefined {
+  for (const section of pipeline) {
+    const match = section.volunteers.find((v) => v.id === applicationId);
+    if (match) return match;
+  }
+  return undefined;
+}
+
+export function updateVolunteerStatusInPipeline(
+  pipeline: PipelineSection[],
+  volunteerId: string,
+  status: string,
+): PipelineSection[] {
+  return pipeline.map((section) => ({
+    ...section,
+    volunteers: section.volunteers.map((volunteer) =>
+      volunteer.id === volunteerId ? { ...volunteer, status } : volunteer,
+    ),
+  }));
+}
+

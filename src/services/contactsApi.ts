@@ -1,199 +1,217 @@
-import mondaySdk from 'monday-sdk-js';
 import {
-  contactsBoardName,
-  resolveContactsBoardId,
+  isMondayReadOnly,
   useMockData,
 } from '../config/boards';
-import {
-  getMockContactDetail,
-  MOCK_CONTACTS_LIST,
-} from '../data/mockContacts';
 import type { ContactDetail, ContactListItem, ContactTag } from '../types/contact';
-import type { MondayResponse } from '../types/monday';
-import { mutations, queries } from '../utils/mondayQueries';
-import { fetchApplicationsPipeline } from './crmApi';
-import { enrichContactDetail } from './buildContactRelationships';
-import { fetchContactFinancials } from './contactFinancials';
-import type { MondayBoardItem } from './mapMondayToCrm';
+import { buildMockContactEmailThread } from '../data/mockContactEmailThread';
 import {
-  formatContactTagsForMonday,
-  mapItemToContactListItem,
-  type MondayContactItem,
-} from './mapMondayToContact';
-import { contactMap } from '../config/contactMap';
+  getPendingIncomingDonations,
+  markIncomingDonationIngested,
+} from '../data/mockIncomingDonations';
+import { enrichContactDetail } from './buildContactRelationships';
+import {
+  fetchApplicationsBoardItems,
+  fetchContactItem,
+  fetchContactsBoard,
+  updateContactFieldsOnMonday,
+} from './crmApi';
+import {
+  getContactDetailBase,
+  getAllContacts,
+  updateContactCoreFields,
+  type ContactCoreFields,
+} from './contactStorage';
+import { onContactCoreFieldsUpdated } from './contactRecruitmentSync';
+import {
+  getRecruitmentServiceRecords,
+  isRecruitmentServiceTerm,
+  upsertRecruitmentServiceRecord,
+} from './contactServiceRecordStorage';
+import { mapItemToContactListItem } from './mapMondayToContact';
+import type { MondayBoardItem } from './mapMondayToCrm';
+import { findProspectByContactId } from './recruitmentStorage';
+import {
+  syncContactFromDonation,
+  type DonationSyncInput,
+} from './contactDonationSync';
 
-const monday = mondaySdk();
-
-async function api<T>(
-  query: string,
-  variables?: Record<string, unknown>,
-): Promise<T> {
-  monday.setApiVersion('2023-10');
-  const response: MondayResponse<T> = await monday.api(query, { variables });
-
-  if (response.errors?.length) {
-    throw new Error(response.errors.map((e) => e.message).join(', '));
-  }
-
-  if (!response.data) {
-    throw new Error('No data returned from monday.com API');
-  }
-
-  return response.data;
+export interface ContactsFetchOptions {
+  contactsBoardId?: string | null;
+  applicationsBoardId?: string | null;
+  clearCache?: boolean;
+  onPage?: (items: ContactListItem[], loaded: number) => void;
 }
 
-interface ContactsBoardPayload {
-  id: string;
-  name: string;
-  items: MondayContactItem[];
+let liveContactsCache: ContactListItem[] | null = null;
+let liveApplicationsCache: MondayBoardItem[] | null = null;
+
+export function clearContactsLiveCache(): void {
+  liveContactsCache = null;
+  liveApplicationsCache = null;
 }
 
-async function resolveContactsBoard(): Promise<ContactsBoardPayload> {
-  const boardId = resolveContactsBoardId();
+async function getLiveApplications(
+  applicationsBoardId?: string | null,
+): Promise<MondayBoardItem[]> {
+  if (!applicationsBoardId) return [];
+  if (liveApplicationsCache) return liveApplicationsCache;
+  liveApplicationsCache =
+    await fetchApplicationsBoardItems(applicationsBoardId);
+  return liveApplicationsCache;
+}
+
+export async function fetchContactsList(
+  options?: ContactsFetchOptions,
+): Promise<ContactListItem[]> {
+  if (useMockData()) {
+    return getAllContacts();
+  }
+
+  const boardId = options?.contactsBoardId;
   if (!boardId) {
     throw new Error(
-      `Set VITE_CONTACTS_BOARD_ID to your Contacts board id (board name: ${contactsBoardName()})`,
+      'Contacts board ID is required. Set VITE_CONTACTS_BOARD_ID or open the app from your Contacts board in monday.com.',
     );
   }
 
-  const data = await api<{ boards: ContactsBoardPayload[] }>(
-    queries.getBoardPipeline,
-    { boardId: [boardId] },
-  );
-
-  const board = data.boards?.[0];
-  if (!board) {
-    throw new Error(`Contacts board ${boardId} not found`);
+  if (!options?.clearCache && liveContactsCache) {
+    return liveContactsCache;
   }
 
-  return board;
-}
-
-let applicationsCache: MondayBoardItem[] | null = null;
-
-async function loadApplicationsIndex(): Promise<MondayBoardItem[]> {
-  if (applicationsCache) return applicationsCache;
-
-  const boardId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
-  if (!boardId && useMockData()) {
-    applicationsCache = [];
-    return applicationsCache;
-  }
-
-  try {
-    const pipeline = await fetchApplicationsPipeline(String(boardId));
-    applicationsCache = pipeline.flatMap((section) =>
-      section.volunteers.map((v) => ({
-        id: v.id,
-        name: v.name,
-        group: { id: '', title: section.stage },
-        column_values: [],
-      })),
-    ) as MondayBoardItem[];
-  } catch {
-    applicationsCache = [];
-  }
-
-  return applicationsCache;
-}
-
-async function loadApplicationsWithColumns(
-  applicationsBoardId: string,
-): Promise<MondayBoardItem[]> {
-  const data = await api<{ boards: { items: MondayBoardItem[] }[] }>(
-    queries.getBoardPipeline,
-    { boardId: [applicationsBoardId] },
-  );
-  return data.boards?.[0]?.items ?? [];
-}
-
-export async function fetchContactsList(): Promise<ContactListItem[]> {
-  if (useMockData()) {
-    return MOCK_CONTACTS_LIST;
-  }
-
-  const board = await resolveContactsBoard();
-  return board.items.map(mapItemToContactListItem);
+  liveContactsCache = await fetchContactsBoard(boardId, {
+    onPage: (items, loaded) => {
+      liveContactsCache = items;
+      options?.onPage?.(items, loaded);
+    },
+  });
+  return liveContactsCache;
 }
 
 export async function fetchContactDetail(
   contactId: string,
+  options?: ContactsFetchOptions,
 ): Promise<ContactDetail> {
-  if (useMockData() || contactId.startsWith('contact-')) {
-    return getMockContactDetail(contactId);
+  if (useMockData()) {
+    const detail = getContactDetailBase(contactId);
+    const prospect = findProspectByContactId(contactId);
+
+    let recruitmentRecords = getRecruitmentServiceRecords(contactId);
+    if (
+      prospect &&
+      !recruitmentRecords.some(
+        (record) => record.recruitmentProspectId === prospect.id,
+      )
+    ) {
+      recruitmentRecords = [
+        upsertRecruitmentServiceRecord(contactId, prospect),
+        ...recruitmentRecords,
+      ];
+    }
+
+    const applicationTerms = detail.serviceTerms.filter(
+      (term) => !isRecruitmentServiceTerm(term),
+    );
+
+    return {
+      ...detail,
+      emailCorrespondence:
+        detail.emailCorrespondence ??
+        buildMockContactEmailThread(contactId, {
+          name: detail.name,
+          email: detail.email,
+        }),
+      serviceTerms: [...recruitmentRecords, ...applicationTerms],
+    };
   }
 
-  const contactsBoardId = resolveContactsBoardId();
-  if (!contactsBoardId) {
-    return getMockContactDetail(contactId);
+  const item = await fetchContactItem(contactId);
+  const applications = await getLiveApplications(options?.applicationsBoardId);
+
+  let allContacts = liveContactsCache;
+  if (!allContacts && options?.contactsBoardId) {
+    allContacts = await fetchContactsBoard(options.contactsBoardId);
+    liveContactsCache = allContacts;
+  }
+  if (!allContacts) {
+    allContacts = [mapItemToContactListItem(item)];
   }
 
-  const data = await api<{ items: MondayContactItem[] }>(queries.getItem, {
-    itemId: [contactId],
-  });
-
-  const item = data.items?.[0];
-  if (!item) {
-    throw new Error(`Contact ${contactId} not found`);
-  }
-
-  const list = await fetchContactsList();
-  const appsBoardId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
-  const applications = appsBoardId
-    ? await loadApplicationsWithColumns(String(appsBoardId))
-    : await loadApplicationsIndex();
-
-  const enriched = enrichContactDetail(item, applications, list);
   const base = mapItemToContactListItem(item);
-
-  const donations = await fetchContactFinancials({
-    email: base.email,
-    quickbooksCustomerId: enriched.quickbooksCustomerId,
-  });
+  const enriched = enrichContactDetail(item, applications, allContacts);
 
   return {
     ...base,
     ...enriched,
-    donations,
+    emailCorrespondence: [],
+    donations: [],
   };
 }
 
-export async function updateContactTags(
+export async function updateContactCoreFieldsApi(
   contactId: string,
-  tags: ContactTag[],
-): Promise<void> {
-  if (useMockData() || contactId.startsWith('contact-')) {
-    return;
+  fields: ContactCoreFields,
+  options?: ContactsFetchOptions,
+): Promise<ContactDetail> {
+  if (isMondayReadOnly()) {
+    throw new Error('Read-only mode: cannot update contact profile');
   }
 
-  const boardId = resolveContactsBoardId();
+  if (useMockData()) {
+    updateContactCoreFields(contactId, fields);
+    onContactCoreFieldsUpdated(contactId, fields);
+    return fetchContactDetail(contactId);
+  }
+
+  const boardId = options?.contactsBoardId;
   if (!boardId) {
-    throw new Error('Contacts board not configured');
+    throw new Error(
+      'Contacts board ID is required to save contact profile changes.',
+    );
   }
 
-  const columns = await api<{
-    boards: Array<{
-      columns: Array<{ id: string; title: string; type: string }>;
-    }>;
-  }>(queries.getBoardColumns, { boardId: [boardId] });
-
-  const target = contactMap.tags.trim().toLowerCase();
-  const column = columns.boards?.[0]?.columns.find(
-    (c) => c.title.trim().toLowerCase() === target,
-  );
-
-  if (!column) {
-    throw new Error(`Tags column "${contactMap.tags}" not found on Contacts board`);
-  }
-
-  await api(mutations.updateColumnValue, {
-    boardId,
-    itemId: contactId,
-    columnId: column.id,
-    value: formatContactTagsForMonday(tags),
-  });
+  await updateContactFieldsOnMonday(boardId, contactId, fields);
+  clearContactsLiveCache();
+  return fetchContactDetail(contactId, options);
 }
 
-export function clearApplicationsCache(): void {
-  applicationsCache = null;
+export async function updateContactTags(
+  _contactId: string,
+  _tags: ContactTag[],
+): Promise<void> {
+  if (isMondayReadOnly()) {
+    throw new Error('Read-only mode: cannot update contact tags');
+  }
+  return;
+}
+
+export async function ingestDonation(
+  input: DonationSyncInput,
+): Promise<ContactListItem> {
+  if (!useMockData()) {
+    throw new Error('Donation ingest is only available in mock mode.');
+  }
+  return syncContactFromDonation(input);
+}
+
+export async function ingestPendingDonations(): Promise<ContactListItem[]> {
+  if (!useMockData()) {
+    return [];
+  }
+
+  const pending = getPendingIncomingDonations();
+  const synced: ContactListItem[] = [];
+
+  for (const donation of pending) {
+    synced.push(
+      syncContactFromDonation({
+        donorName: donation.donorName,
+        donorEmail: donation.donorEmail,
+        quickbooksCustomerId: donation.quickbooksCustomerId,
+        record: donation.record,
+      }),
+    );
+    markIncomingDonationIngested(donation.id);
+  }
+
+  return synced;
 }

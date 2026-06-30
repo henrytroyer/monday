@@ -9,6 +9,8 @@ export const contactMap = {
   phone: import.meta.env.VITE_CONTACT_COL_PHONE || 'Phone',
   profilePhoto:
     import.meta.env.VITE_CONTACT_COL_PROFILE_PHOTO || 'Profile Photo',
+  passport: import.meta.env.VITE_CONTACT_COL_PASSPORT || 'Passport Photo',
+  files: import.meta.env.VITE_CONTACT_COL_FILES || 'Files',
   quickbooksCustomerId:
     import.meta.env.VITE_CONTACT_COL_QBO_CUSTOMER_ID ||
     'QuickBooks Customer ID',

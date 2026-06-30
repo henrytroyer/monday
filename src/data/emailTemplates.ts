@@ -74,6 +74,17 @@ Thank you,
 Volunteer Coordination Team`,
   },
   {
+    id: 'reference-reminder',
+    name: 'Reference reminder (to applicant)',
+    subject: 'Reminder: {{referenceTypeLabel}} reference still needed',
+    body: `Hi {{firstName}},
+
+We're still waiting for your {{referenceTypeLabel}} reference for your long-term application. Please follow up with them and ask them to complete the form.
+
+Thank you,
+Volunteer Coordination Team`,
+  },
+  {
     id: 'parent-update',
     name: 'Parent update',
     subject: "Update on {{name}}'s application",
@@ -87,8 +98,43 @@ If you have questions, please reply to this email.
 
 Volunteer Coordination Team`,
   },
+  {
+    id: 'year-end-tax-receipt',
+    name: 'Year-end tax receipt (USA)',
+    subject: 'Your {{taxYear}} year-end charitable contribution statement',
+    body: `Dear {{firstName}},
+
+Thank you for your generous support of {{organizationName}}. This letter confirms your charitable contributions for U.S. federal income tax purposes for calendar year {{taxYear}}.
+
+Contributions received in {{taxYear}}:
+{{donationLines}}
+
+Total charitable contributions ({{taxYear}}): {{totalAmount}}
+
+No goods or services were provided in exchange for these contributions.
+
+{{organizationName}}
+EIN: {{organizationEin}}
+{{organizationAddress}}
+
+Please retain this statement for your tax records. If you have questions, reply to this email.
+
+Blessings,
+Development Team`,
+  },
 ];
 
 export function getEmailTemplateById(id: string): EmailTemplate | undefined {
   return EMAIL_TEMPLATES.find((t) => t.id === id);
+}
+
+export function getYearEndTaxReceiptTemplate(): EmailTemplate {
+  return (
+    getEmailTemplateById('year-end-tax-receipt') ?? {
+      id: 'year-end-tax-receipt',
+      name: 'Year-end tax receipt (USA)',
+      subject: 'Your {{taxYear}} year-end charitable contribution statement',
+      body: '',
+    }
+  );
 }

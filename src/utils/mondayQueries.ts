@@ -25,7 +25,66 @@ export const queries = {
   }`,
 
   /**
-   * Get board with items
+   * Get board items (paginated — monday API no longer supports boards.items)
+   */
+  getBoardItemsPage: `query ($boardId: [ID!], $limit: Int, $cursor: String) {
+    boards(ids: $boardId) {
+      id
+      name
+      items_page(limit: $limit, cursor: $cursor) {
+        cursor
+        items {
+          id
+          name
+          column_values {
+            id
+            text
+            value
+            type
+            column {
+              title
+            }
+          }
+          group {
+            id
+            title
+          }
+          created_at
+          updated_at
+        }
+      }
+    }
+  }`,
+
+  /**
+   * Paginated board items with list-only columns (smaller payload for Contacts list)
+   */
+  getBoardItemsPageList: `query ($boardId: [ID!], $limit: Int, $cursor: String, $columnIds: [String!]) {
+    boards(ids: $boardId) {
+      id
+      name
+      items_page(limit: $limit, cursor: $cursor) {
+        cursor
+        items {
+          id
+          name
+          created_at
+          column_values(ids: $columnIds) {
+            id
+            text
+            value
+            type
+            column {
+              title
+            }
+          }
+        }
+      }
+    }
+  }`,
+
+  /**
+   * Get board with items (legacy — prefer getBoardItemsPage + pagination)
    */
   getBoardWithItems: `query ($boardId: [ID!]) {
     boards(ids: $boardId) {
@@ -288,6 +347,16 @@ export const formatColumnValue = (value: any, columnType: string): string => {
       return JSON.stringify({ checked: value ? 'true' : 'false' });
     case 'numbers':
       return JSON.stringify({ number: value.toString() });
+    case 'email':
+      return JSON.stringify({ email: value, text: value });
+    case 'phone':
+      if (value && typeof value === 'object' && 'phone' in value) {
+        return JSON.stringify(value);
+      }
+      return JSON.stringify({
+        phone: String(value ?? ''),
+        countryShortName: '',
+      });
     case 'text':
     case 'long_text':
       return JSON.stringify({ text: value });

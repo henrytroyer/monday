@@ -1,12 +1,16 @@
+import { useEffect, useState } from 'react';
+
 interface VolunteerAvatarProps {
   name: string;
   profilePhotoUrl?: string;
-  size?: 'sm' | 'lg';
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
+  onClick?: () => void;
 }
 
 const sizeClasses = {
   sm: 'h-11 w-11 rounded-full',
+  md: 'h-16 w-16 rounded-xl',
   lg: 'h-28 w-28 rounded-2xl',
 } as const;
 
@@ -15,27 +19,57 @@ export default function VolunteerAvatar({
   profilePhotoUrl,
   size = 'sm',
   className = '',
+  onClick,
 }: VolunteerAvatarProps) {
+  const [imageFailed, setImageFailed] = useState(false);
   const sizeClass = sizeClasses[size];
+  const showImage = profilePhotoUrl && !imageFailed;
+  const interactive = Boolean(onClick && showImage);
 
-  if (profilePhotoUrl) {
-    return (
+  useEffect(() => {
+    setImageFailed(false);
+  }, [profilePhotoUrl]);
+
+  if (showImage) {
+    const image = (
       <img
         src={profilePhotoUrl}
         alt=""
-        className={`${sizeClass} shrink-0 border-2 border-white object-cover shadow-md ring-1 ring-slate-200 ${className}`}
+        onError={() => setImageFailed(true)}
+        className={`${sizeClass} shrink-0 border-2 border-white object-cover shadow-md ring-1 ring-crm-taupe/20 ${className} ${
+          interactive
+            ? 'transition hover:ring-2 hover:ring-crm-indigo/30'
+            : ''
+        }`}
       />
     );
+
+    if (interactive) {
+      return (
+        <button
+          type="button"
+          onClick={onClick}
+          className="shrink-0 cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-crm-indigo/40"
+          aria-label={`View ${name} profile photo`}
+        >
+          {image}
+        </button>
+      );
+    }
+
+    return image;
   }
 
   return (
     <div
-      className={`${sizeClass} flex shrink-0 items-center justify-center bg-slate-200 ring-1 ring-slate-200 ${className}`}
+      className={`${sizeClass} flex shrink-0 items-center justify-center bg-crm-taupe-100 ring-1 ring-crm-taupe/20 ${className}`}
       role="img"
       aria-label={`${name} (no photo)`}
     >
       <svg
-        className={size === 'lg' ? 'h-12 w-12' : 'h-6 w-6'}
+        className={
+          size === 'lg' ? 'h-12 w-12' : size === 'md' ? 'h-8 w-8' : 'h-6 w-6'
+        }
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"

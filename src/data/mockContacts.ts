@@ -1,11 +1,29 @@
 import type {
   ContactDetail,
+  ContactEmailMessage,
   ContactListItem,
   ContactTag,
-  FinancialRecord,
 } from '../types/contact';
-import type { VolunteerTerm } from '../types/volunteer';
+import type { VolunteerTerm, VolunteerFile } from '../types/volunteer';
+import { applicationPipeline } from './mockApplications';
+import { mockFiles } from './mockVolunteerDetail';
+import {
+  buildMockDonorHistory,
+  mockQuickbooksCustomerId,
+} from './mockDonorHistory';
+import { buildMockMailingDemographics } from './mockMailingAddress';
+import {
+  buildCuratedJohnDoeEmailThread,
+  buildMockContactEmailThread,
+} from './mockContactEmailThread';
+import {
+  buildMockVolunteerApplicationContext,
+  buildMockVolunteerDemographics,
+  buildMockVolunteerFiles,
+  phoneForGeneratedContact,
+} from './mockVolunteerContactProfile';
 import { mockProfilePhotoUrl } from '../utils/mockProfilePhoto';
+import { formatContactAddress } from '../utils/formatContactAddress';
 
 const FIRST_NAMES = [
   'Amara', 'Lucas', 'Sofia', 'Ethan', 'Priya', 'Oliver', 'Maya', 'Daniel',
@@ -47,14 +65,6 @@ function tagsForIndex(index: number): ContactTag[] {
   return ['donor'];
 }
 
-function phoneForIndex(index: number, idNum: number): string | undefined {
-  if (index % 4 === 0) return undefined;
-  const regions = ['+1 (555)', '+44 20', '+49 30', '+33 1', '+30 21'];
-  const prefix = regions[index % regions.length];
-  const local = String(2000000 + idNum).slice(-7);
-  return `${prefix} ${local.slice(0, 3)}-${local.slice(3)}`;
-}
-
 function generateExtraContacts(
   count: number,
   startId: number,
@@ -76,10 +86,12 @@ function generateExtraContacts(
       tags,
     };
 
-    const phone = phoneForIndex(i, idNum);
+    const isVolunteer = tags.includes('volunteer');
+
+    const phone = phoneForGeneratedContact(i, idNum, isVolunteer);
     if (phone) item.phone = phone;
 
-    if (tags.includes('volunteer') && i % 3 !== 2) {
+    if (isVolunteer) {
       item.profilePhotoUrl = mockProfilePhotoUrl(
         slugify(`${first}-${last}-${idNum}`),
       );
@@ -89,6 +101,25 @@ function generateExtraContacts(
   }
 
   return contacts;
+}
+
+function mockVolunteerFilesForContact(
+  contact: ContactListItem,
+  applicationItemId?: string,
+): VolunteerFile[] {
+  const volunteer =
+    applicationPipeline
+      .flatMap((section) => section.volunteers)
+      .find(
+        (item) =>
+          item.id === applicationItemId ||
+          item.name.toLowerCase() === contact.name.toLowerCase(),
+      ) ?? null;
+
+  if (!volunteer) return [];
+
+  const seed = volunteer.id.replace(/\W/g, '') || 'volunteer';
+  return mockFiles(seed);
 }
 
 const BASE_CONTACTS: ContactListItem[] = [
@@ -166,68 +197,75 @@ const johnTerms: VolunteerTerm[] = [
   },
 ];
 
-const mockDonationsJohn: FinancialRecord[] = [
-  {
-    id: 'pay-1',
-    kind: 'payment',
-    date: 'May 10, 2026',
-    amount: 450,
-    currency: 'USD',
-    description: 'Program fee payment',
-    quickbooksInvoiceId: 'mock-invoice-1042-paid',
-    quickbooksUrl:
-      'https://app.qbo.intuit.com/app/invoice?txnId=mock-invoice-1042-paid',
-    projectLabel: 'Summer 2026 — Team A',
-    isPaid: true,
-  },
-  {
-    id: 'inv-2',
-    kind: 'invoice',
-    date: 'April 1, 2026',
-    amount: 100,
-    currency: 'USD',
-    description: 'General donation',
-    quickbooksInvoiceId: 'mock-invoice-donation-100',
-    quickbooksUrl:
-      'https://app.qbo.intuit.com/app/invoice?txnId=mock-invoice-donation-100',
-    projectLabel: 'Lesvos field support',
-    isPaid: true,
-  },
-];
+function donationsForContact(
+  contactId: string,
+  tags: ContactTag[],
+): ContactDetail['donations'] {
+  if (!tags.includes('donor')) return [];
+  return buildMockDonorHistory(contactId, {
+    includeProgramFees:
+      contactId === 'contact-1' && tags.includes('volunteer'),
+  });
+}
 
-const mockDonationsJane: FinancialRecord[] = [
-  {
-    id: 'pay-j1',
-    kind: 'payment',
-    date: 'May 8, 2026',
-    amount: 250,
-    currency: 'USD',
-    description: 'Family support donation',
-    projectLabel: 'Germany housing fund',
-    isPaid: true,
-  },
-];
+function demographicsForContact(
+  contactId: string,
+  tags: ContactTag[],
+  preset?: ContactDetail['demographics'],
+): ContactDetail['demographics'] {
+  if (tags.includes('volunteer')) {
+    return preset ?? buildMockVolunteerDemographics(contactId);
+  }
 
-const mockDonationsEleanor: FinancialRecord[] = [
-  {
-    id: 'inv-e1',
-    kind: 'invoice',
-    date: 'March 15, 2026',
-    amount: 500,
-    currency: 'USD',
-    description: 'Annual donor gift',
-    quickbooksInvoiceId: 'mock-invoice-500',
-    quickbooksUrl:
-      'https://app.qbo.intuit.com/app/invoice?txnId=mock-invoice-500',
-    projectLabel: 'General operations',
-    isPaid: false,
-  },
-];
+  if (!tags.includes('donor')) {
+    return preset;
+  }
 
-const MOCK_CONTACT_DETAILS: Record<string, ContactDetail> = {
+  if (preset && formatContactAddress(preset)) {
+    return preset;
+  }
+
+  return buildMockMailingDemographics(contactId);
+}
+
+function emailCorrespondenceForContact(
+  contactId: string,
+  contact: Pick<ContactListItem, 'name' | 'email'>,
+  preset?: ContactDetail['emailCorrespondence'],
+): ContactDetail['emailCorrespondence'] {
+  if (preset !== undefined) return preset;
+  return buildMockContactEmailThread(contactId, contact);
+}
+
+function ensureEmailCorrespondence(
+  detail: Omit<ContactDetail, 'emailCorrespondence'> & {
+    emailCorrespondence?: ContactEmailMessage[];
+  },
+  contactId: string,
+): ContactDetail {
+  const emailCorrespondence =
+    detail.emailCorrespondence ??
+    buildMockContactEmailThread(contactId, {
+      name: detail.name,
+      email: detail.email,
+    });
+
+  return {
+    ...detail,
+    emailCorrespondence,
+  };
+}
+
+const MOCK_CONTACT_DETAILS: Record<
+  string,
+  Omit<ContactDetail, 'emailCorrespondence'> & {
+    emailCorrespondence?: ContactEmailMessage[];
+  }
+> = {
   'contact-1': {
     ...BASE_CONTACTS[0],
-    quickbooksCustomerId: 'qbo-customer-john',
+    quickbooksCustomerId: mockQuickbooksCustomerId('contact-1'),
+    files: mockVolunteerFilesForContact(BASE_CONTACTS[0], 'mock-1'),
     demographics: {
       address: '123 Oak Street',
       city: 'Portland',
@@ -242,7 +280,8 @@ const MOCK_CONTACT_DETAILS: Record<string, ContactDetail> = {
     },
     serviceTerms: johnTerms,
     linkedVolunteers: [],
-    donations: mockDonationsJohn,
+    donations: donationsForContact('contact-1', BASE_CONTACTS[0].tags),
+    emailCorrespondence: buildCuratedJohnDoeEmailThread(),
   },
   'contact-2': {
     ...BASE_CONTACTS[1],
@@ -276,6 +315,11 @@ const MOCK_CONTACT_DETAILS: Record<string, ContactDetail> = {
   },
   'contact-3': {
     ...BASE_CONTACTS[2],
+    demographics: {
+      address: '456 Elm Court',
+      city: 'Portland',
+      country: 'United States',
+    },
     currentApplication: null,
     serviceTerms: [],
     linkedVolunteers: [
@@ -288,11 +332,14 @@ const MOCK_CONTACT_DETAILS: Record<string, ContactDetail> = {
         relationship: 'child',
       },
     ],
-    donations: mockDonationsJane,
+    donations: donationsForContact('contact-3', BASE_CONTACTS[2].tags),
   },
   'contact-4': {
     ...BASE_CONTACTS[3],
+    files: mockVolunteerFilesForContact(BASE_CONTACTS[3], 'mock-2'),
     demographics: {
+      address: '42 Bergmannstraße',
+      city: 'Berlin',
       country: 'Germany',
       dateOfBirth: 'August 2, 2002',
     },
@@ -322,17 +369,22 @@ const MOCK_CONTACT_DETAILS: Record<string, ContactDetail> = {
   },
   'contact-5': {
     ...BASE_CONTACTS[4],
-    quickbooksCustomerId: 'qbo-customer-eleanor',
+    quickbooksCustomerId: mockQuickbooksCustomerId('contact-5'),
+    demographics: {
+      address: '88 Highland Avenue',
+      city: 'Boston',
+      country: 'United States',
+    },
     currentApplication: null,
     serviceTerms: [],
     linkedVolunteers: [],
-    donations: mockDonationsEleanor,
+    donations: donationsForContact('contact-5', BASE_CONTACTS[4].tags),
   },
 };
 
 export function getMockContactDetail(contactId: string): ContactDetail {
   const preset = MOCK_CONTACT_DETAILS[contactId];
-  if (preset) return preset;
+  if (preset) return ensureEmailCorrespondence(preset, contactId);
 
   const listItem = MOCK_CONTACTS_LIST.find((c) => c.id === contactId);
   if (!listItem) {
@@ -341,6 +393,7 @@ export function getMockContactDetail(contactId: string): ContactDetail {
       name: 'Unknown contact',
       email: '',
       tags: [],
+      emailCorrespondence: [],
       currentApplication: null,
       serviceTerms: [],
       linkedVolunteers: [],
@@ -348,11 +401,22 @@ export function getMockContactDetail(contactId: string): ContactDetail {
     };
   }
 
+  const isVolunteer = listItem.tags.includes('volunteer');
+  const volunteerContext = isVolunteer
+    ? buildMockVolunteerApplicationContext(contactId)
+    : null;
+
   return {
     ...listItem,
-    currentApplication: null,
-    serviceTerms: [],
+    quickbooksCustomerId: listItem.tags.includes('donor')
+      ? mockQuickbooksCustomerId(contactId)
+      : undefined,
+    demographics: demographicsForContact(contactId, listItem.tags),
+    files: isVolunteer ? buildMockVolunteerFiles(contactId) : undefined,
+    currentApplication: volunteerContext?.currentApplication ?? null,
+    serviceTerms: volunteerContext?.serviceTerms ?? [],
     linkedVolunteers: [],
-    donations: [],
+    donations: donationsForContact(contactId, listItem.tags),
+    emailCorrespondence: emailCorrespondenceForContact(contactId, listItem),
   };
 }

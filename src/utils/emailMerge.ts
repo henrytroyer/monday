@@ -1,7 +1,9 @@
 import { getTimelineLabel } from '../data/timelines';
+import type { ContactDetail } from '../types/contact';
 import type { ApplicationEmail } from '../types/volunteer';
 import type { VolunteerDetail } from '../types/volunteer';
 import { displayLocationPreference } from './volunteerLocation';
+import { formatPhoneDisplay } from './phoneFormat';
 
 export interface MergedEmail {
   subject: string;
@@ -25,7 +27,41 @@ export function buildMergeContext(
     status: detail.status,
     coordinator: detail.coordinator,
     housing: detail.housing,
-    phone: detail.phone,
+    phone:
+      formatPhoneDisplay(detail.phone !== '—' ? detail.phone : '') ??
+      detail.phone,
+  };
+}
+
+export function buildContactMergeContext(
+  contact: ContactDetail,
+): Record<string, string> {
+  const firstName = contact.name.trim().split(/\s+/)[0] ?? contact.name;
+  const app = contact.currentApplication;
+
+  return {
+    name: contact.name,
+    firstName,
+    email: contact.email,
+    recipientLabel: contact.tags.includes('donor')
+      ? 'Donor'
+      : contact.tags.includes('parent')
+        ? 'Parent'
+        : contact.tags.includes('pastor')
+          ? 'Pastor'
+          : 'Contact',
+    locationPreference: app?.timelineLabel?.includes('Germany')
+      ? 'Germany'
+      : app?.timelineLabel?.includes('Lesvos')
+        ? 'Lesvos'
+        : '',
+    location: '',
+    timelineLabel: app?.timelineLabel ?? '',
+    timelineId: '',
+    status: app?.status ?? '',
+    coordinator: '',
+    housing: '',
+    phone: formatPhoneDisplay(contact.phone) ?? contact.phone ?? '',
   };
 }
 

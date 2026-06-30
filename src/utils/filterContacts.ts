@@ -5,7 +5,11 @@ import type {
 } from '../types/contact';
 
 export function hasActiveContactFilters(filters: ContactFilterState): boolean {
-  return filters.searchQuery.trim().length > 0 || filters.tags.length > 0;
+  return (
+    filters.searchQuery.trim().length > 0 ||
+    filters.tags.length > 0 ||
+    filters.sortBy !== 'name-asc'
+  );
 }
 
 export function filterContacts(

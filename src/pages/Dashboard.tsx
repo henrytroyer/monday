@@ -1,53 +1,68 @@
 import { useState } from 'react';
+import AppSidebar, { type PageId } from '../components/layout/AppSidebar';
+import { useLayout } from '../context/LayoutContext';
 import ApplicationsPage from './ApplicationsPage';
 import ContactsPage from './ContactsPage';
 import EmailTemplatesPage from './EmailTemplatesPage';
+import LongtermApplicationsPage from './LongtermApplicationsPage';
+import RecruitmentPage from './RecruitmentPage';
 
 export default function Dashboard() {
-  const [activePage, setActivePage] = useState('applications');
+  const [activePage, setActivePage] = useState<PageId>('applications');
+  const [recruitmentFocusId, setRecruitmentFocusId] = useState<string | null>(
+    null,
+  );
+  const [applicationFocusId, setApplicationFocusId] = useState<string | null>(
+    null,
+  );
+  const { closeSidebar } = useLayout();
+
+  const handleNavigate = (id: PageId) => {
+    setActivePage(id);
+    closeSidebar();
+  };
+
+  const handleGoToRecruitment = (prospectId: string) => {
+    setRecruitmentFocusId(prospectId);
+    setActivePage('recruitment');
+    closeSidebar();
+  };
+
+  const handleGoToApplication = (applicationId: string) => {
+    setApplicationFocusId(applicationId);
+    setActivePage('applications');
+    closeSidebar();
+  };
 
   return (
-    <div className="flex h-screen bg-slate-100">
-      <aside className="w-72 shrink-0 border-r border-slate-200 bg-white p-6">
-        <div>
-          <h1 className="text-2xl font-bold">CRM Prototype</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Volunteer operations dashboard
-          </p>
-        </div>
-
-        <nav className="mt-10 space-y-2">
-          {(
-            [
-              ['contacts', 'Contacts'],
-              ['applications', 'Applications'],
-              ['email-templates', 'Email templates'],
-              ['forms', 'Forms'],
-              ['automations', 'Automations'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActivePage(id)}
-              className={`w-full rounded-2xl px-4 py-3 text-left transition ${
-                activePage === id
-                  ? 'bg-slate-900 text-white'
-                  : 'hover:bg-slate-100'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-      </aside>
+    <div className="flex h-screen bg-crm-white">
+      <AppSidebar activePage={activePage} onNavigate={handleNavigate} />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-8">
-        {activePage === 'applications' && <ApplicationsPage />}
+        {activePage === 'applications' && (
+          <ApplicationsPage
+            focusApplicationId={applicationFocusId}
+            onClearFocus={() => setApplicationFocusId(null)}
+          />
+        )}
 
-        {activePage === 'contacts' && <ContactsPage />}
+        {activePage === 'contacts' && (
+          <ContactsPage
+            onGoToRecruitment={handleGoToRecruitment}
+            onGoToApplication={handleGoToApplication}
+          />
+        )}
 
         {activePage === 'email-templates' && <EmailTemplatesPage />}
+
+        {activePage === 'recruitment' && (
+          <RecruitmentPage
+            focusProspectId={recruitmentFocusId}
+            onClearFocus={() => setRecruitmentFocusId(null)}
+          />
+        )}
+
+        {activePage === 'longterm-applications' && <LongtermApplicationsPage />}
 
         {activePage === 'forms' && (
           <PlaceholderPage
@@ -76,9 +91,9 @@ function PlaceholderPage({
 }) {
   return (
     <div>
-      <h1 className="text-4xl font-bold">{title}</h1>
-      <p className="mt-2 text-slate-500">{description}</p>
-      <p className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-slate-500">
+      <h1 className="text-4xl font-semibold text-crm-heading">{title}</h1>
+      <p className="mt-2 text-crm-slate">{description}</p>
+      <p className="mt-8 rounded-2xl border border-dashed border-crm-taupe/28 bg-crm-surface p-6 text-crm-slate">
         Prototype placeholder — we can build this section next.
       </p>
     </div>

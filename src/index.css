@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+@theme {
+  /* Soft, low-contrast palette */
+  --color-crm-indigo: #4a6478;
+  --color-crm-indigo-dark: #3d5466;
+  --color-crm-text: #556575;
+  --color-crm-heading: #3d5466;
+  --color-crm-white: #eef1f4;
+  --color-crm-surface: #f7f8fa;
+  --color-crm-slate: #8494a3;
+  --color-crm-taupe: #c8bfb2;
+
+  --color-crm-taupe-50: color-mix(in srgb, #c8bfb2 4%, #eef1f4);
+  --color-crm-taupe-100: color-mix(in srgb, #c8bfb2 8%, #eef1f4);
+  --color-crm-indigo-50: color-mix(in srgb, #4a6478 5%, #eef1f4);
+  --color-crm-indigo-100: color-mix(in srgb, #4a6478 9%, #eef1f4);
+  --color-crm-terracotta: #C96C39;
+}
+
 html,
 body,
 #root {
@@ -10,4 +28,17 @@ body,
 #root {
   min-height: 100vh;
   padding: 0;
+}
+
+body {
+  background: var(--color-crm-white);
+  color: var(--color-crm-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-crm-heading);
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavLayer } from '../../context/NavigationHistoryContext';
 import type { OnboardingStep } from '../../types/volunteer';
 import InvoiceDetailModal from './InvoiceDetailModal';
 
@@ -22,6 +23,12 @@ export default function OnboardingProgress({
     mondayStatus: string;
   } | null>(null);
   const [linkedInvoiceId, setLinkedInvoiceId] = useState<string | null>(null);
+
+  const { requestClose: requestCloseInvoice } = useNavLayer(
+    invoiceModal !== null,
+    () => setInvoiceModal(null),
+    `invoice-${invoiceModal?.invoiceId ?? 'new'}-${volunteerName}`,
+  );
 
   const handleLinked = (invoiceId: string) => {
     setLinkedInvoiceId(invoiceId);
@@ -59,7 +66,7 @@ export default function OnboardingProgress({
           itemId={itemId}
           boardId={boardId}
           onInvoiceLinked={handleLinked}
-          onClose={() => setInvoiceModal(null)}
+          onClose={requestCloseInvoice}
         />
       )}
     </>
@@ -81,11 +88,11 @@ function OnboardingStepRow({
       <button
         type="button"
         onClick={() => onOpenInvoice(step.quickbooksInvoiceId ?? '')}
-        className="flex w-full items-center justify-between rounded-2xl bg-white p-4 text-left ring-1 ring-slate-200 transition hover:bg-slate-50 hover:ring-slate-300"
+        className="flex w-full items-center justify-between rounded-2xl bg-crm-surface p-4 text-left ring-1 ring-crm-taupe/20 transition hover:bg-crm-taupe-50 hover:ring-crm-taupe/50"
       >
         <div>
-          <div className="font-medium text-slate-900">{step.title}</div>
-          <div className="mt-1 text-xs text-slate-500">
+          <div className="font-medium text-crm-heading">{step.title}</div>
+          <div className="mt-1 text-xs text-crm-slate">
             {hasInvoice
               ? 'View QuickBooks invoice · live payment status'
               : 'Create or link QuickBooks invoice'}
@@ -101,14 +108,14 @@ function OnboardingStepRow({
           >
             {step.status}
           </span>
-          <span className="text-slate-400">→</span>
+          <span className="text-crm-slate">→</span>
         </div>
       </button>
     );
   }
 
   return (
-    <div className="flex items-center justify-between rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+    <div className="flex items-center justify-between rounded-2xl bg-crm-surface p-4 ring-1 ring-crm-taupe/20">
       <div className="font-medium">{step.title}</div>
       <div
         className={`rounded-full px-3 py-1 text-sm ${

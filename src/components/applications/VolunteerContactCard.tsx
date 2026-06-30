@@ -1,7 +1,12 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { getTimelineLabel } from '../../data/timelines';
-import type { VolunteerDetail, VolunteerFile } from '../../types/volunteer';
-import FilePreviewModal from './FilePreviewModal';
+import type { VolunteerDetail } from '../../types/volunteer';
+import {
+  buildGoogleMapsUrl,
+  formatContactAddress,
+} from '../../utils/formatContactAddress';
+import { formatPhoneTelHref } from '../../utils/phoneFormat';
+import VolunteerFilesSection from './VolunteerFilesSection';
 import {
   displayLocationPreference,
   hasDistinctAssignedLocation,
@@ -10,16 +15,29 @@ import VolunteerAvatar from './VolunteerAvatar';
 
 interface VolunteerContactCardProps {
   detail: VolunteerDetail;
+  onEmailClick?: () => void;
+  onPhoneClick?: () => void;
+  beforeFiles?: ReactNode;
+  besideFiles?: ReactNode;
+  splitFilesRow?: boolean;
 }
 
 export default function VolunteerContactCard({
   detail,
+  onEmailClick,
+  onPhoneClick,
+  beforeFiles,
+  besideFiles,
+  splitFilesRow = false,
 }: VolunteerContactCardProps) {
-  const [previewFile, setPreviewFile] = useState<VolunteerFile | null>(null);
   const timelineLabel = getTimelineLabel(detail.timelineId);
+  const formattedAddress = detail.demographics
+    ? formatContactAddress(detail.demographics)
+    : null;
+  const displayDateOfBirth = detail.demographics?.dateOfBirth?.trim() || null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-crm-taupe/20 bg-gradient-to-br from-crm-taupe-50 to-crm-surface p-6 shadow-sm">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
         <VolunteerAvatar
           name={detail.name}
@@ -28,9 +46,9 @@ export default function VolunteerContactCard({
         />
 
         <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold text-slate-900">{detail.name}</h2>
+          <h2 className="text-2xl font-semibold text-crm-heading">{detail.name}</h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">
+            <span className="rounded-full bg-crm-white px-3 py-1 text-sm text-crm-text">
               {displayLocationPreference(detail)}
             </span>
             {hasDistinctAssignedLocation(detail) && (
@@ -46,82 +64,104 @@ export default function VolunteerContactCard({
             </span>
           </div>
 
-          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
-            <ContactField label="Email">
+          <dl className="mt-5 grid grid-cols-2 gap-3">
+            <Field label="Email">
               {detail.email !== '—' ? (
-                <a
-                  href={`mailto:${detail.email}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline"
-                >
-                  {detail.email}
-                </a>
+                onEmailClick ? (
+                  <button
+                    type="button"
+                    onClick={onEmailClick}
+                    className="font-medium text-crm-heading underline-offset-2 hover:text-crm-heading hover:underline"
+                  >
+                    {detail.email}
+                  </button>
+                ) : (
+                  <a
+                    href={`mailto:${detail.email}`}
+                    className="font-medium text-crm-heading underline-offset-2 hover:underline"
+                  >
+                    {detail.email}
+                  </a>
+                )
               ) : (
-                <span className="text-slate-400">Not provided</span>
+                <span className="text-crm-slate">Not provided</span>
               )}
-            </ContactField>
-            <ContactField label="Phone">
+            </Field>
+            <Field label="Phone">
               {detail.phone !== '—' ? (
+                onPhoneClick ? (
+                  <button
+                    type="button"
+                    onClick={onPhoneClick}
+                    className="font-medium text-crm-heading underline-offset-2 hover:text-crm-heading hover:underline"
+                  >
+                    {detail.phone}
+                  </button>
+                ) : (
+                  <a
+                    href={formatPhoneTelHref(detail.phone) ?? '#'}
+                    className="font-medium text-crm-heading underline-offset-2 hover:underline"
+                  >
+                    {detail.phone}
+                  </a>
+                )
+              ) : (
+                <span className="text-crm-slate">Not provided</span>
+              )}
+            </Field>
+            <Field label="Date of birth">
+              {displayDateOfBirth ? (
+                <span className="font-medium text-crm-heading">
+                  {displayDateOfBirth}
+                </span>
+              ) : (
+                <span className="text-crm-slate">Not provided</span>
+              )}
+            </Field>
+            <Field label="Address">
+              {formattedAddress ? (
                 <a
-                  href={`tel:${detail.phone.replace(/\s/g, '')}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline"
+                  href={buildGoogleMapsUrl(formattedAddress)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="line-clamp-3 whitespace-pre-line font-medium text-crm-heading underline-offset-2 hover:text-crm-heading hover:underline"
                 >
-                  {detail.phone}
+                  {formattedAddress}
                 </a>
               ) : (
-                <span className="text-slate-400">Not provided</span>
+                <span className="text-crm-slate">Not provided</span>
               )}
-            </ContactField>
+            </Field>
           </dl>
         </div>
       </div>
 
-      <div className="mt-6 border-t border-slate-200 pt-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Files
-        </h3>
-        {detail.files.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-400">No files attached yet.</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-2">
-            {detail.files.map((file) => (
-              <li key={file.id} className="flex flex-wrap items-center gap-2">
-                {file.url ? (
-                  <button
-                    type="button"
-                    onClick={() => setPreviewFile(file)}
-                    className="text-left text-sm font-medium text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
-                  >
-                    {file.name}
-                  </button>
-                ) : (
-                  <span className="text-sm text-slate-500">{file.name}</span>
-                )}
-                {isItineraryFileName(file.name) && (
-                  <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800">
-                    Itinerary
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {beforeFiles && <div className="mt-6">{beforeFiles}</div>}
 
-      {previewFile && (
-        <FilePreviewModal
-          file={previewFile}
-          onClose={() => setPreviewFile(null)}
+      {splitFilesRow ? (
+        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+          <VolunteerFilesSection
+            volunteerName={detail.name}
+            profilePhotoUrl={detail.profilePhotoUrl}
+            files={detail.files}
+            showOtherFiles
+            embeddedInGrid
+          />
+          {besideFiles}
+        </div>
+      ) : (
+        <VolunteerFilesSection
+          volunteerName={detail.name}
+          profilePhotoUrl={detail.profilePhotoUrl}
+          files={detail.files}
+          showOtherFiles
         />
       )}
     </div>
   );
 }
 
-function isItineraryFileName(name: string): boolean {
-  return /itinerary/i.test(name);
-}
-
-function ContactField({
+function Field({
   label,
   children,
 }: {
@@ -129,11 +169,11 @@ function ContactField({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-xl bg-white/80 px-4 py-3 ring-1 ring-slate-200/80">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">
+    <div className="flex h-24 flex-col rounded-xl bg-crm-surface/80 px-4 py-3 ring-1 ring-crm-taupe/20/80">
+      <dt className="text-xs font-medium uppercase tracking-wide text-crm-slate">
         {label}
       </dt>
-      <dd className="mt-1 text-sm">{children}</dd>
+      <dd className="mt-1 flex-1 overflow-hidden text-sm">{children}</dd>
     </div>
   );
 }

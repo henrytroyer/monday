@@ -13,8 +13,10 @@ Create or use a board (default name in sync script: `Contacts Test`). Required c
 | Email | email | Primary match key |
 | Tags | status (multi-label) | Labels: `Volunteer`, `Pastor`, `Parent`, `Donor` |
 | type | status/text | Legacy single-value column (still read if present) |
-| Phone | phone | Optional |
+| Phone | phone | Optional; displayed in international format (`+1 555 123 4567`); writes use `{ phone, countryShortName }` JSON |
 | Profile Photo | file | Optional |
+| Passport Photo | file | Optional; shown in volunteer files panel |
+| Files | file | Optional gallery; passport matched by filename |
 | QuickBooks Customer ID | text | Optional; speeds financial lookup |
 | Applications | board_relation | Links to Applications board items (one per term) |
 | Address, City, Country, Date of birth | text | Optional demographics |

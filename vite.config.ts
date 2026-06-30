@@ -14,6 +14,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/quickbooks/, ''),
       },
+      '/api/monday': {
+        target: 'http://localhost:4042',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/monday/, ''),
+      },
     },
     hmr: {
       clientPort: 4040,

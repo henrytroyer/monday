@@ -3,6 +3,8 @@
  */
 
 import { useEffect, useState } from 'react';
+import { LayoutProvider } from './context/LayoutContext';
+import { NavigationHistoryProvider } from './context/NavigationHistoryContext';
 import Dashboard from './pages/Dashboard';
 import OAuthCallback from './pages/OAuthCallback';
 
@@ -17,7 +19,13 @@ function App() {
     return <OAuthCallback />;
   }
 
-  return <Dashboard />;
+  return (
+    <LayoutProvider>
+      <NavigationHistoryProvider>
+        <Dashboard />
+      </NavigationHistoryProvider>
+    </LayoutProvider>
+  );
 }
 
 export default App;

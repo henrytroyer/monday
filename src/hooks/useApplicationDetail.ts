@@ -6,6 +6,7 @@ import {
   MOCK_PASTOR_REFERENCE_FORM_FIELDS,
   MOCK_PASTOR_REFERENCE_FORM_FIELDS_RACHEL,
 } from '../data/mockApplicationForm';
+import { buildMockVolunteerDemographics } from '../data/mockVolunteerContactProfile';
 import { fetchApplicationDetail } from '../services/crmApi';
 import type { VolunteerItinerary } from '../types/itinerary';
 import type { Volunteer, VolunteerDetail, VolunteerFile } from '../types/volunteer';
@@ -38,6 +39,18 @@ function mockFiles(seed: string): VolunteerFile[] {
     {
       id: `${seed}-passport`,
       name: 'Passport.pdf',
+      isImage: false,
+      url: MOCK_PDF_URL,
+    },
+    {
+      id: `${seed}-background`,
+      name: 'Background-check.pdf',
+      isImage: false,
+      url: MOCK_PDF_URL,
+    },
+    {
+      id: `${seed}-safeguarding`,
+      name: 'Child-safeguarding-certificate.pdf',
       isImage: false,
       url: MOCK_PDF_URL,
     },
@@ -156,12 +169,20 @@ const mockDetails: Record<string, VolunteerDetail> = {
   },
 };
 
-function buildMockDetail(volunteer: Volunteer): VolunteerDetail {
+function withDemographics(detail: VolunteerDetail): VolunteerDetail {
+  return {
+    ...detail,
+    demographics:
+      detail.demographics ?? buildMockVolunteerDemographics(detail.id),
+  };
+}
+
+export function buildMockVolunteerDetail(volunteer: Volunteer): VolunteerDetail {
   const preset = mockDetails[volunteer.id];
-  if (preset) return preset;
+  if (preset) return withDemographics(preset);
 
   const seed = volunteer.id.replace(/\W/g, '') || 'volunteer';
-  return {
+  return withDemographics({
     ...volunteer,
     profilePhotoUrl:
       volunteer.profilePhotoUrl ?? mockProfilePhotoUrl(seed),
@@ -190,7 +211,7 @@ function buildMockDetail(volunteer: Volunteer): VolunteerDetail {
     activityTimeline: [],
     applicationFormFields: MOCK_APPLICATION_FORM_FIELDS,
     pastorReferenceFormFields: MOCK_PASTOR_REFERENCE_FORM_FIELDS,
-  };
+  });
 }
 
 interface UseApplicationDetailReturn {
@@ -221,7 +242,7 @@ export function useApplicationDetail(
     }
 
     if (isMock || selected.id.startsWith('mock-')) {
-      setDetail(buildMockDetail(selected));
+      setDetail(buildMockVolunteerDetail(selected));
       setLoading(false);
       setError(null);
       return;
@@ -245,7 +266,7 @@ export function useApplicationDetail(
           setError(
             err instanceof Error ? err.message : 'Failed to load application',
           );
-          setDetail(buildMockDetail(fallback));
+          setDetail(buildMockVolunteerDetail(fallback));
           setLoading(false);
         }
       }

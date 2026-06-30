@@ -1,12 +1,18 @@
-import type { VolunteerTerm } from './volunteer';
+import type { VolunteerTerm, VolunteerFile } from './volunteer';
 
-export type ContactTag = 'volunteer' | 'pastor' | 'parent' | 'donor';
+export type ContactTag =
+  | 'volunteer'
+  | 'pastor'
+  | 'parent'
+  | 'donor'
+  | 'recruitment';
 
 export const CONTACT_TAGS: ContactTag[] = [
   'volunteer',
   'pastor',
   'parent',
   'donor',
+  'recruitment',
 ];
 
 export const CONTACT_TAG_LABELS: Record<ContactTag, string> = {
@@ -14,6 +20,7 @@ export const CONTACT_TAG_LABELS: Record<ContactTag, string> = {
   pastor: 'Pastor',
   parent: 'Parent',
   donor: 'Donor',
+  recruitment: 'Recruitment',
 };
 
 export interface ContactListItem {
@@ -22,6 +29,7 @@ export interface ContactListItem {
   email: string;
   phone?: string;
   profilePhotoUrl?: string;
+  createdAt?: string;
   tags: ContactTag[];
 }
 
@@ -50,6 +58,19 @@ export interface LinkedVolunteerSummary {
   relationship: 'child' | 'reference';
 }
 
+export interface ContactEmailMessage {
+  id: string;
+  contactId: string;
+  direction: 'inbound' | 'outbound';
+  senderName: string;
+  senderEmail: string;
+  recipientName: string;
+  recipientEmail: string;
+  subject: string;
+  body: string;
+  sentAt: string;
+}
+
 export interface FinancialRecord {
   id: string;
   kind: 'invoice' | 'payment';
@@ -61,23 +82,37 @@ export interface FinancialRecord {
   quickbooksUrl?: string;
   projectLabel?: string;
   isPaid?: boolean;
+  /** Mock / QuickBooks: one-time gift vs recurring sustaining gift */
+  donationType?: 'one-time' | 'recurring';
 }
 
 export interface ContactDetail extends ContactListItem {
+  passportPhotoUrl?: string;
+  passportFile?: VolunteerFile;
   quickbooksCustomerId?: string;
   demographics?: ContactDemographics;
+  files?: VolunteerFile[];
+  emailCorrespondence: ContactEmailMessage[];
   currentApplication: CurrentApplicationSummary | null;
   serviceTerms: VolunteerTerm[];
   linkedVolunteers: LinkedVolunteerSummary[];
   donations: FinancialRecord[];
 }
 
+export type ContactSortOption =
+  | 'name-asc'
+  | 'name-desc'
+  | 'date-desc'
+  | 'date-asc';
+
 export interface ContactFilterState {
   searchQuery: string;
   tags: ContactTag[];
+  sortBy: ContactSortOption;
 }
 
 export const emptyContactFilters = (): ContactFilterState => ({
   searchQuery: '',
   tags: [],
+  sortBy: 'name-asc',
 });

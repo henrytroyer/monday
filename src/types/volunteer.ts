@@ -1,4 +1,5 @@
-import type { VolunteerItinerary } from './itinerary';
+import type { ContactDemographics } from './contact';
+import type { VolunteerItinerary } from "./itinerary";
 
 export interface SignupTimeline {
   id: string;
@@ -7,11 +8,14 @@ export interface SignupTimeline {
   endDate: string;
 }
 
+export type VolunteerFileAccess = 'open' | 'password';
+
 export interface VolunteerFile {
   id: string;
   name: string;
   url?: string;
   isImage: boolean;
+  access?: VolunteerFileAccess;
 }
 
 export interface TermNote {
@@ -35,13 +39,18 @@ export interface VolunteerTerm {
   quickbooksInvoiceId?: string;
   pastorReferenceStatus?: string;
   locationPreference?: string;
+  /** Application pipeline term vs recruitment service record */
+  recordType?: 'application' | 'recruitment';
+  recruitmentProspectId?: string;
 }
 
+export const RECRUITMENT_TIMELINE_ID = 'recruitment';
+
 export type EmailRecipientRole =
-  | 'volunteer'
-  | 'parent'
-  | 'pastor'
-  | 'reference';
+  | "volunteer"
+  | "parent"
+  | "pastor"
+  | "reference";
 
 export interface ApplicationEmail {
   role: EmailRecipientRole;
@@ -52,9 +61,7 @@ export interface ApplicationEmail {
 export interface Volunteer {
   id: string;
   name: string;
-  /** Where the volunteer wants to serve (application preference). */
   locationPreference: string;
-  /** Confirmed or assigned placement location, if set on the board. */
   location: string;
   status: string;
   timelineId: string;
@@ -64,7 +71,6 @@ export interface Volunteer {
 export interface OnboardingStep {
   title: string;
   status: string;
-  /** QuickBooks invoice id when this step is Invoice Paid */
   quickbooksInvoiceId?: string;
 }
 
@@ -75,18 +81,23 @@ export interface ApplicationFormField {
   columnType?: string;
 }
 
+export interface ActivityTimelineEvent {
+  date: string;
+  text: string;
+}
+
 export interface VolunteerDetail extends Volunteer {
   email: string;
-  /** All sendable addresses from the application (volunteer, parent, pastor, references). */
   emails: ApplicationEmail[];
   phone: string;
+  demographics?: ContactDemographics;
   files: VolunteerFile[];
   housing: string;
   itinerary: VolunteerItinerary;
   coordinator: string;
   termNotes: TermNote[];
   onboardingSteps: OnboardingStep[];
-  activityTimeline: { date: string; text: string }[];
+  activityTimeline: ActivityTimelineEvent[];
   applicationFormFields: ApplicationFormField[];
   pastorReferenceFormFields: ApplicationFormField[];
 }
@@ -103,10 +114,10 @@ export interface ApplicationFilterState {
 }
 
 export const LOCATION_OPTIONS = [
-  'Lesvos',
-  'Germany',
-  'Malakasa',
-  'Other',
+  "Lesvos",
+  "Germany",
+  "Malakasa",
+  "Other",
 ] as const;
 
 export type LocationOption = (typeof LOCATION_OPTIONS)[number];

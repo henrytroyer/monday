@@ -40,39 +40,39 @@ export default function TermNotesChat({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-5">
-      <div className="border-b border-slate-200 pb-4">
-        <h3 className="text-lg font-bold text-slate-900">Internal notes</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Attached to:{' '}
-          <span className="font-medium text-slate-700">{timelineLabel}</span>
+    <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
+      <div className="border-b border-crm-taupe/20 pb-4">
+        <h3 className="text-lg font-semibold text-crm-heading">Internal notes</h3>
+        <p className="mt-1 text-sm text-crm-slate">
+          Service record:{' '}
+          <span className="font-medium text-crm-heading">{timelineLabel}</span>
         </p>
-        <p className="mt-1 text-xs text-slate-400">
-          Notes stay with this term of service only. A future term gets its own
+        <p className="mt-1 text-xs text-crm-slate">
+          Notes stay with this service record only. A future record gets its own
           thread.
         </p>
       </div>
 
       <div
         ref={scrollRef}
-        className="mt-4 max-h-72 space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4"
+        className="mt-4 max-h-72 space-y-3 overflow-y-auto rounded-2xl border border-crm-taupe/20 bg-crm-surface p-4"
       >
         {notes.length === 0 ? (
-          <p className="text-center text-sm text-slate-400">
-            No notes for this term yet. Add the first note below.
+          <p className="text-center text-sm text-crm-slate">
+            No notes for this service record yet. Add the first note below.
           </p>
         ) : (
           notes.map((note) => (
             <div
               key={note.id}
-              className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-800"
+              className="rounded-2xl bg-crm-white px-4 py-3 text-sm text-crm-text"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-semibold text-slate-700">
+                <span className="font-semibold text-crm-heading">
                   {note.authorName ?? 'Coordinator'}
                 </span>
                 <time
-                  className="text-xs text-slate-500"
+                  className="text-xs text-crm-slate"
                   dateTime={note.createdAt}
                 >
                   {formatNoteTimestamp(note.createdAt)}
@@ -99,14 +99,14 @@ export default function TermNotesChat({
           rows={2}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Write an internal note for this term…"
-          className="min-h-[4rem] flex-1 resize-y rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+          placeholder="Write an internal note for this service record…"
+          className="min-h-[4rem] flex-1 resize-y rounded-2xl border border-crm-taupe/20 px-4 py-3 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
           disabled={sending}
         />
         <button
           type="submit"
           disabled={sending || !draft.trim()}
-          className="shrink-0 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:self-end"
+          className="shrink-0 rounded-2xl bg-crm-indigo px-5 py-3 text-sm font-medium text-white transition hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50 sm:self-end"
         >
           {sending ? 'Sending…' : 'Add note'}
         </button>

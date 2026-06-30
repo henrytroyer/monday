@@ -1,91 +1,342 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useNavLayer } from '../../context/NavigationHistoryContext';
+import { CONTACT_TAG_LABELS, type ContactDetail } from '../../types/contact';
+import type { ContactCoreFields } from '../../services/contactStorage';
 import {
-  CONTACT_TAGS,
-  CONTACT_TAG_LABELS,
-  type ContactDetail,
-  type ContactTag,
-} from '../../types/contact';
+  buildGoogleMapsUrl,
+  formatContactAddress,
+} from '../../utils/formatContactAddress';
+import { contactTagPillClass } from '../../utils/contactTagStyles';
 import VolunteerAvatar from '../applications/VolunteerAvatar';
+import FilePreviewModal from '../applications/FilePreviewModal';
+import ContactCallModal from './ContactCallModal';
+import ContactMigrationActions from './ContactMigrationActions';
+import ContactSendEmailModal from './ContactSendEmailModal';
 
 interface ContactProfileCardProps {
   detail: ContactDetail;
-  onTagsChange?: (tags: ContactTag[]) => void;
-  savingTags?: boolean;
+  saving?: boolean;
+  canEdit?: boolean;
+  onSave?: (fields: ContactCoreFields) => Promise<ContactDetail | null>;
+  onGoToRecruitment?: (prospectId: string) => void;
 }
+
+const inputClass =
+  'w-full rounded-lg border border-crm-taupe/20 bg-crm-surface px-2 py-1 text-sm outline-none focus:border-crm-slate';
+
+const editButtonClass =
+  'rounded-xl border border-crm-taupe/25 bg-crm-taupe-100/90 px-4 py-2 text-sm font-medium text-crm-slate transition hover:border-crm-taupe/40 hover:bg-crm-taupe-100 hover:text-crm-heading disabled:cursor-not-allowed disabled:opacity-45';
 
 export default function ContactProfileCard({
   detail,
-  onTagsChange,
-  savingTags,
+  saving = false,
+  canEdit = false,
+  onSave,
+  onGoToRecruitment,
 }: ContactProfileCardProps) {
+  const [sendEmailOpen, setSendEmailOpen] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  const [profilePreviewOpen, setProfilePreviewOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(detail.name);
+  const [email, setEmail] = useState(
+    detail.email === '—' ? '' : detail.email,
+  );
+  const [phone, setPhone] = useState(detail.phone ?? '');
+  const [dateOfBirth, setDateOfBirth] = useState(
+    detail.demographics?.dateOfBirth ?? '',
+  );
+  const [addressStreet, setAddressStreet] = useState(
+    detail.demographics?.address ?? '',
+  );
+  const [addressCity, setAddressCity] = useState(detail.demographics?.city ?? '');
+  const [addressCountry, setAddressCountry] = useState(
+    detail.demographics?.country ?? '',
+  );
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  const editable = canEdit && Boolean(onSave);
+
+  const { requestClose: requestCloseEmail } = useNavLayer(
+    sendEmailOpen,
+    () => setSendEmailOpen(false),
+    `contact-email-${detail.id}`,
+  );
+  const { requestClose: requestCloseCall } = useNavLayer(
+    callOpen,
+    () => setCallOpen(false),
+    `contact-call-${detail.id}`,
+  );
+  const { requestClose: requestCloseProfilePreview } = useNavLayer(
+    profilePreviewOpen,
+    () => setProfilePreviewOpen(false),
+    `contact-profile-photo-${detail.id}`,
+  );
+
+  const profilePreviewFile =
+    detail.profilePhotoUrl != null && detail.profilePhotoUrl !== ''
+      ? {
+          id: 'profile-photo',
+          name: 'Profile photo',
+          url: detail.profilePhotoUrl,
+          isImage: true,
+        }
+      : null;
+
+  const resetForm = () => {
+    setName(detail.name);
+    setEmail(detail.email === '—' ? '' : detail.email);
+    setPhone(detail.phone ?? '');
+    setDateOfBirth(detail.demographics?.dateOfBirth ?? '');
+    setAddressStreet(detail.demographics?.address ?? '');
+    setAddressCity(detail.demographics?.city ?? '');
+    setAddressCountry(detail.demographics?.country ?? '');
+  };
+
+  useEffect(() => {
+    resetForm();
+    setEditing(false);
+    setSaveMessage(null);
+  }, [detail]);
+
+  const formattedAddress = detail.demographics
+    ? formatContactAddress(detail.demographics)
+    : null;
+
+  const displayEmail = detail.email;
+  const displayPhone = detail.phone;
+  const displayDateOfBirth = detail.demographics?.dateOfBirth?.trim() || null;
+
+  const handleSave = async () => {
+    if (!onSave) return;
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    const saved = await onSave({
+      name: trimmedName,
+      email: email.trim() || '—',
+      phone: phone.trim() || undefined,
+      demographics: {
+        dateOfBirth: dateOfBirth.trim() || undefined,
+        address: addressStreet.trim() || undefined,
+        city: addressCity.trim() || undefined,
+        country: addressCountry.trim() || undefined,
+      },
+    });
+
+    if (saved) {
+      setEditing(false);
+      setSaveMessage('Saved');
+      window.setTimeout(() => setSaveMessage(null), 2000);
+    }
+  };
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6 shadow-sm">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <VolunteerAvatar
-          name={detail.name}
-          profilePhotoUrl={detail.profilePhotoUrl}
-          size="lg"
-        />
+    <div className="rounded-2xl border border-crm-taupe/20 bg-gradient-to-br from-crm-taupe-50 to-crm-surface p-6 shadow-sm">
+      <div className="min-w-0">
+        <div className="flex items-center gap-4">
+          <VolunteerAvatar
+            name={detail.name}
+            profilePhotoUrl={detail.profilePhotoUrl}
+            size="md"
+            onClick={
+              profilePreviewFile
+                ? () => setProfilePreviewOpen(true)
+                : undefined
+            }
+          />
+          {editing ? (
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="min-w-0 flex-1 rounded-xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-2xl font-semibold text-crm-heading outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
+            />
+          ) : (
+            <h2 className="min-w-0 text-2xl font-semibold text-crm-heading">
+              {detail.name}
+            </h2>
+          )}
+        </div>
 
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold text-slate-900">{detail.name}</h2>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {onTagsChange
-              ? CONTACT_TAGS.map((tag) => {
-                  const active = detail.tags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      disabled={savingTags}
-                      onClick={() => {
-                        const next = active
-                          ? detail.tags.filter((t) => t !== tag)
-                          : [...detail.tags, tag];
-                        onTagsChange(next);
-                      }}
-                      className={`rounded-full px-3 py-1 text-sm font-medium transition disabled:opacity-50 ${
-                        active
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {CONTACT_TAG_LABELS[tag]}
-                    </button>
-                  );
-                })
-              : detail.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
-                  >
-                    {CONTACT_TAG_LABELS[tag]}
-                  </span>
-                ))}
+        {detail.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {detail.tags.map((tag) => (
+              <span key={tag} className={contactTagPillClass(tag)}>
+                {CONTACT_TAG_LABELS[tag]}
+              </span>
+            ))}
           </div>
+        )}
 
-          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+        <dl className="mt-5 grid grid-cols-2 gap-3">
             <Field label="Email">
-              {detail.email && detail.email !== '—' ? (
-                <a
-                  href={`mailto:${detail.email}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline"
+              {editing ? (
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={inputClass}
+                />
+              ) : displayEmail && displayEmail !== '—' ? (
+                <button
+                  type="button"
+                  onClick={() => setSendEmailOpen(true)}
+                  className="font-medium text-crm-heading underline-offset-2 hover:text-crm-heading hover:underline"
                 >
-                  {detail.email}
-                </a>
+                  {displayEmail}
+                </button>
               ) : (
-                <span className="text-slate-400">Not provided</span>
+                <span className="text-crm-slate">Not provided</span>
               )}
             </Field>
             <Field label="Phone">
-              {detail.phone || (
-                <span className="text-slate-400">Not provided</span>
+              {editing ? (
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className={inputClass}
+                />
+              ) : displayPhone ? (
+                <button
+                  type="button"
+                  onClick={() => setCallOpen(true)}
+                  className="font-medium text-crm-heading underline-offset-2 hover:text-crm-heading hover:underline"
+                >
+                  {displayPhone}
+                </button>
+              ) : (
+                <span className="text-crm-slate">Not provided</span>
+              )}
+            </Field>
+            <Field label="Date of birth">
+              {editing ? (
+                <input
+                  type="text"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  placeholder="e.g. March 15, 1998"
+                  className={inputClass}
+                />
+              ) : displayDateOfBirth ? (
+                <span className="font-medium text-crm-heading">
+                  {displayDateOfBirth}
+                </span>
+              ) : (
+                <span className="text-crm-slate">Not provided</span>
+              )}
+            </Field>
+            <Field label="Address" tall={editing}>
+              {editing ? (
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    value={addressStreet}
+                    onChange={(e) => setAddressStreet(e.target.value)}
+                    placeholder="Street address"
+                    className={inputClass}
+                  />
+                  <input
+                    type="text"
+                    value={addressCity}
+                    onChange={(e) => setAddressCity(e.target.value)}
+                    placeholder="City"
+                    className={inputClass}
+                  />
+                  <input
+                    type="text"
+                    value={addressCountry}
+                    onChange={(e) => setAddressCountry(e.target.value)}
+                    placeholder="Country"
+                    className={inputClass}
+                  />
+                </div>
+              ) : formattedAddress ? (
+                <a
+                  href={buildGoogleMapsUrl(formattedAddress)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="line-clamp-3 whitespace-pre-line font-medium text-crm-heading underline-offset-2 hover:text-crm-heading hover:underline"
+                >
+                  {formattedAddress}
+                </a>
+              ) : (
+                <span className="text-crm-slate">Not provided</span>
               )}
             </Field>
           </dl>
-        </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {editing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || !name.trim() || !editable}
+                  className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white transition hover:bg-crm-indigo-dark disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : 'Save profile'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetForm();
+                    setEditing(false);
+                  }}
+                  disabled={saving}
+                  className={editButtonClass}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  disabled={!editable}
+                  title={
+                    editable
+                      ? 'Edit contact details'
+                      : 'Editing is disabled in read-only mode'
+                  }
+                  className={editButtonClass}
+                >
+                  Edit details
+                </button>
+                <ContactMigrationActions
+                  detail={detail}
+                  onGoToRecruitment={onGoToRecruitment}
+                />
+              </>
+            )}
+            {saveMessage && (
+              <span className="text-sm text-emerald-700">{saveMessage}</span>
+            )}
+          </div>
       </div>
+
+      {sendEmailOpen && (
+        <ContactSendEmailModal contact={detail} onClose={requestCloseEmail} />
+      )}
+
+      {callOpen && detail.phone && (
+        <ContactCallModal
+          contactName={detail.name}
+          phone={detail.phone}
+          onClose={requestCloseCall}
+        />
+      )}
+
+      {profilePreviewOpen && profilePreviewFile && (
+        <FilePreviewModal
+          file={profilePreviewFile}
+          volunteerName={detail.name}
+          backLabel="contact"
+          onClose={requestCloseProfilePreview}
+        />
+      )}
     </div>
   );
 }
@@ -93,14 +344,22 @@ export default function ContactProfileCard({
 function Field({
   label,
   children,
+  tall = false,
 }: {
   label: string;
   children: ReactNode;
+  tall?: boolean;
 }) {
   return (
-    <div>
-      <dt className="text-sm text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm">{children}</dd>
+    <div
+      className={`flex flex-col rounded-xl bg-crm-surface/80 px-4 py-3 ring-1 ring-crm-taupe/20/80 ${
+        tall ? 'min-h-[8.5rem]' : 'h-24'
+      }`}
+    >
+      <dt className="text-xs font-medium uppercase tracking-wide text-crm-slate">
+        {label}
+      </dt>
+      <dd className="mt-1 flex-1 overflow-hidden text-sm">{children}</dd>
     </div>
   );
 }

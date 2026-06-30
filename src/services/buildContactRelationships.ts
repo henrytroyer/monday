@@ -6,10 +6,12 @@ import type {
   CurrentApplicationSummary,
   LinkedVolunteerSummary,
 } from '../types/contact';
-import type { VolunteerTerm } from '../types/volunteer';
-import { getColumnText, type MondayBoardItem } from './mapMondayToCrm';
+import type { VolunteerTerm, VolunteerFile } from '../types/volunteer';
+import { getColumnText, getApplicationFilesFromColumns, type MondayBoardItem } from './mapMondayToCrm';
 import {
   getContactColumnText,
+  getContactFilesFromColumns,
+  getContactPassportFile,
   mapItemToContactListItem,
   parseLinkedApplicationIds,
   type MondayContactItem,
@@ -82,7 +84,7 @@ export function enrichContactDetail(
   allContacts: ContactListItem[],
 ): Omit<
   ContactDetail,
-  keyof ContactListItem | 'donations'
+  keyof ContactListItem | 'donations' | 'emailCorrespondence'
 > {
   const base = mapItemToContactListItem(contactItem);
   const emailNorm = normalizeEmail(base.email);
@@ -160,11 +162,41 @@ export function enrichContactDetail(
 
   const hasDemographics = Object.values(demographics).some(Boolean);
 
+  const contactFiles = getContactFilesFromColumns(contactItem.column_values);
+  let files: VolunteerFile[] | undefined =
+    contactFiles.length > 0 ? contactFiles : undefined;
+
+  if (base.tags.includes('volunteer')) {
+    const volunteerApp = applications.find(
+      (app) =>
+        linkedAppIds.includes(app.id) ||
+        normalizeEmail(getColumnText(app.column_values, 'email')) === emailNorm,
+    );
+    if (volunteerApp) {
+      const appFiles = getApplicationFilesFromColumns(volunteerApp.column_values);
+      if (appFiles.length > 0) {
+        const merged = [...(files ?? []), ...appFiles];
+        const seen = new Set<string>();
+        files = merged.filter((file) => {
+          const key = `${file.id}-${file.name}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+    }
+  }
+
+  const passportFile = getContactPassportFile(contactItem.column_values);
+
   return {
     quickbooksCustomerId:
       getContactColumnText(contactItem.column_values, 'quickbooksCustomerId') ||
       undefined,
+    passportPhotoUrl: passportFile?.url,
+    passportFile,
     demographics: hasDemographics ? demographics : undefined,
+    files,
     currentApplication,
     serviceTerms,
     linkedVolunteers,

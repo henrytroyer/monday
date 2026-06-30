@@ -1,6 +1,7 @@
 import { columnMap } from '../config/columnMap';
 import { resolveTimelineId } from '../config/timelineMap';
 import { buildApplicationEmailsFromColumns } from '../utils/applicationEmails';
+import { getColumnPhone } from '../utils/phoneFormat';
 import {
   buildApplicationFormFields,
   buildPastorReferenceFormFields,
@@ -135,6 +136,12 @@ function getProfilePhotoUrl(
     (f) => f.isImage && f.url,
   );
   return fromGallery?.url;
+}
+
+export function getApplicationFilesFromColumns(
+  columnValues: MondayColumnValue[],
+): VolunteerFile[] {
+  return getFileGallery(columnValues);
 }
 
 function getFileGallery(
@@ -281,7 +288,8 @@ export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetai
 
   const email = getColumnText(item.column_values, 'email') || '—';
   const emails = buildApplicationEmailsFromColumns(item.column_values);
-  const phone = getColumnText(item.column_values, 'phone') || '—';
+  const phoneRaw = getColumnPhone(item.column_values, columnMap);
+  const phone = phoneRaw || '—';
   const profilePhotoUrl = getProfilePhotoUrl(item.column_values);
   const files = getFileGallery(item.column_values);
 

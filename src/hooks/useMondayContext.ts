@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { isStandaloneMondayMode } from '../config/boards';
 import mondaySdk from 'monday-sdk-js';
 import type { MondayContext, MondayResponse } from '../types/monday';
 
@@ -16,23 +17,27 @@ interface UseMondayContextReturn {
 }
 
 export const useMondayContext = (): UseMondayContextReturn => {
+  const standalone = isStandaloneMondayMode();
   const [context, setContext] = useState<MondayContext | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!standalone);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (standalone) {
+      return;
+    }
+
     monday.setApiVersion('2023-10');
 
     let contextReceived = false;
 
-    // Set up timeout to prevent infinite loading
     const timeout = setTimeout(() => {
       if (!contextReceived) {
         console.warn('Context event not received, continuing without context');
         setIsLoading(false);
-        setError(null); // Don't show error, just continue without context
+        setError(null);
       }
-    }, 3000); // Wait 3 seconds for context
+    }, 3000);
 
     monday.listen('context', (res: MondayResponse<MondayContext>) => {
       contextReceived = true;
@@ -43,14 +48,12 @@ export const useMondayContext = (): UseMondayContextReturn => {
         setError(null);
       } else {
         setIsLoading(false);
-        setError(null); // Continue even without context data
+        setError(null);
       }
     });
 
-    // Cleanup timeout on unmount
     return () => clearTimeout(timeout);
-  }, []);
+  }, [standalone]);
 
   return { context, isLoading, error };
 };
-
