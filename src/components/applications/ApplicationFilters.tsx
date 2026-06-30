@@ -12,7 +12,7 @@ interface ApplicationFiltersProps {
 }
 
 const selectClassName =
-  'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200';
+  'mt-2 w-full rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2.5 text-sm text-crm-text outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20';
 
 export default function ApplicationFilters({
   filters,
@@ -26,14 +26,14 @@ export default function ApplicationFilters({
   const selectedTimeline = filters.timelineIds[0] ?? '';
 
   return (
-    <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="mb-8 rounded-3xl border border-crm-taupe/20 bg-crm-surface p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-lg font-bold text-slate-900">Filters</h2>
+        <h2 className="text-lg font-semibold text-crm-heading">Filters</h2>
         {active && (
           <button
             type="button"
             onClick={onClear}
-            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="rounded-2xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
           >
             Clear all
           </button>
@@ -44,7 +44,7 @@ export default function ApplicationFilters({
         <div>
           <label
             htmlFor="volunteer-search"
-            className="text-sm font-medium text-slate-700"
+            className="text-sm font-medium text-crm-heading"
           >
             Search by name
           </label>
@@ -63,7 +63,7 @@ export default function ApplicationFilters({
         <div>
           <label
             htmlFor="filter-location"
-            className="text-sm font-medium text-slate-700"
+            className="text-sm font-medium text-crm-heading"
           >
             Location preference
           </label>
@@ -90,7 +90,7 @@ export default function ApplicationFilters({
         <div>
           <label
             htmlFor="filter-timeline"
-            className="text-sm font-medium text-slate-700"
+            className="text-sm font-medium text-crm-heading"
           >
             Signup timeline
           </label>
@@ -115,10 +115,10 @@ export default function ApplicationFilters({
         </div>
       </div>
 
-      <p className="mt-6 text-sm text-slate-500">
+      <p className="mt-6 text-sm text-crm-slate">
         Showing{' '}
-        <span className="font-semibold text-slate-900">{matchingCount}</span> of{' '}
-        <span className="font-semibold text-slate-900">{totalCount}</span>{' '}
+        <span className="font-semibold text-crm-heading">{matchingCount}</span> of{' '}
+        <span className="font-semibold text-crm-heading">{totalCount}</span>{' '}
         volunteers
       </p>
     </div>

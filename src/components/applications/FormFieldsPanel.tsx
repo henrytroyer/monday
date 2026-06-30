@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
-import type { ApplicationFormField, VolunteerFile } from '../../types/volunteer';
+import { useEffect } from "react";
+import type { ApplicationFormField, VolunteerFile } from "../../types/volunteer";
+import OverlayBackButton from "../layout/OverlayBackButton";
 
 interface FormFieldsPanelProps {
   title: string;
+  backLabel: string;
   fields: ApplicationFormField[];
   emptyMessage: string;
   pdfFile?: VolunteerFile;
@@ -11,6 +13,7 @@ interface FormFieldsPanelProps {
 
 export default function FormFieldsPanel({
   title,
+  backLabel,
   fields,
   emptyMessage,
   pdfFile,
@@ -18,10 +21,10 @@ export default function FormFieldsPanel({
 }: FormFieldsPanelProps) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
   return (
@@ -33,42 +36,36 @@ export default function FormFieldsPanel({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-slate-900/40"
-        aria-label="Close"
+        className="absolute inset-0 bg-crm-indigo/40"
+        aria-label={`Back to ${backLabel}`}
         onClick={onClose}
       />
 
-      <div className="relative m-4 flex min-h-0 max-h-[85%] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
+      <div className="relative m-4 flex min-h-0 max-h-[85%] flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-2xl">
+        <div className="flex shrink-0 flex-col gap-3 border-b border-crm-taupe/20 px-5 py-4">
+          <OverlayBackButton backLabel={backLabel} onBack={onClose} />
           <h2
             id="form-fields-panel-title"
-            className="min-w-0 text-lg font-semibold text-slate-900"
+            className="min-w-0 text-lg font-semibold text-crm-heading"
           >
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Close
-          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {fields.length === 0 ? (
-            <p className="text-sm text-slate-500">{emptyMessage}</p>
+            <p className="text-sm text-crm-slate">{emptyMessage}</p>
           ) : (
             <dl className="space-y-5">
               {fields.map((field) => (
                 <div
                   key={field.id}
-                  className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3"
+                  className="rounded-xl border border-crm-taupe/20 bg-crm-taupe-50/50 px-4 py-3"
                 >
-                  <dt className="text-sm font-medium text-slate-600">
+                  <dt className="text-sm font-medium text-crm-slate">
                     {field.question}
                   </dt>
-                  <dd className="mt-2 whitespace-pre-wrap text-base text-slate-900">
+                  <dd className="mt-2 whitespace-pre-wrap text-base text-crm-text">
                     {field.answer}
                   </dd>
                 </div>
@@ -78,12 +75,12 @@ export default function FormFieldsPanel({
         </div>
 
         {pdfFile?.url && (
-          <div className="shrink-0 border-t border-slate-200 px-5 py-3">
+          <div className="shrink-0 border-t border-crm-taupe/20 px-5 py-3">
             <a
               href={pdfFile.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium text-slate-700 underline hover:text-slate-900"
+              className="text-sm font-medium text-crm-heading underline hover:text-crm-heading"
             >
               Open {pdfFile.name}
             </a>

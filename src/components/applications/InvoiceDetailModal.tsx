@@ -5,10 +5,12 @@ import { setQuickBooksInvoiceIdOnItem } from '../../services/crmApi';
 import type { QuickBooksLineItem } from '../../types/quickbooks';
 import type { UpdateQuickBooksLineItemInput } from '../../types/quickbooks';
 import { quickbooksInvoiceUrl } from '../../types/quickbooks';
+import OverlayBackButton from '../layout/OverlayBackButton';
 
 interface InvoiceDetailModalProps {
   invoiceId?: string;
   volunteerName: string;
+  backLabel?: string;
   mondayStatus: string;
   itemId?: string;
   boardId?: string | null;
@@ -43,12 +45,14 @@ function newLineItem(lineNum: number): QuickBooksLineItem {
 export default function InvoiceDetailModal({
   invoiceId: initialInvoiceId,
   volunteerName,
+  backLabel,
   mondayStatus,
   itemId,
   boardId,
   onInvoiceLinked,
   onClose,
 }: InvoiceDetailModalProps) {
+  const resolvedBackLabel = backLabel ?? volunteerName;
   const {
     invoice,
     loading,
@@ -186,60 +190,59 @@ export default function InvoiceDetailModal({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-        aria-label="Close"
+        className="absolute inset-0 bg-stone-900/25 backdrop-blur-sm"
+        aria-label={`Back to ${resolvedBackLabel}`}
         onClick={onClose}
       />
 
-      <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
-          <div>
-            <h2
-              id="invoice-detail-title"
-              className="text-lg font-semibold text-slate-900"
-            >
-              {isCreateMode ? 'Create QuickBooks invoice' : 'QuickBooks invoice'}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {isCreateMode
-                ? `New invoice for ${volunteerName} · monday status: ${mondayStatus}`
-                : `Linked to Invoice Paid · monday status: ${mondayStatus}`}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {!isCreateMode && (
-              <button
-                type="button"
-                onClick={refresh}
-                disabled={loading}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+      <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-2xl">
+        <div className="flex shrink-0 flex-col gap-3 border-b border-crm-taupe/20 px-5 py-4">
+          <OverlayBackButton
+            backLabel={resolvedBackLabel}
+            onBack={onClose}
+          />
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2
+                id="invoice-detail-title"
+                className="text-lg font-semibold text-crm-heading"
               >
-                Refresh
-              </button>
-            )}
-            {viewUrl && (
-              <a
-                href={viewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                View in QuickBooks
-              </a>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Close
-            </button>
+                {isCreateMode ? 'Create QuickBooks invoice' : 'QuickBooks invoice'}
+              </h2>
+              <p className="mt-1 text-sm text-crm-slate">
+                {isCreateMode
+                  ? `New invoice for ${volunteerName} · monday status: ${mondayStatus}`
+                  : `Linked to Invoice Paid · monday status: ${mondayStatus}`}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {!isCreateMode && (
+                <button
+                  type="button"
+                  onClick={refresh}
+                  disabled={loading}
+                  className="rounded-xl border border-crm-taupe/20 px-3 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50 disabled:opacity-50"
+                >
+                  Refresh
+                </button>
+              )}
+              {viewUrl && (
+                <a
+                  href={viewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl bg-crm-indigo px-3 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
+                >
+                  View in QuickBooks
+                </a>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {loading && !isCreateMode && (
-            <p className="text-center text-sm text-slate-500">
+            <p className="text-center text-sm text-crm-slate">
               Loading from QuickBooks…
             </p>
           )}
@@ -269,26 +272,26 @@ export default function InvoiceDetailModal({
 
                   <dl className="grid gap-3 text-sm sm:grid-cols-2">
                     <div>
-                      <dt className="text-slate-500">Invoice #</dt>
-                      <dd className="font-medium text-slate-900">
+                      <dt className="text-crm-slate">Invoice #</dt>
+                      <dd className="font-medium text-crm-heading">
                         {invoice.docNumber}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-slate-500">Customer</dt>
-                      <dd className="font-medium text-slate-900">
+                      <dt className="text-crm-slate">Customer</dt>
+                      <dd className="font-medium text-crm-heading">
                         {invoice.customerName}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-slate-500">Invoice date</dt>
-                      <dd className="font-medium text-slate-900">
+                      <dt className="text-crm-slate">Invoice date</dt>
+                      <dd className="font-medium text-crm-heading">
                         {invoice.txnDate || '—'}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-slate-500">Due date</dt>
-                      <dd className="font-medium text-slate-900">
+                      <dt className="text-crm-slate">Due date</dt>
+                      <dd className="font-medium text-crm-heading">
                         {invoice.dueDate || '—'}
                       </dd>
                     </div>
@@ -297,9 +300,9 @@ export default function InvoiceDetailModal({
               )}
 
               {isCreateMode && (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-crm-slate">
                   Customer name in QuickBooks:{' '}
-                  <span className="font-medium text-slate-900">
+                  <span className="font-medium text-crm-heading">
                     {volunteerName}
                   </span>
                   . Add line items below, then create the invoice. The invoice
@@ -309,14 +312,14 @@ export default function InvoiceDetailModal({
 
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-slate-900">
+                  <h3 className="text-sm font-semibold text-crm-heading">
                     Line items
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={handleAddLine}
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded-xl border border-crm-taupe/20 px-3 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
                     >
                       Add line item
                     </button>
@@ -325,7 +328,7 @@ export default function InvoiceDetailModal({
                         type="button"
                         disabled={saving || draftLines.length === 0}
                         onClick={handleCreate}
-                        className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                        className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
                       >
                         {saving ? 'Creating…' : 'Create invoice'}
                       </button>
@@ -335,7 +338,7 @@ export default function InvoiceDetailModal({
                           type="button"
                           disabled={saving}
                           onClick={handleSave}
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                          className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
                         >
                           {saving ? 'Saving…' : 'Save to QuickBooks'}
                         </button>
@@ -343,9 +346,9 @@ export default function InvoiceDetailModal({
                     )}
                   </div>
                 </div>
-                <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+                <div className="mt-3 overflow-x-auto rounded-xl border border-crm-taupe/20">
                   <table className="w-full min-w-[36rem] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                    <thead className="bg-crm-taupe-50 text-xs uppercase text-crm-slate">
                       <tr>
                         <th className="px-3 py-2">Description</th>
                         <th className="w-20 px-3 py-2">Qty</th>
@@ -354,7 +357,7 @@ export default function InvoiceDetailModal({
                         <th className="w-12 px-3 py-2" aria-label="Remove" />
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-crm-taupe/20">
                       {draftLines.map((line, index) => (
                         <tr key={line.id}>
                           <td className="px-3 py-2">
@@ -368,7 +371,7 @@ export default function InvoiceDetailModal({
                                   e.target.value,
                                 )
                               }
-                              className="w-full rounded-lg border border-slate-200 px-2 py-1"
+                              className="w-full rounded-lg border border-crm-taupe/20 px-2 py-1"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -384,7 +387,7 @@ export default function InvoiceDetailModal({
                                   e.target.value,
                                 )
                               }
-                              className="w-full rounded-lg border border-slate-200 px-2 py-1"
+                              className="w-full rounded-lg border border-crm-taupe/20 px-2 py-1"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -400,10 +403,10 @@ export default function InvoiceDetailModal({
                                   e.target.value,
                                 )
                               }
-                              className="w-full rounded-lg border border-slate-200 px-2 py-1"
+                              className="w-full rounded-lg border border-crm-taupe/20 px-2 py-1"
                             />
                           </td>
-                          <td className="px-3 py-2 text-right font-medium text-slate-900">
+                          <td className="px-3 py-2 text-right font-medium text-crm-heading">
                             {formatMoney(line.amount, currency)}
                           </td>
                           <td className="px-3 py-2 text-center">
@@ -411,7 +414,7 @@ export default function InvoiceDetailModal({
                               <button
                                 type="button"
                                 onClick={() => handleRemoveLine(index)}
-                                className="text-slate-400 hover:text-red-600"
+                                className="text-crm-slate hover:text-red-600"
                                 aria-label="Remove line"
                               >
                                 ×
@@ -423,7 +426,7 @@ export default function InvoiceDetailModal({
                     </tbody>
                   </table>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-crm-slate">
                   {isCreateMode
                     ? 'New lines are included when you create the invoice. View in QuickBooks opens the invoice directly after it is created.'
                     : 'Add lines with Add line item, then Save to QuickBooks. Payment status updates on Refresh.'}

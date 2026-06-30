@@ -115,3 +115,20 @@ From the volunteer detail **Quick Actions**:
 Both panels exclude column types such as `mirror`, `board_relation`, `subtasks`, and empty values. The onboarding **Pastor Reference** status column (Done/Pending) is excluded from the pastor Q&A panel.
 
 To hide a field from **Full application**, add its title to `columnMap` or rename it on the board. To force a column into **Pastor reference**, include its exact title in `VITE_PASTOR_REFERENCE_COLUMNS` (comma-separated).
+
+## Volunteer files (Applications detail, Contacts drill-down, term drill-down)
+
+Upload files to the **Files** column (and profile image to **Profile Photo**). The CRM matches documents by **filename** (case-insensitive substring):
+
+| Slot | Filename should contain |
+|------|-------------------------|
+| Passport | `passport` |
+| Background check | `background` — **password required** in the CRM (preset: `Background`) |
+| Child safeguarding certificate | `safeguard` |
+| Profile photo | **Profile Photo** column, or an image in **Files** with `profile` in the name |
+
+Examples: `Passport.pdf`, `Background-check.pdf`, `Child-safeguarding-certificate.pdf`.
+
+Other files in the column (itinerary, application form, pastor reference) appear under **Other documents** on the Applications detail and term drill-down views.
+
+Background check uses a client-side coordinator password for prototype convenience; production deployments should use proper access control.

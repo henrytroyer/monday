@@ -2,6 +2,8 @@
 
 Run the volunteer CRM inside monday.com on your Applications board.
 
+For **local-only UI work** (mock data, second screen, bookmarking localhost), see [crm-local-dev.md](./crm-local-dev.md) first.
+
 ## 1. Developer Center
 
 1. Go to [monday.com Developer Center](https://developer.monday.com/apps/docs).

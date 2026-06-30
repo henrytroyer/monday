@@ -2,8 +2,10 @@ import {
   CONTACT_TAGS,
   CONTACT_TAG_LABELS,
   type ContactFilterState,
+  type ContactSortOption,
 } from '../../types/contact';
 import { hasActiveContactFilters, toggleContactTag } from '../../utils/filterContacts';
+import { contactTagFilterSelectedClass } from '../../utils/contactTagStyles';
 
 interface ContactFiltersProps {
   filters: ContactFilterState;
@@ -11,10 +13,21 @@ interface ContactFiltersProps {
   onClear: () => void;
   matchingCount: number;
   totalCount: number;
+  /** When true, omits outer bottom margin (used in collapsible list header). */
+  embedded?: boolean;
+  /** Flat panel inside dropdown — no outer card chrome. */
+  variant?: 'card' | 'panel';
 }
 
 const inputClass =
-  'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200';
+  'mt-2 w-full rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2.5 text-sm text-crm-text outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20';
+
+const SORT_OPTIONS: Array<{ value: ContactSortOption; label: string }> = [
+  { value: 'name-asc', label: 'Name (A to Z)' },
+  { value: 'name-desc', label: 'Name (Z to A)' },
+  { value: 'date-desc', label: 'Date (newest first)' },
+  { value: 'date-asc', label: 'Date (oldest first)' },
+];
 
 export default function ContactFilters({
   filters,
@@ -22,25 +35,36 @@ export default function ContactFilters({
   onClear,
   matchingCount,
   totalCount,
+  embedded = false,
+  variant = 'card',
 }: ContactFiltersProps) {
   const active = hasActiveContactFilters(filters);
+  const isPanel = variant === 'panel';
 
   return (
-    <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div
+      className={
+        isPanel
+          ? 'p-4'
+          : `rounded-3xl border border-crm-taupe/20 bg-crm-surface p-6 shadow-sm ${
+              embedded ? '' : 'mb-8'
+            }`
+      }
+    >
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-lg font-bold text-slate-900">Filters</h2>
+        <h2 className="text-lg font-semibold text-crm-heading">Filters</h2>
         {active && (
           <button
             type="button"
             onClick={onClear}
-            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="rounded-2xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
           >
             Clear all
           </button>
         )}
       </div>
 
-      <p className="mt-2 text-sm text-slate-500">
+      <p className="mt-2 text-sm text-crm-slate">
         Showing {matchingCount} of {totalCount} contacts
       </p>
 
@@ -48,7 +72,7 @@ export default function ContactFilters({
         <div>
           <label
             htmlFor="contact-search"
-            className="text-sm font-medium text-slate-700"
+            className="text-sm font-medium text-crm-heading"
           >
             Search by name or email
           </label>
@@ -62,11 +86,46 @@ export default function ContactFilters({
             }
             className={inputClass}
           />
+
+          <label
+            htmlFor="contact-sort"
+            className="mt-4 block text-sm font-medium text-crm-heading"
+          >
+            Sort by
+          </label>
+          <select
+            id="contact-sort"
+            value={filters.sortBy}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                sortBy: e.target.value as ContactSortOption,
+              })
+            }
+            className={inputClass}
+          >
+            {SORT_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
-          <span className="text-sm font-medium text-slate-700">Tags</span>
+          <span className="text-sm font-medium text-crm-heading">Tags</span>
           <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onChange({ ...filters, tags: [] })}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                filters.tags.length === 0
+                  ? 'bg-crm-indigo-50 text-crm-heading font-medium ring-1 ring-crm-indigo/10'
+                  : 'bg-crm-white text-crm-text hover:bg-crm-taupe-100'
+              }`}
+            >
+              All
+            </button>
             {CONTACT_TAGS.map((tag) => {
               const selected = filters.tags.includes(tag);
               return (
@@ -81,8 +140,8 @@ export default function ContactFilters({
                   }
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     selected
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      ? contactTagFilterSelectedClass(tag)
+                      : 'bg-crm-white text-crm-text hover:bg-crm-taupe-100'
                   }`}
                 >
                   {CONTACT_TAG_LABELS[tag]}
@@ -90,8 +149,8 @@ export default function ContactFilters({
               );
             })}
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Select one or more tags. Leave empty to show all contacts.
+          <p className="mt-2 text-xs text-crm-slate">
+            Choose All or one or more tags to narrow the list.
           </p>
         </div>
       </div>

@@ -12,7 +12,7 @@ export default function ItineraryBubbles({ itinerary }: ItineraryBubblesProps) {
 
   if (!hasArrival && !hasDeparture) {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-crm-slate">
         Itinerary not added yet. Add arrival and departure in the Itinerary
         column on monday.com.
       </p>
@@ -58,10 +58,10 @@ function ItineraryBubble({
 
   return (
     <div
-      className={`rounded-2xl border p-4 shadow-sm ${filled ? accent : 'border-slate-200 bg-slate-50'}`}
+      className={`rounded-2xl border p-4 shadow-sm ${filled ? accent : 'border-crm-taupe/20 bg-crm-taupe-50'}`}
     >
       <h4
-        className={`text-xs font-semibold uppercase tracking-wide ${filled ? titleColor : 'text-slate-500'}`}
+        className={`text-xs font-semibold uppercase tracking-wide ${filled ? titleColor : 'text-crm-slate'}`}
       >
         {title}
       </h4>
@@ -72,7 +72,7 @@ function ItineraryBubble({
           <LegRow label="Airport" value={leg.airport} />
         </dl>
       ) : (
-        <p className="mt-3 text-sm text-slate-400">{emptyLabel}</p>
+        <p className="mt-3 text-sm text-crm-slate">{emptyLabel}</p>
       )}
     </div>
   );
@@ -82,8 +82,8 @@ function LegRow({ label, value }: { label: string; value: string }) {
   const display = value.trim() || '—';
   return (
     <div className="flex gap-3">
-      <dt className="w-16 shrink-0 text-slate-500">{label}</dt>
-      <dd className="font-medium text-slate-900">{display}</dd>
+      <dt className="w-16 shrink-0 text-crm-slate">{label}</dt>
+      <dd className="font-medium text-crm-heading">{display}</dd>
     </div>
   );
 }
