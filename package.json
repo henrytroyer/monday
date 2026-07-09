@@ -3,7 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "verify": "node scripts/verify-setup.mjs",
+    "dev:live": "bash scripts/dev-live.sh",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test": "tsx --test src/services/contactTagColumnWrite.test.ts src/services/mondayFileColumns.test.ts src/utils/volunteerFileSlots.test.ts src/utils/formatContactAddress.test.ts",

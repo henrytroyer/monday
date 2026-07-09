@@ -1,119 +1,88 @@
 # Setting Up This Project on Another Machine
 
-This guide explains how to clone and set up this project on a new machine.
+**For the volunteer CRM:** see **[COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md)** — that is the canonical setup guide.
+
+This document covers git workflow and optional Mailchimp sync.
 
 ## Prerequisites
 
-- Node.js (v18 or higher) and npm
-- Git installed
+- Node.js 20+ (see `.nvmrc`)
+- Git
 - GitHub account access
 
-## Step 1: Clone the Repository
+## Clone and install
 
 ```bash
-# Clone the repository
 git clone https://github.com/henrytroyer/monday.git
-
-# Navigate into the project
 cd monday
-```
-
-## Step 2: Install Dependencies
-
-```bash
 npm install
+npm run setup
 ```
 
-## Step 3: Set Up Environment Variables
+Follow [COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md) for live Monday data setup.
 
-Create a `.env` file in the project root:
+## Daily git workflow
 
 ```bash
-cp .env.example .env  # If you have an example file
-# Or create .env manually
+git pull origin main    # always pull before starting work
+# ... make changes ...
+git add -A
+git commit -m "feat: your change"
+git push origin main
 ```
 
-Add your credentials to `.env`:
+Or use the sync script (pulls first, then pushes):
+
+```bash
+npm run git:sync
+```
+
+## Important notes
+
+- **Never commit `.env`** — it is gitignored for security
+- **Always pull before pushing** to avoid conflicts
+- Each developer uses their own `MONDAY_API_TOKEN`
+
+## Mailchimp contact sync
+
+Optional script to sync monday.com contacts to Mailchimp.
+
+### Environment variables
+
+Add to `.env`:
 
 ```env
 MONDAY_API_TOKEN=your_monday_api_token_here
 MAILCHIMP_API_KEY=your_mailchimp_api_key_here
 MAILCHIMP_LIST_ID=your_mailchimp_list_id_here
 MAILCHIMP_DATACENTER=us1
-MONDAY_BOARD_NAME=Contacts Test
+MONDAY_BOARD_NAME=Contacts
 ```
 
-## Step 4: Authenticate with GitHub (Optional)
-
-If you want to push/pull changes:
+### Run locally
 
 ```bash
-# Install GitHub CLI (if not already installed)
-brew install gh  # macOS
-# or visit: https://cli.github.com/
-
-# Authenticate
-gh auth login
-
-# Configure git to use GitHub CLI
-gh auth setup-git
-```
-
-## Step 5: Verify Setup
-
-```bash
-# Test the sync script
 npm run sync:contacts
-
-# Test git sync
-npm run git:sync
 ```
 
-## Daily Workflow
+### GitHub Actions
 
-### Pull Latest Changes
+1. Add secrets in GitHub → Settings → Secrets → Actions:
+   - `MONDAY_API_TOKEN`
+   - `MAILCHIMP_API_KEY`
+   - `MAILCHIMP_LIST_ID`
+   - `MAILCHIMP_DATACENTER` (e.g. `us1`)
+   - `MONDAY_BOARD_NAME` (optional)
 
-```bash
-# Always pull before starting work
-npm run git:sync
-# or
-git pull origin main
-```
+2. Run workflow: Actions → "Sync Contacts to Mailchimp" → Run workflow
 
-### Make Changes and Push
-
-```bash
-# Make your changes
-# ...
-
-# Commit
-git add .
-git commit -m "Your commit message"
-
-# Push (sync script will pull first, then push)
-npm run git:sync
-# or manually:
-git pull origin main
-git push origin main
-```
-
-## Important Notes
-
-- **Always pull before pushing**: Use `npm run git:sync` which pulls first
-- **Never commit `.env`**: Your `.env` file is gitignored for security
-- **Communicate with team**: Let others know what you're working on
-- **Resolve conflicts**: If git shows conflicts, resolve them before pushing
+Workflow file: `.github/workflows/mailchimp-sync.yml`
 
 ## Troubleshooting
 
-### "Permission denied" when pushing
-- Make sure you're authenticated: `gh auth login`
-- Check your GitHub permissions
-
-### "Your branch is behind"
-- Run `npm run git:sync` to pull latest changes
-- Resolve any conflicts if they appear
-
-### "Cannot find module" errors
-- Run `npm install` to install dependencies
-
+| Issue | Fix |
+|-------|-----|
+| Permission denied on push | `gh auth login` |
+| Branch behind remote | `git pull origin main` |
+| Cannot find module | `npm install` |
+| CRM not loading live data | See [COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md) |

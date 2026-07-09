@@ -64,33 +64,35 @@ After creating your app, you need to add features:
 
 ## Local Development
 
-### Using monday.com CLI
+### Using monday.com CLI tunnel
 
-1. **Login:**
+1. **Start development server:**
    ```bash
-   npm run monday:login
+   npm run dev
    ```
-   Follow prompts to authenticate with monday.com
 
-2. **Start Development Server:**
+2. **Start tunnel (separate terminal):**
    ```bash
-   npm run monday:start
+   npm run monday:tunnel
    ```
-   This will:
-   - Start Vite dev server on port 4040
-   - Create a tunnel URL (e.g., `https://abc123.loca.lt`)
-   - Display the URL in terminal
+   Or use ngrok: `npm run monday:tunnel:ngrok`
 
-3. **Update Custom URL:**
-   - Copy the tunnel URL from terminal
-   - Go to Developer Center → Your App → Feature Settings
-   - Paste URL into "Custom URL" field
-   - Save
+3. **Configure Custom URL in Developer Center:**
+   - Go to your app's feature settings in Developer Center
+   - Paste the tunnel URL into the "Custom URL" field
+   - Save and refresh your monday.com board/dashboard
 
-4. **Test in monday.com:**
-   - Open a board/dashboard in monday.com
-   - Add your app feature (widget/view)
-   - Your app should load from the tunnel URL
+### Live data without Board View (local proxy)
+
+For CRM development with live boards outside monday.com:
+
+```bash
+npm run setup    # create .env
+npm run verify   # check config
+npm run dev:live # proxy + dev server
+```
+
+See [COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md) for `.env` configuration.
 
 ### Using Standard Development Server
 
@@ -100,11 +102,12 @@ After creating your app, you need to add features:
    ```
 
 2. **Set Up Tunnel:**
-   - Install ngrok: `npm install -g ngrok`
-   - Run: `ngrok http 4040`
-   - Copy the HTTPS URL (e.g., `https://abc123.ngrok.io`)
+   - Run: `npm run monday:tunnel:ngrok` or `ngrok http 4040`
+   - Copy the HTTPS URL
 
-3. **Update Custom URL in Developer Center** (same as above)
+3. **Update Custom URL in Developer Center:**
+   - Paste URL into "Custom URL" field
+   - Save and test in monday.com
 
 ## Testing Your App
 
