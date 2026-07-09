@@ -7,8 +7,9 @@ import { useApplicationDetail } from '../../hooks/useApplicationDetail';
 import { openItem } from '../../utils/mondayHelpers';
 import type { Volunteer } from '../../types/volunteer';
 import {
-  displayLocationPreference,
-  hasDistinctAssignedLocation,
+  displayLocationPreferenceOnly,
+  displayConfirmedLocation,
+  hasConfirmedLocation,
 } from '../../utils/volunteerLocation';
 import FormFieldsPanel, { findFormPdf } from './FormFieldsPanel';
 import ItineraryBubbles from './ItineraryBubbles';
@@ -27,6 +28,7 @@ interface ApplicationDetailPanelProps {
   onBack: () => void;
   backLabel?: string;
   quickActionsBeforeFiles?: boolean;
+  applicationsEditable?: boolean;
 }
 
 export default function ApplicationDetailPanel({
@@ -35,6 +37,7 @@ export default function ApplicationDetailPanel({
   onBack,
   backLabel = '← Back to short-term applications',
   quickActionsBeforeFiles = false,
+  applicationsEditable = false,
 }: ApplicationDetailPanelProps) {
   const { detail, loading, error, refetch } = useApplicationDetail(volunteer);
   const referenceSlots = useMemo(
@@ -110,8 +113,9 @@ export default function ApplicationDetailPanel({
   };
 
   const quickActions = (
-    <Panel title="Quick Actions">
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="rounded-xl border border-crm-taupe/20 bg-crm-white px-4 py-3">
+      <h3 className="text-sm font-semibold text-crm-heading">Quick Actions</h3>
+      <div className="mt-3 flex flex-wrap gap-2.5">
         <ActionButton
           label="Open in monday.com"
           onClick={handleOpenInMonday}
@@ -129,7 +133,7 @@ export default function ApplicationDetailPanel({
           onClick={() => setSendEmailOpen(true)}
         />
       </div>
-    </Panel>
+    </div>
   );
 
   return (
@@ -164,9 +168,7 @@ export default function ApplicationDetailPanel({
                 detail={display}
                 onEmailClick={() => setSendEmailOpen(true)}
                 onPhoneClick={() => setCallOpen(true)}
-                beforeFiles={
-                  quickActionsBeforeFiles ? quickActions : undefined
-                }
+                beforeFiles={quickActions}
                 splitFilesRow={quickActionsBeforeFiles}
                 besideFiles={
                   quickActionsBeforeFiles ? (
@@ -182,8 +184,6 @@ export default function ApplicationDetailPanel({
                 }
               />
 
-              {!quickActionsBeforeFiles && quickActions}
-
               <Panel title="Onboarding Progress">
                 <OnboardingProgress
                   steps={display.onboardingSteps}
@@ -191,6 +191,7 @@ export default function ApplicationDetailPanel({
                   itemId={display.id}
                   boardId={boardId}
                   onInvoiceLinked={() => refetch()}
+                  readOnly={!applicationsEditable}
                 />
               </Panel>
 
@@ -198,10 +199,13 @@ export default function ApplicationDetailPanel({
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <InfoCard
                     label="Location preference"
-                    value={displayLocationPreference(display)}
+                    value={displayLocationPreferenceOnly(display)}
                   />
-                  {hasDistinctAssignedLocation(display) && (
-                    <InfoCard label="Assigned location" value={display.location} />
+                  {hasConfirmedLocation(display) && (
+                    <InfoCard
+                      label="Confirmed location"
+                      value={displayConfirmedLocation(display)}
+                    />
                   )}
                   <InfoCard label="Signup timeline" value={timelineLabel} />
                   <InfoCard label="Coordinator" value={display.coordinator} />
@@ -339,10 +343,9 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-4 text-left transition hover:bg-crm-taupe-50"
+      className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
     >
-      <div className="font-semibold">{label}</div>
-      <div className="mt-2 text-sm text-crm-slate">Open and manage details</div>
+      {label}
     </button>
   );
 }

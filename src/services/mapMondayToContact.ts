@@ -1,16 +1,49 @@
 import { contactMap } from '../config/contactMap';
-import type { ContactListItem, ContactTag } from '../types/contact';
+import type { ContactListItem, ContactPastorReference, ContactTag } from '../types/contact';
 import { CONTACT_TAG_LABELS } from '../types/contact';
 import type { VolunteerFile } from '../types/volunteer';
-import { inferVolunteerFileIsImage } from '../utils/inferVolunteerFileIsImage';
+import {
+  mergeVolunteerGalleryFiles,
+  parseLinkedBoardRelationIds,
+  parseMondayFileColumn,
+  resolvePassportFile,
+  resolveProfilePhotoUrl,
+} from './mondayFileColumns';
 import { getColumnPhone } from '../utils/phoneFormat';
 import type { MondayColumnValue } from './mapMondayToCrm';
+import {
+  contactTagsUseSimpleColumnValue,
+  formatContactTagsColumnValue,
+  formatContactTagsSimpleValue,
+  resolveContactTagsWriteColumn as resolveContactTagsWriteColumnCore,
+  statusColumnAllowsMultipleLabels,
+  type ContactBoardColumn,
+} from './contactTagColumnWrite';
+
+export type { ContactBoardColumn };
+export {
+  contactTagsUseSimpleColumnValue,
+  formatContactTagsColumnValue,
+  formatContactTagsSimpleValue,
+  statusColumnAllowsMultipleLabels,
+};
+
+export function resolveContactTagsWriteColumn(
+  columns: ContactBoardColumn[],
+): ContactBoardColumn | undefined {
+  return resolveContactTagsWriteColumnCore(columns, {
+    tagsColumnTitle: contactMap.tags,
+    typeColumnTitle: contactMap.type,
+    explicitTagsColumnEnv: import.meta.env.VITE_CONTACT_COL_TAGS,
+  });
+}
 
 export interface MondayContactItem {
   id: string;
   name: string;
   created_at?: string;
   column_values: MondayColumnValue[];
+  updates?: import('./termNotes').MondayItemUpdateRaw[];
 }
 
 function normalizeTitle(title: string): string {
@@ -25,6 +58,20 @@ function findColumn(
   columnValues: MondayColumnValue[],
   fieldKey: keyof typeof contactMap,
 ): MondayColumnValue | undefined {
+  const pastorLinkColumnId = import.meta.env
+    .VITE_CONTACT_COL_PASTOR_REFERENCE_LINK_ID as string | undefined;
+  if (fieldKey === 'pastorReferenceLink' && pastorLinkColumnId?.trim()) {
+    const byId = columnValues.find((col) => col.id === pastorLinkColumnId.trim());
+    if (byId) return byId;
+  }
+
+  const donationsLinkColumnId = import.meta.env
+    .VITE_CONTACT_COL_DONATIONS_LINK_ID as string | undefined;
+  if (fieldKey === 'donationsLink' && donationsLinkColumnId?.trim()) {
+    const byId = columnValues.find((col) => col.id === donationsLinkColumnId.trim());
+    if (byId) return byId;
+  }
+
   const target = normalizeTitle(contactMap[fieldKey]);
   return columnValues.find(
     (c) => normalizeTitle(columnTitle(c)) === target,
@@ -55,156 +102,19 @@ function getColumnText(
   return findColumn(columnValues, fieldKey)?.text?.trim() || '';
 }
 
-function mondayAssetProxyUrl(assetId: string): string | undefined {
-  const base = import.meta.env.VITE_MONDAY_API_PROXY_URL?.trim().replace(/\/$/, '');
-  if (!base) return undefined;
-  return `${base}/assets/${assetId}`;
-}
-
-function parseAssetIdFromColumn(col: MondayColumnValue): string | undefined {
-  if (!col.value) return undefined;
-  try {
-    const data = JSON.parse(col.value) as {
-      files?: Array<{ assetId?: number | string }>;
-    };
-    const assetId = data.files?.[0]?.assetId;
-    return assetId != null ? String(assetId) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function assetIdFromProtectedUrl(text: string): string | undefined {
-  const match = text.match(/\/resources\/(\d+)\//);
-  return match?.[1];
-}
-
-function resolveColumnFileUrl(col: MondayColumnValue | undefined): string | undefined {
-  if (!col) return undefined;
-
-  const assetId =
-    parseAssetIdFromColumn(col) ||
-    (col.text?.trim().startsWith('http')
-      ? assetIdFromProtectedUrl(col.text.trim())
-      : undefined);
-
-  if (assetId) {
-    return mondayAssetProxyUrl(assetId);
-  }
-
-  const text = col.text?.trim();
-  if (text?.startsWith('http')) {
-    return text;
-  }
-
-  return undefined;
-}
-
-function parseMondayFiles(col: MondayColumnValue | undefined): VolunteerFile[] {
-  if (!col) return [];
-
-  if (col.value) {
-    try {
-      const data = JSON.parse(col.value) as {
-        files?: Array<Record<string, unknown>>;
-      };
-      const files = data.files ?? [];
-      return files.map((file, index) => {
-        const name = String(file.name ?? 'File');
-        const assetId =
-          file.assetId != null ? String(file.assetId) : undefined;
-        const url =
-          (assetId ? mondayAssetProxyUrl(assetId) : undefined) ||
-          (file.url as string | undefined) ||
-          (file.public_url as string | undefined) ||
-          (file.linkToFile as string | undefined) ||
-          resolveColumnFileUrl(col);
-        const isImage = inferVolunteerFileIsImage(
-          url ?? '',
-          name,
-          file.isImage as boolean | string | undefined,
-        );
-
-        return {
-          id: assetId ?? String(file.id ?? index),
-          name,
-          url,
-          isImage,
-        };
-      });
-    } catch {
-      // fall through to text
-    }
-  }
-
-  const directUrl = resolveColumnFileUrl(col);
-  if (directUrl) {
-    const name =
-      col.text?.trim().split('/').pop()?.split('?')[0] || 'File';
-    return [
-      {
-        id: parseAssetIdFromColumn(col) ?? 'text-0',
-        name,
-        url: directUrl,
-        isImage: inferVolunteerFileIsImage(directUrl, name),
-      },
-    ];
-  }
-
-  if (col.text?.trim()) {
-    return col.text.split(',').map((part, index) => {
-      const name = part.trim();
-      return {
-        id: `text-${index}`,
-        name,
-        isImage: /\.(png|jpe?g|gif|webp|svg)$/i.test(name),
-      };
-    });
-  }
-
-  return [];
-}
-
 export function getContactProfilePhotoUrl(
   columnValues: MondayColumnValue[],
 ): string | undefined {
-  const profileCol = findColumn(columnValues, 'profilePhoto');
-  const fromProfile =
-    resolveColumnFileUrl(profileCol) ||
-    parseMondayFiles(profileCol).find((file) => file.isImage && file.url)?.url;
-  if (fromProfile) return fromProfile;
-
-  const fromGallery = parseMondayFiles(findColumn(columnValues, 'files')).find(
-    (file) => file.isImage && file.url,
+  return resolveProfilePhotoUrl(
+    findColumn(columnValues, 'profilePhoto'),
+    findColumn(columnValues, 'files'),
   );
-  return fromGallery?.url;
 }
 
 export function getContactPassportFile(
   columnValues: MondayColumnValue[],
 ): VolunteerFile | undefined {
-  const passportCol = findPassportColumn(columnValues);
-  const fromFiles = parseMondayFiles(passportCol).find((file) => file.url);
-  if (fromFiles) {
-    return {
-      ...fromFiles,
-      name: /passport/i.test(fromFiles.name)
-        ? fromFiles.name
-        : `Passport - ${fromFiles.name}`,
-    };
-  }
-
-  const url = resolveColumnFileUrl(passportCol);
-  if (!url) return undefined;
-
-  const name =
-    passportCol?.text?.trim().split('/').pop()?.split('?')[0] || 'Passport';
-  return {
-    id: parseAssetIdFromColumn(passportCol!) ?? 'passport',
-    name: /passport/i.test(name) ? name : `Passport - ${name}`,
-    url,
-    isImage: inferVolunteerFileIsImage(url, name),
-  };
+  return resolvePassportFile(findPassportColumn(columnValues));
 }
 
 export function getContactPassportUrl(
@@ -217,31 +127,17 @@ export function getContactFilesFromColumns(
   columnValues: MondayColumnValue[],
 ): VolunteerFile[] {
   const passportFile = getContactPassportFile(columnValues);
-  const passport = passportFile ? [passportFile] : [];
-  const gallery = parseMondayFiles(findColumn(columnValues, 'files'));
-  const profileFiles = parseMondayFiles(findColumn(columnValues, 'profilePhoto'));
   const profilePhotoUrl = getContactProfilePhotoUrl(columnValues);
   const passportPhotoUrl = getContactPassportUrl(columnValues);
 
-  const merged = [...passport, ...gallery, ...profileFiles];
-  const seen = new Set<string>();
-
-  return merged.filter((file) => {
-    if (
-      profilePhotoUrl &&
-      file.isImage &&
-      file.url === profilePhotoUrl
-    ) {
-      return false;
-    }
-    if (passportPhotoUrl && file.url === passportPhotoUrl) {
-      return false;
-    }
-    const key = `${file.id}-${file.name}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return mergeVolunteerGalleryFiles(
+    [
+      passportFile ? [passportFile] : [],
+      parseMondayFileColumn(findColumn(columnValues, 'files')),
+      parseMondayFileColumn(findColumn(columnValues, 'profilePhoto')),
+    ],
+    { profilePhotoUrl, passportPhotoUrl },
+  );
 }
 
 const TAG_LABEL_TO_ID: Record<string, ContactTag> = {
@@ -329,26 +225,53 @@ export function getContactColumnText(
   return getColumnText(columnValues, fieldKey);
 }
 
+export function mapContactPastorReference(
+  columnValues: MondayColumnValue[],
+): ContactPastorReference | undefined {
+  const name = getContactColumnText(columnValues, 'pastorName') || undefined;
+  const email = getContactColumnText(columnValues, 'pastorEmail') || undefined;
+  const phone =
+    getColumnPhone(columnValues, { phone: contactMap.pastorPhone }) || undefined;
+  const church = getContactColumnText(columnValues, 'churchName') || undefined;
+  const linkedItemIds = parseLinkedPastorReferenceItemIds(columnValues);
+
+  if (!name && !email && !phone && !church && linkedItemIds.length === 0) {
+    return undefined;
+  }
+
+  return {
+    ...(name ? { name } : {}),
+    ...(email ? { email } : {}),
+    ...(phone ? { phone } : {}),
+    ...(church ? { church } : {}),
+    ...(linkedItemIds.length > 0 ? { linkedItemIds } : {}),
+  };
+}
+
+export function parseLinkedPastorReferenceItemIds(
+  columnValues: MondayColumnValue[],
+): string[] {
+  const col = findColumn(columnValues, 'pastorReferenceLink');
+  return parseLinkedBoardRelationIds(col);
+}
+
+/** @deprecated Use parseLinkedPastorReferenceItemIds */
+export function parseLinkedPastorReferenceItemId(
+  columnValues: MondayColumnValue[],
+): string | undefined {
+  return parseLinkedPastorReferenceItemIds(columnValues)[0];
+}
+
 export function parseLinkedApplicationIds(
   columnValues: MondayColumnValue[],
 ): string[] {
   const col = findColumn(columnValues, 'applicationsLink');
-  if (!col?.value) return [];
+  return parseLinkedBoardRelationIds(col);
+}
 
-  try {
-    const parsed = JSON.parse(col.value) as {
-      linkedPulseIds?: number[];
-      linked_item_ids?: string[];
-    };
-    if (parsed.linkedPulseIds?.length) {
-      return parsed.linkedPulseIds.map(String);
-    }
-    if (parsed.linked_item_ids?.length) {
-      return parsed.linked_item_ids.map(String);
-    }
-  } catch {
-    // fall through
-  }
-
-  return [];
+export function parseLinkedDonationItemIds(
+  columnValues: MondayColumnValue[],
+): string[] {
+  const col = findColumn(columnValues, 'donationsLink');
+  return parseLinkedBoardRelationIds(col);
 }

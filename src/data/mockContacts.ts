@@ -269,6 +269,8 @@ const MOCK_CONTACT_DETAILS: Record<
     demographics: {
       address: '123 Oak Street',
       city: 'Portland',
+      state: 'OR',
+      zip: '97201',
       country: 'United States',
       dateOfBirth: 'March 14, 2001',
     },
@@ -280,6 +282,13 @@ const MOCK_CONTACT_DETAILS: Record<
     },
     serviceTerms: johnTerms,
     linkedVolunteers: [],
+    pastorReference: {
+      church: 'Grace Community Church',
+      name: 'Rev. Michael Thompson',
+      email: 'pastor@gracecommunity.example',
+      phone: '+1 (555) 412-8800',
+      linkedItemIds: ['mock-pastor-ref-1', 'mock-pastor-ref-2'],
+    },
     donations: donationsForContact('contact-1', BASE_CONTACTS[0].tags),
     emailCorrespondence: buildCuratedJohnDoeEmailThread(),
   },

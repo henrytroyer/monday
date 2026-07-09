@@ -16,11 +16,27 @@ export const contactMap = {
     'QuickBooks Customer ID',
   applicationsLink:
     import.meta.env.VITE_CONTACT_COL_APPLICATIONS || 'Applications',
+  safeguardingLink:
+    import.meta.env.VITE_CONTACT_COL_SAFEGUARDING_LINK ||
+    'link to Safeguarding Certificates (2.0)',
   address: import.meta.env.VITE_CONTACT_COL_ADDRESS || 'Address',
   city: import.meta.env.VITE_CONTACT_COL_CITY || 'City',
+  state: import.meta.env.VITE_CONTACT_COL_STATE || 'State',
+  zip: import.meta.env.VITE_CONTACT_COL_ZIP || 'Zip',
   country: import.meta.env.VITE_CONTACT_COL_COUNTRY || 'Country',
   dateOfBirth:
     import.meta.env.VITE_CONTACT_COL_DATE_OF_BIRTH || 'Date of birth',
+  pastorName:
+    import.meta.env.VITE_CONTACT_COL_PASTOR_NAME || 'Pastor Name',
+  pastorEmail:
+    import.meta.env.VITE_CONTACT_COL_PASTOR_EMAIL || 'Pastor Email',
+  pastorPhone:
+    import.meta.env.VITE_CONTACT_COL_PASTOR_PHONE || 'Pastor Phone',
+  churchName: import.meta.env.VITE_CONTACT_COL_CHURCH || 'Church Name',
+  pastorReferenceLink:
+    import.meta.env.VITE_CONTACT_COL_PASTOR_REFERENCE_LINK || 'Pastor Reference',
+  donationsLink:
+    import.meta.env.VITE_CONTACT_COL_DONATIONS_LINK || 'Donations',
 } as const;
 
 export type ContactMapKey = keyof typeof contactMap;

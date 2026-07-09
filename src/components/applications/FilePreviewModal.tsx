@@ -26,10 +26,46 @@ export default function FilePreviewModal({
   const url = file.url ?? "";
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setImagePreviewFailed(false);
   }, [file.id, url]);
+
+  useEffect(() => {
+    if (previewKind !== "pdf" || !url) {
+      setPdfPreviewUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Preview failed (${response.status})`);
+        }
+        return response.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setPdfPreviewUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPdfPreviewUrl(url);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [previewKind, url]);
 
   const defaultFilename = useMemo(() => {
     if (!volunteerName) return file.name;
@@ -128,11 +164,17 @@ export default function FilePreviewModal({
                 />
               )
             ) : previewKind === "pdf" ? (
-              <iframe
-                title={file.name}
-                src={url}
-                className="h-[70vh] w-full rounded-lg border border-crm-taupe/20 bg-crm-surface shadow-md"
-              />
+              pdfPreviewUrl ? (
+                <iframe
+                  title={file.name}
+                  src={pdfPreviewUrl}
+                  className="h-[70vh] w-full rounded-lg border border-crm-taupe/20 bg-crm-surface shadow-md"
+                />
+              ) : (
+                <p className="py-12 text-center text-sm text-crm-slate">
+                  Loading preview…
+                </p>
+              )
             ) : (
               <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
                 <FileTypeIcon />

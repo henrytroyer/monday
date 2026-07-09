@@ -7,6 +7,7 @@ interface FormFieldsPanelProps {
   backLabel: string;
   fields: ApplicationFormField[];
   emptyMessage: string;
+  loading?: boolean;
   pdfFile?: VolunteerFile;
   onClose: () => void;
 }
@@ -16,6 +17,7 @@ export default function FormFieldsPanel({
   backLabel,
   fields,
   emptyMessage,
+  loading = false,
   pdfFile,
   onClose,
 }: FormFieldsPanelProps) {
@@ -53,7 +55,9 @@ export default function FormFieldsPanel({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          {fields.length === 0 ? (
+          {loading ? (
+            <p className="text-sm text-crm-slate">{emptyMessage}</p>
+          ) : fields.length === 0 ? (
             <p className="text-sm text-crm-slate">{emptyMessage}</p>
           ) : (
             <dl className="space-y-5">

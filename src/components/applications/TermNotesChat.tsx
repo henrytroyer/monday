@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { canAddApplicationNotes } from '../../config/boards';
 import { getTimelineLabel } from '../../data/timelines';
 import { formatNoteTimestamp } from '../../services/termNotes';
 import { useTermNotes } from '../../hooks/useTermNotes';
@@ -16,6 +17,7 @@ export default function TermNotesChat({
   initialNotes,
 }: TermNotesChatProps) {
   const timelineLabel = getTimelineLabel(timelineId);
+  const notesWritable = canAddApplicationNotes();
   const { notes, sending, error, addNote } = useTermNotes({
     itemId,
     timelineId,
@@ -33,7 +35,7 @@ export default function TermNotesChat({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!draft.trim() || sending) return;
+    if (!notesWritable || !draft.trim() || sending) return;
     const text = draft;
     setDraft('');
     await addNote(text);
@@ -59,7 +61,9 @@ export default function TermNotesChat({
       >
         {notes.length === 0 ? (
           <p className="text-center text-sm text-crm-slate">
-            No notes for this service record yet. Add the first note below.
+            {notesWritable
+              ? 'No notes for this service record yet. Add the first note below.'
+              : 'No notes for this service record yet.'}
           </p>
         ) : (
           notes.map((note) => (
@@ -90,27 +94,40 @@ export default function TermNotesChat({
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <label htmlFor="term-note-input" className="sr-only">
-          Add internal note
-        </label>
-        <textarea
-          id="term-note-input"
-          rows={2}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Write an internal note for this service record…"
-          className="min-h-[4rem] flex-1 resize-y rounded-2xl border border-crm-taupe/20 px-4 py-3 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
-          disabled={sending}
-        />
-        <button
-          type="submit"
-          disabled={sending || !draft.trim()}
-          className="shrink-0 rounded-2xl bg-crm-indigo px-5 py-3 text-sm font-medium text-white transition hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50 sm:self-end"
+      {notesWritable ? (
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 flex flex-col gap-3 sm:flex-row"
         >
-          {sending ? 'Sending…' : 'Add note'}
-        </button>
-      </form>
+          <label htmlFor="term-note-input" className="sr-only">
+            Add internal note
+          </label>
+          <textarea
+            id="term-note-input"
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Write an internal note for this service record…"
+            className="min-h-[4rem] flex-1 resize-y rounded-2xl border border-crm-taupe/20 px-4 py-3 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
+            disabled={sending}
+          />
+          <button
+            type="submit"
+            disabled={sending || !draft.trim()}
+            className="shrink-0 rounded-2xl bg-crm-indigo px-5 py-3 text-sm font-medium text-white transition hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50 sm:self-end"
+          >
+            {sending ? 'Sending…' : 'Add note'}
+          </button>
+        </form>
+      ) : (
+        <p className="mt-4 text-sm text-crm-slate">
+          Application notes are read-only. Set{' '}
+          <code className="rounded bg-crm-taupe-50 px-1 text-xs">
+            VITE_APPLICATION_NOTES_WRITABLE=true
+          </code>{' '}
+          when you are ready to write term notes from the portal.
+        </p>
+      )}
     </div>
   );
 }

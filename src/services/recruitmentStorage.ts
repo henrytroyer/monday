@@ -1,4 +1,5 @@
 import type { ContactDetail } from '../types/contact';
+import { useMockData } from '../config/boards';
 import {
   createContactFromProspect,
   ensureContactTag,
@@ -20,6 +21,7 @@ import {
   mergeLegacyNotesIntoServiceRecord,
   migrateContactScopedNotes,
 } from './serviceRecordNoteStorage';
+import { addRecruitmentNoteOnContact } from './crmApi';
 import type {
   RecruitmentNote,
   RecruitmentPriorTerm,
@@ -64,7 +66,7 @@ export function ensureRecruitmentDemoData(): void {
   localStorage.setItem(DEMO_SEED_FLAG, DEMO_SEED_VERSION);
 }
 
-function getRecruitmentProspectsRaw(): RecruitmentProspect[] {
+export function getRecruitmentProspectsRaw(): RecruitmentProspect[] {
   try {
     const raw = localStorage.getItem(PROSPECTS_KEY);
     if (!raw) return [];
@@ -227,7 +229,7 @@ export function migrateContactToRecruitment(detail: ContactDetail): {
     priorServiceTerms,
   });
   upsertRecruitmentServiceRecord(detail.id, prospect);
-  addRecruitmentNote(prospect.id, migrationLogNote(true));
+  addServiceRecordNote(prospect.id, migrationLogNote(true), 'System');
   return { prospect, created: true };
 }
 
@@ -307,7 +309,7 @@ function reactivateRecruitmentProspect(
   saveProspects([prospect, ...getRecruitmentProspectsRaw()]);
   upsertRecruitmentServiceRecord(detail.id, prospect);
   ensureContactTag(detail.id, 'recruitment');
-  addRecruitmentNote(prospectId, migrationLogNote(false));
+  addServiceRecordNote(prospectId, migrationLogNote(false), 'System');
   return prospect;
 }
 
@@ -403,15 +405,29 @@ export function getRecruitmentNotesSynopsis(
   return `${collapsed.slice(0, maxLength - 1).trim()}…`;
 }
 
-export function addRecruitmentNote(
+export async function addRecruitmentNote(
   prospectId: string,
   body: string,
   authorName = 'You',
   attachment?: RecruitmentNote['attachment'],
-): RecruitmentNote {
+  options?: { contactId?: string | null },
+): Promise<RecruitmentNote> {
   const prospect = getProspectById(prospectId);
   if (prospect?.sourceContactId) {
     syncLegacyProspectNotes(prospectId, prospect.sourceContactId);
+  }
+
+  const contactId = options?.contactId ?? prospect?.sourceContactId ?? null;
+
+  if (!useMockData() && contactId && !attachment && body.trim()) {
+    await addRecruitmentNoteOnContact(contactId, prospectId, body);
+    return {
+      id: `monday-recruitment-${Date.now()}`,
+      prospectId,
+      body: body.trim(),
+      authorName,
+      createdAt: new Date().toISOString(),
+    };
   }
 
   const note = addServiceRecordNote(

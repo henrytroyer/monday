@@ -3,6 +3,25 @@
  * Reusable query strings for common operations
  */
 
+/** File column fragment — FileValue.files is a union; asset fields need inline types. */
+export const fileValueFieldsFragment = `
+  ... on FileValue {
+    files {
+      ... on FileAssetValue {
+        asset_id
+        name
+        is_image
+      }
+      ... on FileLinkValue {
+        name
+        url
+      }
+      ... on FileDocValue {
+        url
+      }
+    }
+  }`;
+
 export const queries = {
   /**
    * Get basic board information
@@ -44,6 +63,9 @@ export const queries = {
             column {
               title
             }
+            ... on BoardRelationValue {
+              linked_item_ids
+            }
           }
           group {
             id
@@ -77,6 +99,9 @@ export const queries = {
             column {
               title
             }
+            ... on BoardRelationValue {
+              linked_item_ids
+            }
           }
         }
       }
@@ -100,6 +125,9 @@ export const queries = {
           type
           column {
             title
+          }
+          ... on BoardRelationValue {
+            linked_item_ids
           }
         }
         group {
@@ -137,6 +165,9 @@ export const queries = {
           type
           column {
             title
+          }
+          ... on BoardRelationValue {
+            linked_item_ids
           }
         }
         created_at
@@ -180,6 +211,10 @@ export const queries = {
         column {
           title
         }
+        ... on BoardRelationValue {
+          linked_item_ids
+        }
+        ${fileValueFieldsFragment}
       }
       created_at
       updated_at
@@ -194,6 +229,65 @@ export const queries = {
         created_at
         creator {
           name
+        }
+      }
+    }
+  }`,
+
+  getItemsWithUpdates: `query ($itemIds: [ID!]) {
+    items(ids: $itemIds) {
+      id
+      name
+      updates(limit: 100) {
+        id
+        text_body
+        created_at
+        creator {
+          name
+        }
+      }
+    }
+  }`,
+
+  getItemSummaries: `query ($itemIds: [ID!]) {
+    items(ids: $itemIds) {
+      id
+      name
+    }
+  }`,
+
+  getDonationItemsByIds: `query ($itemIds: [ID!]) {
+    items(ids: $itemIds) {
+      id
+      name
+      column_values {
+        id
+        text
+        value
+        type
+        column {
+          title
+        }
+      }
+    }
+  }`,
+
+  getDonationItemsByEmail: `query ($boardId: [ID!], $rules: [ItemsQueryRule!]!, $limit: Int, $cursor: String) {
+    boards(ids: $boardId) {
+      items_page(limit: $limit, cursor: $cursor, query_params: { rules: $rules }) {
+        cursor
+        items {
+          id
+          name
+          column_values {
+            id
+            text
+            value
+            type
+            column {
+              title
+            }
+          }
         }
       }
     }
@@ -257,10 +351,15 @@ export const mutations = {
   }`,
 
   /**
-   * Update item name
+   * Update item name (via the name column — change_item_name was removed from current API versions)
    */
-  updateItemName: `mutation ($itemId: ID!, $itemName: String!) {
-    change_item_name(item_id: $itemId, new_value: $itemName) {
+  updateItemName: `mutation ($boardId: ID!, $itemId: ID!, $itemName: String!) {
+    change_simple_column_value(
+      board_id: $boardId,
+      item_id: $itemId,
+      column_id: "name",
+      value: $itemName
+    ) {
       id
       name
     }
@@ -269,12 +368,28 @@ export const mutations = {
   /**
    * Update column value
    */
-  updateColumnValue: `mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!) {
+  updateColumnValue: `mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!, $createLabelsIfMissing: Boolean) {
     change_column_value(
       board_id: $boardId,
       item_id: $itemId,
       column_id: $columnId,
-      value: $value
+      value: $value,
+      create_labels_if_missing: $createLabelsIfMissing
+    ) {
+      id
+    }
+  }`,
+
+  /**
+   * Update column with a simple string value (text columns, item name, etc.)
+   */
+  updateSimpleColumnValue: `mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $value: String!, $createLabelsIfMissing: Boolean) {
+    change_simple_column_value(
+      board_id: $boardId,
+      item_id: $itemId,
+      column_id: $columnId,
+      value: $value,
+      create_labels_if_missing: $createLabelsIfMissing
     ) {
       id
     }

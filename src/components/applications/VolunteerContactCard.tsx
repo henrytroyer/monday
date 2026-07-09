@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { getTimelineLabel } from '../../data/timelines';
 import type { VolunteerDetail } from '../../types/volunteer';
 import {
@@ -6,10 +6,12 @@ import {
   formatContactAddress,
 } from '../../utils/formatContactAddress';
 import { formatPhoneTelHref } from '../../utils/phoneFormat';
+import FilePreviewModal from './FilePreviewModal';
 import VolunteerFilesSection from './VolunteerFilesSection';
 import {
-  displayLocationPreference,
-  hasDistinctAssignedLocation,
+  displayLocationPreferenceOnly,
+  displayConfirmedLocation,
+  hasConfirmedLocation,
 } from '../../utils/volunteerLocation';
 import VolunteerAvatar from './VolunteerAvatar';
 
@@ -35,6 +37,17 @@ export default function VolunteerContactCard({
     ? formatContactAddress(detail.demographics)
     : null;
   const displayDateOfBirth = detail.demographics?.dateOfBirth?.trim() || null;
+  const [profilePreviewOpen, setProfilePreviewOpen] = useState(false);
+
+  const profilePreviewFile =
+    detail.profilePhotoUrl != null && detail.profilePhotoUrl !== ''
+      ? {
+          id: 'profile-photo',
+          name: 'Profile photo',
+          url: detail.profilePhotoUrl,
+          isImage: true,
+        }
+      : null;
 
   return (
     <div className="rounded-2xl border border-crm-taupe/20 bg-gradient-to-br from-crm-taupe-50 to-crm-surface p-6 shadow-sm">
@@ -43,17 +56,23 @@ export default function VolunteerContactCard({
           name={detail.name}
           profilePhotoUrl={detail.profilePhotoUrl}
           size="lg"
+          onClick={
+            profilePreviewFile
+              ? () => setProfilePreviewOpen(true)
+              : undefined
+          }
         />
 
         <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-semibold text-crm-heading">{detail.name}</h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            <span className="rounded-full bg-crm-white px-3 py-1 text-sm text-crm-text">
-              {displayLocationPreference(detail)}
-            </span>
-            {hasDistinctAssignedLocation(detail) && (
-              <span className="rounded-full bg-violet-100 px-3 py-1 text-sm text-violet-800">
-                Assigned: {detail.location}
+            {hasConfirmedLocation(detail) ? (
+              <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+                Confirmed: {displayConfirmedLocation(detail)}
+              </span>
+            ) : (
+              <span className="rounded-full bg-crm-white px-3 py-1 text-sm text-crm-text">
+                {displayLocationPreferenceOnly(detail)}
               </span>
             )}
             <span className="rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800">
@@ -136,13 +155,15 @@ export default function VolunteerContactCard({
         </div>
       </div>
 
-      {beforeFiles && <div className="mt-6">{beforeFiles}</div>}
+      {beforeFiles && <div className="mt-5">{beforeFiles}</div>}
 
       {splitFilesRow ? (
-        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+        <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
           <VolunteerFilesSection
             volunteerName={detail.name}
             profilePhotoUrl={detail.profilePhotoUrl}
+            passportFile={detail.passportFile}
+            childSafeguardingFile={detail.childSafeguardingFile}
             files={detail.files}
             showOtherFiles
             embeddedInGrid
@@ -150,11 +171,23 @@ export default function VolunteerContactCard({
           {besideFiles}
         </div>
       ) : (
-        <VolunteerFilesSection
+        <div className="mt-5">
+          <VolunteerFilesSection
+            volunteerName={detail.name}
+            profilePhotoUrl={detail.profilePhotoUrl}
+            passportFile={detail.passportFile}
+            childSafeguardingFile={detail.childSafeguardingFile}
+            files={detail.files}
+            showOtherFiles
+          />
+        </div>
+      )}
+
+      {profilePreviewOpen && profilePreviewFile && (
+        <FilePreviewModal
+          file={profilePreviewFile}
           volunteerName={detail.name}
-          profilePhotoUrl={detail.profilePhotoUrl}
-          files={detail.files}
-          showOtherFiles
+          onClose={() => setProfilePreviewOpen(false)}
         />
       )}
     </div>

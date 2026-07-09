@@ -9,11 +9,19 @@ import type {
 import type { VolunteerTerm, VolunteerFile } from '../types/volunteer';
 import { getColumnText, getApplicationFilesFromColumns, type MondayBoardItem } from './mapMondayToCrm';
 import {
+  mergeContactAndApplicationDemographics,
+} from '../utils/formatContactAddress';
+import {
+  resolveApplicationDemographics,
+} from '../utils/applicationDemographics';
+import {
   getContactColumnText,
   getContactFilesFromColumns,
   getContactPassportFile,
+  mapContactPastorReference,
   mapItemToContactListItem,
   parseLinkedApplicationIds,
+  parseLinkedDonationItemIds,
   type MondayContactItem,
 } from './mapMondayToContact';
 function normalizeEmail(email: string): string {
@@ -150,9 +158,11 @@ export function enrichContactDetail(
     }
   }
 
-  const demographics = {
+  const contactDemographics = {
     address: getContactColumnText(contactItem.column_values, 'address'),
     city: getContactColumnText(contactItem.column_values, 'city'),
+    state: getContactColumnText(contactItem.column_values, 'state'),
+    zip: getContactColumnText(contactItem.column_values, 'zip'),
     country: getContactColumnText(contactItem.column_values, 'country'),
     dateOfBirth: getContactColumnText(
       contactItem.column_values,
@@ -160,34 +170,47 @@ export function enrichContactDetail(
     ),
   };
 
-  const hasDemographics = Object.values(demographics).some(Boolean);
+  let volunteerApp: MondayBoardItem | undefined;
+  if (base.tags.includes('volunteer')) {
+    volunteerApp = applications.find(
+      (app) =>
+        linkedAppIds.includes(app.id) ||
+        normalizeEmail(getColumnText(app.column_values, 'email')) === emailNorm,
+    );
+  }
+
+  const applicationDemographics = volunteerApp
+    ? resolveApplicationDemographics(volunteerApp.column_values)
+    : undefined;
+
+  const demographics = mergeContactAndApplicationDemographics(
+    contactDemographics,
+    applicationDemographics,
+  );
 
   const contactFiles = getContactFilesFromColumns(contactItem.column_values);
   let files: VolunteerFile[] | undefined =
     contactFiles.length > 0 ? contactFiles : undefined;
 
-  if (base.tags.includes('volunteer')) {
-    const volunteerApp = applications.find(
-      (app) =>
-        linkedAppIds.includes(app.id) ||
-        normalizeEmail(getColumnText(app.column_values, 'email')) === emailNorm,
-    );
-    if (volunteerApp) {
-      const appFiles = getApplicationFilesFromColumns(volunteerApp.column_values);
-      if (appFiles.length > 0) {
-        const merged = [...(files ?? []), ...appFiles];
-        const seen = new Set<string>();
-        files = merged.filter((file) => {
-          const key = `${file.id}-${file.name}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-      }
+  if (volunteerApp) {
+    const appFiles = getApplicationFilesFromColumns(volunteerApp.column_values);
+    if (appFiles.length > 0) {
+      const merged = [...(files ?? []), ...appFiles];
+      const seen = new Set<string>();
+      files = merged.filter((file) => {
+        const key = `${file.id}-${file.name}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     }
   }
 
   const passportFile = getContactPassportFile(contactItem.column_values);
+  const pastorReference = mapContactPastorReference(contactItem.column_values);
+  const linkedDonationItemIds = parseLinkedDonationItemIds(
+    contactItem.column_values,
+  );
 
   return {
     quickbooksCustomerId:
@@ -195,10 +218,12 @@ export function enrichContactDetail(
       undefined,
     passportPhotoUrl: passportFile?.url,
     passportFile,
-    demographics: hasDemographics ? demographics : undefined,
+    demographics,
     files,
     currentApplication,
     serviceTerms,
     linkedVolunteers,
+    pastorReference,
+    ...(linkedDonationItemIds.length > 0 ? { linkedDonationItemIds } : {}),
   };
 }

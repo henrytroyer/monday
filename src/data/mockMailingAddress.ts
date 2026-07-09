@@ -40,6 +40,14 @@ const COUNTRIES = [
   'Australia',
 ];
 
+const US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+];
+
 function hashString(value: string): number {
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
@@ -61,17 +69,25 @@ function pick<T>(rand: () => number, items: T[]): T {
   return items[Math.floor(rand() * items.length)]!;
 }
 
-/** Deterministic mailing address for mock donor contacts (monday Address / City / Country columns). */
+/** Deterministic mailing address for mock donor contacts (monday Address / City / State / Zip / Country columns). */
 export function buildMockMailingDemographics(
   contactId: string,
 ): ContactDemographics {
   const rand = createRng(hashString(`${contactId}-mailing`));
   const streetNumber = 100 + Math.floor(rand() * 8900);
   const unit = rand() > 0.82 ? `, Apt ${1 + Math.floor(rand() * 120)}` : '';
+  const country = pick(rand, COUNTRIES);
+  const isUs = country === 'United States';
 
   return {
     address: `${streetNumber} ${pick(rand, STREETS)}${unit}`,
     city: pick(rand, CITIES),
-    country: pick(rand, COUNTRIES),
+    ...(isUs
+      ? {
+          state: pick(rand, US_STATES),
+          zip: String(10000 + Math.floor(rand() * 89999)),
+        }
+      : {}),
+    country,
   };
 }

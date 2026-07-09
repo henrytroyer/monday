@@ -154,3 +154,19 @@ export function buildPastorReferenceFormFields(
 ): ApplicationFormField[] {
   return buildFields(columnValues, isPastorReferenceColumn);
 }
+
+/**
+ * Q&A on a dedicated Pastor Reference board item (Contacts board link drill-down).
+ * Unlike buildPastorReferenceFormFields (Applications board subset), show all
+ * answered columns except workflow Status and mapped CRM fields.
+ */
+export function buildPastorReferenceBoardFormFields(
+  columnValues: MondayColumnValue[],
+): ApplicationFormField[] {
+  return buildFields(columnValues, (_col, title) => {
+    const normalized = normalizeTitle(title);
+    if (normalized === 'status') return false;
+    if (isCrmColumn(title)) return false;
+    return true;
+  });
+}

@@ -21,11 +21,12 @@ export function resolveVolunteerFileSlots(
   profilePhotoUrl: string | undefined,
   files: VolunteerFile[] = [],
   passportFile?: VolunteerFile,
+  childSafeguardingFile?: VolunteerFile,
 ): VolunteerFileSlots {
   const consumed = new Set<string>();
   let passportFromFiles: VolunteerFile | undefined;
   let backgroundCheck: VolunteerFile | undefined;
-  let childSafeguarding: VolunteerFile | undefined;
+  let childSafeguardingFromFiles: VolunteerFile | undefined;
   let profileFromFiles: VolunteerFile | undefined;
 
   for (const file of files) {
@@ -36,7 +37,7 @@ export function resolveVolunteerFileSlots(
       backgroundCheck = withPasswordAccess(file);
       consumed.add(file.id);
     } else if (matchesSlot(file, /safeguard/i)) {
-      childSafeguarding = file;
+      childSafeguardingFromFiles = file;
       consumed.add(file.id);
     } else if (
       file.isImage &&
@@ -81,6 +82,17 @@ export function resolveVolunteerFileSlots(
   }
 
   const otherFiles = files.filter((file) => !consumed.has(file.id));
+
+  const childSafeguarding =
+    childSafeguardingFile?.url != null && childSafeguardingFile.url !== ''
+      ? {
+          id: childSafeguardingFile.id || 'child-safeguarding',
+          name:
+            childSafeguardingFile.name || 'Child safeguarding certificate',
+          url: childSafeguardingFile.url,
+          isImage: childSafeguardingFile.isImage,
+        }
+      : childSafeguardingFromFiles;
 
   return {
     profilePhoto,

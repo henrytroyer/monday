@@ -56,9 +56,9 @@ export function useTermNotes({
     if (useLocal) {
       loadLocal();
     } else {
-      setNotes(initialNotes);
+      void refresh();
     }
-  }, [initialNotes, useLocal, loadLocal]);
+  }, [itemId, timelineId, useLocal, loadLocal, refresh]);
 
   const addNote = useCallback(
     async (body: string) => {

@@ -26,7 +26,12 @@ export function useRecruitmentNotes(prospectId: string) {
       if (!trimmed && !attachment) return;
       setSending(true);
       try {
-        const note = addRecruitmentNote(prospectId, trimmed, 'You', attachment);
+        const note = await addRecruitmentNote(
+          prospectId,
+          trimmed,
+          'You',
+          attachment,
+        );
         setNotes((prev) => [...prev, note]);
       } finally {
         setSending(false);

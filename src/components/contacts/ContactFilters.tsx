@@ -71,25 +71,8 @@ export default function ContactFilters({
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div>
           <label
-            htmlFor="contact-search"
-            className="text-sm font-medium text-crm-heading"
-          >
-            Search by name or email
-          </label>
-          <input
-            id="contact-search"
-            type="search"
-            placeholder="Search contacts..."
-            value={filters.searchQuery}
-            onChange={(e) =>
-              onChange({ ...filters, searchQuery: e.target.value })
-            }
-            className={inputClass}
-          />
-
-          <label
             htmlFor="contact-sort"
-            className="mt-4 block text-sm font-medium text-crm-heading"
+            className="text-sm font-medium text-crm-heading"
           >
             Sort by
           </label>

@@ -3,7 +3,24 @@ import type {
   PipelineSection,
   Volunteer,
 } from '../types/volunteer';
+import { LOCATION_OPTIONS } from '../types/volunteer';
+import { getTimelineLabel } from '../data/timelines';
 import { displayLocationPreference } from './volunteerLocation';
+
+function matchesLocationFilter(
+  volunteer: Volunteer,
+  locations: string[],
+): boolean {
+  const pref = displayLocationPreference(volunteer).toLowerCase();
+  return locations.some((loc) => {
+    if (loc === 'Other') {
+      return !LOCATION_OPTIONS.slice(0, -1).some((known) =>
+        pref.includes(known.toLowerCase()),
+      );
+    }
+    return pref.includes(loc.toLowerCase());
+  });
+}
 
 function matchesFilters(
   volunteer: Volunteer,
@@ -15,7 +32,7 @@ function matchesFilters(
 
   if (
     locationActive &&
-    !filters.locations.includes(displayLocationPreference(volunteer))
+    !matchesLocationFilter(volunteer, filters.locations)
   ) {
     return false;
   }
@@ -98,5 +115,36 @@ export function updateVolunteerStatusInPipeline(
       volunteer.id === volunteerId ? { ...volunteer, status } : volunteer,
     ),
   }));
+}
+
+export interface ApplicationFilterOption {
+  id: string;
+  label: string;
+}
+
+export function deriveTimelineOptions(
+  pipeline: PipelineSection[],
+): ApplicationFilterOption[] {
+  const seen = new Map<string, string>();
+  for (const section of pipeline) {
+    for (const volunteer of section.volunteers) {
+      if (!seen.has(volunteer.timelineId)) {
+        seen.set(volunteer.timelineId, getTimelineLabel(volunteer.timelineId));
+      }
+    }
+  }
+  return Array.from(seen.entries())
+    .map(([id, label]) => ({ id, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function deriveLocationOptions(pipeline: PipelineSection[]): string[] {
+  const seen = new Set<string>();
+  for (const section of pipeline) {
+    for (const volunteer of section.volunteers) {
+      seen.add(displayLocationPreference(volunteer));
+    }
+  }
+  return Array.from(seen).sort((a, b) => a.localeCompare(b));
 }
 

@@ -46,7 +46,23 @@ export const columnMap = {
     'Other Reference Emails',
   phone: import.meta.env.VITE_COL_PHONE || 'Phone',
   profilePhoto: import.meta.env.VITE_COL_PROFILE_PHOTO || 'Profile Photo',
+  passport: import.meta.env.VITE_COL_PASSPORT || 'Passport Photo',
+  passportNew:
+    import.meta.env.VITE_COL_PASSPORT_NEW || 'Please upload New Passport',
+  releaseForms: import.meta.env.VITE_COL_RELEASE_FORMS || 'Release Forms',
   files: import.meta.env.VITE_COL_FILES || 'Files',
+  dateOfBirth: import.meta.env.VITE_COL_DATE_OF_BIRTH || 'Birthdate',
+  addressStreet: import.meta.env.VITE_COL_ADDRESS_STREET || 'Street',
+  addressCity: import.meta.env.VITE_COL_ADDRESS_CITY || 'City',
+  addressState: import.meta.env.VITE_COL_ADDRESS_STATE || 'State',
+  addressZip: import.meta.env.VITE_COL_ADDRESS_ZIP || 'Postal Code',
+  addressCountry: import.meta.env.VITE_COL_ADDRESS_COUNTRY || 'Country',
+  addressFillout:
+    import.meta.env.VITE_COL_ADDRESS_FILLOUT || 'New Address- from fillout',
+  contactsLink:
+    import.meta.env.VITE_COL_CONTACTS_LINK || 'link to Contacts',
+  safeguardingMirror:
+    import.meta.env.VITE_COL_SAFEGUARDING_MIRROR || 'Safeguarding Mirror',
 } as const;
 
 export type ColumnMapKey = keyof typeof columnMap;

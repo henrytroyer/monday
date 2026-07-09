@@ -16,7 +16,7 @@ dotenv.config();
 const PORT = Number(process.env.PORT || 4042);
 const TOKEN = process.env.MONDAY_API_TOKEN;
 const MONDAY_API = 'https://api.monday.com/v2';
-const API_VERSION = '2023-10';
+const API_VERSION = '2024-10';
 
 function sendJson(res, status, data) {
   res.writeHead(status, {

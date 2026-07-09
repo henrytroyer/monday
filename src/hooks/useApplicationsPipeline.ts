@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { applicationPipeline } from '../data/mockApplications';
-import { resolveBoardId, useMockData, isStandaloneMondayMode } from '../config/boards';
+import {
+  canEditApplications,
+  isStandaloneMondayMode,
+  resolveApplicationsBoardId,
+  useMockData,
+} from '../config/boards';
 import { APPLICATION_STATUS_OPTIONS } from '../constants/applicationStatuses';
 import {
   fetchApplicationStatusOptions,
@@ -20,6 +25,7 @@ interface UseApplicationsPipelineReturn {
   statusOptions: string[];
   refetch: () => void;
   updateVolunteerStatus: (volunteerId: string, status: string) => Promise<void>;
+  applicationsEditable: boolean;
 }
 
 export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
@@ -34,7 +40,8 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
 
   const isMock = useMockData();
   const standalone = isStandaloneMondayMode();
-  const boardId = resolveBoardId(context);
+  const boardId = resolveApplicationsBoardId(context);
+  const applicationsEditable = canEditApplications();
 
   const refetch = useCallback(() => {
     setFetchKey((k) => k + 1);
@@ -127,5 +134,6 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
     statusOptions,
     refetch,
     updateVolunteerStatus,
+    applicationsEditable,
   };
 }

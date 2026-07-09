@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppSidebar, { type PageId } from '../components/layout/AppSidebar';
+import KeepAlivePage from '../components/layout/KeepAlivePage';
 import { useLayout } from '../context/LayoutContext';
+import { useMondayBoardWatcher } from '../hooks/useMondayBoardWatcher';
 import ApplicationsPage from './ApplicationsPage';
 import ContactsPage from './ContactsPage';
 import EmailTemplatesPage from './EmailTemplatesPage';
@@ -9,6 +11,9 @@ import RecruitmentPage from './RecruitmentPage';
 
 export default function Dashboard() {
   const [activePage, setActivePage] = useState<PageId>('applications');
+  const [mountedPages, setMountedPages] = useState<Set<PageId>>(
+    () => new Set(['applications', 'contacts']),
+  );
   const [recruitmentFocusId, setRecruitmentFocusId] = useState<string | null>(
     null,
   );
@@ -16,6 +21,14 @@ export default function Dashboard() {
     null,
   );
   const { closeSidebar } = useLayout();
+  useMondayBoardWatcher();
+
+  useEffect(() => {
+    setMountedPages((prev) => {
+      if (prev.has(activePage)) return prev;
+      return new Set(prev).add(activePage);
+    });
+  }, [activePage]);
 
   const handleNavigate = (id: PageId) => {
     setActivePage(id);
@@ -39,44 +52,69 @@ export default function Dashboard() {
       <AppSidebar activePage={activePage} onNavigate={handleNavigate} />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-8">
-        {activePage === 'applications' && (
+        <KeepAlivePage
+          active={activePage === 'applications'}
+          mounted={mountedPages.has('applications')}
+        >
           <ApplicationsPage
             focusApplicationId={applicationFocusId}
             onClearFocus={() => setApplicationFocusId(null)}
           />
-        )}
+        </KeepAlivePage>
 
-        {activePage === 'contacts' && (
+        <KeepAlivePage
+          active={activePage === 'contacts'}
+          mounted={mountedPages.has('contacts')}
+        >
           <ContactsPage
             onGoToRecruitment={handleGoToRecruitment}
             onGoToApplication={handleGoToApplication}
           />
-        )}
+        </KeepAlivePage>
 
-        {activePage === 'email-templates' && <EmailTemplatesPage />}
+        <KeepAlivePage
+          active={activePage === 'email-templates'}
+          mounted={mountedPages.has('email-templates')}
+        >
+          <EmailTemplatesPage />
+        </KeepAlivePage>
 
-        {activePage === 'recruitment' && (
+        <KeepAlivePage
+          active={activePage === 'recruitment'}
+          mounted={mountedPages.has('recruitment')}
+        >
           <RecruitmentPage
             focusProspectId={recruitmentFocusId}
             onClearFocus={() => setRecruitmentFocusId(null)}
           />
-        )}
+        </KeepAlivePage>
 
-        {activePage === 'longterm-applications' && <LongtermApplicationsPage />}
+        <KeepAlivePage
+          active={activePage === 'longterm-applications'}
+          mounted={mountedPages.has('longterm-applications')}
+        >
+          <LongtermApplicationsPage />
+        </KeepAlivePage>
 
-        {activePage === 'forms' && (
+        <KeepAlivePage
+          active={activePage === 'forms'}
+          mounted={mountedPages.has('forms')}
+        >
           <PlaceholderPage
             title="Forms"
             description="Application forms and references"
           />
-        )}
+        </KeepAlivePage>
 
-        {activePage === 'automations' && (
+        <KeepAlivePage
+          active={activePage === 'automations'}
+          mounted={mountedPages.has('automations')}
+        >
           <PlaceholderPage
             title="Automations"
             description="Workflow and email automations"
           />
-        )}
+        </KeepAlivePage>
       </main>
     </div>
   );

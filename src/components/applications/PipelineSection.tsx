@@ -4,8 +4,9 @@ import type {
   Volunteer,
 } from '../../types/volunteer';
 import {
-  displayLocationPreference,
-  hasDistinctAssignedLocation,
+  displayLocationPreferenceOnly,
+  displayConfirmedLocation,
+  hasConfirmedLocation,
 } from '../../utils/volunteerLocation';
 import VolunteerAvatar from './VolunteerAvatar';
 import VolunteerStatusSelect from './VolunteerStatusSelect';
@@ -15,6 +16,7 @@ interface PipelineSectionProps {
   onSelectVolunteer: (volunteer: Volunteer) => void;
   statusOptions: readonly string[];
   onStatusChange: (volunteerId: string, newStatus: string) => void | Promise<void>;
+  statusSelectDisabled?: boolean;
 }
 
 export default function PipelineSection({
@@ -22,6 +24,7 @@ export default function PipelineSection({
   onSelectVolunteer,
   statusOptions,
   onStatusChange,
+  statusSelectDisabled = false,
 }: PipelineSectionProps) {
   return (
     <div className="overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface shadow-sm">
@@ -56,14 +59,12 @@ export default function PipelineSection({
                   {volunteer.name}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-crm-slate">
-                  <span>{displayLocationPreference(volunteer)}</span>
-                  {hasDistinctAssignedLocation(volunteer) && (
-                    <>
-                      <span className="text-crm-taupe/50">·</span>
-                      <span className="text-crm-slate">
-                        Assigned: {volunteer.location}
-                      </span>
-                    </>
+                  {hasConfirmedLocation(volunteer) ? (
+                    <span className="font-medium text-green-800">
+                      Confirmed: {displayConfirmedLocation(volunteer)}
+                    </span>
+                  ) : (
+                    <span>{displayLocationPreferenceOnly(volunteer)}</span>
                   )}
                   <span className="text-crm-taupe/50">·</span>
                   <span className="text-crm-slate">
@@ -78,6 +79,7 @@ export default function PipelineSection({
                 value={volunteer.status}
                 options={statusOptions}
                 onChange={onStatusChange}
+                disabled={statusSelectDisabled}
               />
               <span className="text-crm-slate">→</span>
             </div>

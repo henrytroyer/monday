@@ -144,7 +144,7 @@ export default function TermDetailPanel({
                   <TermNotesChat
                     itemId={term.itemId}
                     timelineId={term.timelineId}
-                    initialNotes={term.notes ?? []}
+                    initialNotes={application.termNotes}
                   />
                 </div>
               </section>

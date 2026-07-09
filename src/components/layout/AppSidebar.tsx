@@ -1,4 +1,5 @@
 import { useLayout } from '../../context/LayoutContext';
+import ReviewNotificationBell from './ReviewNotificationBell';
 
 const NAV_ITEMS = [
   ['contacts', 'Contacts'],
@@ -125,6 +126,8 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
               </button>
             ))}
           </nav>
+
+          <ReviewNotificationBell />
         </aside>
       )}
     </>

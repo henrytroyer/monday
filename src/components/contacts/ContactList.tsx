@@ -9,10 +9,17 @@ import VolunteerAvatar from '../applications/VolunteerAvatar';
 
 interface ContactListProps {
   contacts: ContactListItem[];
+  selectedIds: Set<string>;
+  onToggleSelect: (contact: ContactListItem) => void;
   onSelect: (contact: ContactListItem) => void;
 }
 
-export default function ContactList({ contacts, onSelect }: ContactListProps) {
+export default function ContactList({
+  contacts,
+  selectedIds,
+  onToggleSelect,
+  onSelect,
+}: ContactListProps) {
   if (contacts.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-crm-taupe/28 bg-crm-surface p-12 text-center">
@@ -35,36 +42,52 @@ export default function ContactList({ contacts, onSelect }: ContactListProps) {
           seenLetters.add(letter);
         }
 
+        const isSelected = selectedIds.has(contact.id);
+
         return (
           <li
             key={contact.id}
             id={isFirstForLetter ? letterAnchorId(letter) : undefined}
+            className={isSelected ? 'bg-crm-indigo-50/80' : undefined}
           >
-            <button
-              type="button"
-              onClick={() => onSelect(contact)}
-              className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-crm-taupe-50"
-            >
-              <VolunteerAvatar
-                name={contact.name}
-                profilePhotoUrl={contact.profilePhotoUrl}
-                size="sm"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold text-crm-heading">{contact.name}</div>
-                <div className="truncate text-sm text-crm-slate">
-                  {contact.email}
+            <div className="flex items-stretch gap-1">
+              <label className="flex shrink-0 cursor-pointer items-center px-4 py-4">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(contact)}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label={`Select ${contact.name}`}
+                  className="h-4 w-4 rounded border-crm-taupe/40 text-crm-indigo focus:ring-crm-indigo/30"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => onSelect(contact)}
+                className="flex min-w-0 flex-1 items-center gap-4 py-4 pr-5 text-left transition hover:bg-crm-taupe-50"
+              >
+                <VolunteerAvatar
+                  name={contact.name}
+                  profilePhotoUrl={contact.profilePhotoUrl}
+                  size="sm"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-crm-heading">{contact.name}</div>
+                  <div className="truncate text-sm text-crm-slate">
+                    {contact.email}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {contact.tags.map((tag) => (
+                      <span key={tag} className={contactTagListPillClass(tag)}>
+                        {CONTACT_TAG_LABELS[tag]}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {contact.tags.map((tag) => (
-                    <span key={tag} className={contactTagListPillClass(tag)}>
-                      {CONTACT_TAG_LABELS[tag]}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <span className="shrink-0 text-crm-slate">→</span>
-            </button>
+                <span className="shrink-0 text-crm-slate">→</span>
+              </button>
+            </div>
           </li>
         );
       })}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  canEditContacts,
   isMondayReadOnly,
   isStandaloneMondayMode,
   resolveContactsBoardId,
@@ -8,50 +9,80 @@ import {
 import {
   clearContactsLiveCache,
   fetchContactsList,
+  getContactsLiveCache,
 } from '../services/contactsApi';
 import type { ContactListItem } from '../types/contact';
 import { useMondayContext } from './useMondayContext';
 
 export function useContactsList() {
   const { context, isLoading: contextLoading } = useMondayContext();
-  const [contacts, setContacts] = useState<ContactListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const isMock = useMockData();
+  const isReadOnly = isMondayReadOnly();
+  const contactsEditable = canEditContacts();
+  const contactsBoardId = resolveContactsBoardId(context);
+
+  const [contacts, setContacts] = useState<ContactListItem[]>(() => {
+    if (isMock) return [];
+    return getContactsLiveCache(contactsBoardId);
+  });
+  const [loading, setLoading] = useState(() => {
+    if (isMock) return true;
+    return getContactsLiveCache(contactsBoardId).length === 0;
+  });
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadProgress, setLoadProgress] = useState<{ loaded: number } | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
-  const isMock = useMockData();
-  const isReadOnly = isMondayReadOnly();
-  const standalone = isStandaloneMondayMode();
-  const contactsBoardId = resolveContactsBoardId(context);
+
+  useEffect(() => {
+    if (isMock || contacts.length > 0) return;
+    const cached = getContactsLiveCache(contactsBoardId);
+    if (cached.length > 0) {
+      setContacts(cached);
+      setLoading(false);
+    }
+  }, [contactsBoardId, isMock, contacts.length]);
 
   const load = useCallback(
     async (options?: { clearCache?: boolean }) => {
-      if (
-        contextLoading &&
-        !isMock &&
-        !standalone &&
-        !import.meta.env.VITE_CONTACTS_BOARD_ID
-      ) {
+      const canLoadLive =
+        isMock ||
+        isStandaloneMondayMode() ||
+        Boolean(import.meta.env.VITE_CONTACTS_BOARD_ID);
+
+      if (contextLoading && !canLoadLive) {
         return;
       }
 
-      setLoading(true);
-      setLoadingMore(false);
-      setLoadProgress(null);
+      const cached =
+        !isMock && !options?.clearCache
+          ? getContactsLiveCache(contactsBoardId)
+          : [];
+      const hasCachedList = cached.length > 0;
+
+      if (hasCachedList) {
+        setContacts(cached);
+        setLoading(false);
+      } else {
+        setLoading(true);
+        setLoadingMore(false);
+        setLoadProgress(null);
+      }
+
       setError(null);
 
       if (!isMock && options?.clearCache) {
         clearContactsLiveCache();
       }
 
-      let firstPage = true;
+      let firstPage = !hasCachedList;
 
       try {
         const data = await fetchContactsList({
           contactsBoardId: isMock ? undefined : contactsBoardId,
           clearCache: options?.clearCache,
+          refresh: hasCachedList && !options?.clearCache,
           onPage: isMock
             ? undefined
             : (items, loaded) => {
@@ -69,7 +100,7 @@ export function useContactsList() {
         setError(
           err instanceof Error ? err.message : 'Failed to load contacts',
         );
-        if (firstPage) {
+        if (!hasCachedList) {
           setContacts([]);
         }
       } finally {
@@ -78,7 +109,7 @@ export function useContactsList() {
         setLoadProgress(null);
       }
     },
-    [isMock, contactsBoardId, contextLoading, standalone],
+    [isMock, contactsBoardId, contextLoading],
   );
 
   useEffect(() => {
@@ -86,6 +117,11 @@ export function useContactsList() {
   }, [load]);
 
   const refetch = useCallback(() => load({ clearCache: true }), [load]);
+
+  const removeContacts = useCallback((contactIds: string[]) => {
+    const remove = new Set(contactIds);
+    setContacts((prev) => prev.filter((contact) => !remove.has(contact.id)));
+  }, []);
 
   return {
     contacts,
@@ -95,7 +131,9 @@ export function useContactsList() {
     error,
     isMock,
     isReadOnly,
+    contactsEditable,
     contactsBoardId,
     refetch,
+    removeContacts,
   };
 }

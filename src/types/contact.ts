@@ -33,9 +33,21 @@ export interface ContactListItem {
   tags: ContactTag[];
 }
 
+export interface ContactPastorReference {
+  name?: string;
+  email?: string;
+  phone?: string;
+  church?: string;
+  /** Linked items on the Pastor Reference board (Contacts board_relation column). */
+  linkedItemIds?: string[];
+}
+
 export interface ContactDemographics {
+  /** Street line — maps to monday "Address" column */
   address?: string;
   city?: string;
+  state?: string;
+  zip?: string;
   country?: string;
   dateOfBirth?: string;
 }
@@ -86,6 +98,38 @@ export interface FinancialRecord {
   donationType?: 'one-time' | 'recurring';
 }
 
+export type ContactInternalNoteSource = 'term' | 'recruitment' | 'contact';
+
+export interface ContactInternalNote {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorName?: string;
+  source: ContactInternalNoteSource;
+  sourceLabel: string;
+  timelineId?: string;
+  applicationItemId?: string;
+  recruitmentProspectId?: string;
+  mondayItemId: string;
+}
+
+export type ContactInternalNoteTarget =
+  | {
+      kind: 'contact';
+      sourceLabel: string;
+    }
+  | {
+      kind: 'recruitment';
+      prospectId: string;
+      sourceLabel: string;
+    }
+  | {
+      kind: 'term';
+      itemId: string;
+      timelineId: string;
+      sourceLabel: string;
+    };
+
 export interface ContactDetail extends ContactListItem {
   passportPhotoUrl?: string;
   passportFile?: VolunteerFile;
@@ -97,6 +141,9 @@ export interface ContactDetail extends ContactListItem {
   serviceTerms: VolunteerTerm[];
   linkedVolunteers: LinkedVolunteerSummary[];
   donations: FinancialRecord[];
+  pastorReference?: ContactPastorReference;
+  /** Linked donation items on the Donations board (Contacts board_relation column). */
+  linkedDonationItemIds?: string[];
 }
 
 export type ContactSortOption =

@@ -31,3 +31,6 @@ dist-ssr
 
 # monday.com CLI
 .mapps/
+
+# QBO income watcher cursor state
+server/.qbo-income-sync-state.json

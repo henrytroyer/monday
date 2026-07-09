@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ContactDetailPanel from '../components/contacts/ContactDetailPanel';
 import ContactAlphabetIndex from '../components/contacts/ContactAlphabetIndex';
 import ContactFilters from '../components/contacts/ContactFilters';
-import ContactFiltersTab from '../components/contacts/ContactFiltersTab';
+import ContactListToolbar from '../components/contacts/ContactListToolbar';
 import ContactList from '../components/contacts/ContactList';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
@@ -19,7 +20,7 @@ import {
   letterAnchorId,
 } from '../utils/contactSortLetter';
 import { sortContacts } from '../utils/sortContacts';
-import { ingestPendingDonations } from '../services/contactsApi';
+import { ingestPendingDonations, deleteContacts } from '../services/contactsApi';
 
 export default function ContactsPage({
   onGoToRecruitment,
@@ -32,7 +33,12 @@ export default function ContactsPage({
   const [selectedContact, setSelectedContact] =
     useState<ContactListItem | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [filterPanelTop, setFilterPanelTop] = useState(0);
 
   const { requestClose: requestCloseContact } = useNavLayer(
     selectedContact !== null,
@@ -47,8 +53,10 @@ export default function ContactsPage({
     error,
     isMock,
     isReadOnly,
+    contactsEditable,
     contactsBoardId,
     refetch,
+    removeContacts,
   } = useContactsList();
 
   const filtered = useMemo(
@@ -102,16 +110,92 @@ export default function ContactsPage({
     };
   }, [isMock, refetch]);
 
-  const filtersActive = hasActiveContactFilters(filters);
-
   useEffect(() => {
     if (showingDetail) {
       setFiltersVisible(false);
     }
   }, [showingDetail]);
 
-  const handleFiltersTabClick = () => {
-    setFiltersVisible((visible) => !visible);
+  useLayoutEffect(() => {
+    if (!filtersVisible) return;
+
+    const updatePanelTop = () => {
+      const toolbar = toolbarRef.current;
+      if (toolbar) {
+        setFilterPanelTop(toolbar.getBoundingClientRect().bottom + 4);
+      }
+    };
+
+    updatePanelTop();
+    window.addEventListener('resize', updatePanelTop);
+    window.addEventListener('scroll', updatePanelTop, true);
+    return () => {
+      window.removeEventListener('resize', updatePanelTop);
+      window.removeEventListener('scroll', updatePanelTop, true);
+    };
+  }, [filtersVisible]);
+
+  useEffect(() => {
+    if (!filtersVisible) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setFiltersVisible(false);
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [filtersVisible]);
+
+  const filtersActive = hasActiveContactFilters(filters);
+  const selectedCount = selectedIds.size;
+
+  const toggleContactSelection = (contact: ContactListItem) => {
+    setDeleteError(null);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(contact.id)) {
+        next.delete(contact.id);
+      } else {
+        next.add(contact.id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setDeleteError(null);
+    setSelectedIds(new Set());
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+
+    const label = ids.length === 1 ? '1 contact' : `${ids.length} contacts`;
+    const target = isMock ? 'the mock contact list' : 'monday.com';
+    if (
+      !window.confirm(
+        `Delete ${label}? This removes the item(s) from ${target} and cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteContacts(ids, { contactsBoardId });
+      removeContacts(ids);
+      setSelectedIds(new Set());
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : 'Failed to delete contacts',
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const scrollToLetter = (letter: string) => {
@@ -141,11 +225,6 @@ export default function ContactsPage({
               <p className="mt-2 text-crm-slate">
                 Master list of volunteers, pastors, parents, and donors.
               </p>
-              {!isMock && isReadOnly && contactsBoardId && (
-                <p className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
-                  Read-only — live data from Contacts board {contactsBoardId}
-                </p>
-              )}
               {!isMock && !isReadOnly && (
                 <p className="mt-2 text-xs text-crm-slate">
                   Live data from monday.com Contacts board
@@ -153,8 +232,12 @@ export default function ContactsPage({
                 </p>
               )}
               {isMock && (
-                <p className="mt-2 text-xs text-amber-700">
-                  Mock data mode (VITE_USE_MOCK_DATA=true)
+                <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+                  Showing mock data — not your monday.com Contacts board. Set{' '}
+                  <code className="rounded bg-amber-100 px-1">
+                    VITE_USE_MOCK_DATA=false
+                  </code>{' '}
+                  in .env to load live contacts.
                 </p>
               )}
             </>
@@ -178,7 +261,18 @@ export default function ContactsPage({
           onBack={requestCloseContact}
           onGoToRecruitment={onGoToRecruitment}
           onGoToApplication={onGoToApplication}
-          onContactUpdated={refetch}
+          onContactUpdated={(updated) => {
+            void refetch();
+            setSelectedContact({
+              id: updated.id,
+              name: updated.name,
+              email: updated.email,
+              phone: updated.phone,
+              profilePhotoUrl: updated.profilePhotoUrl,
+              tags: updated.tags,
+              createdAt: updated.createdAt,
+            });
+          }}
           onSelectContact={(id) => {
             const next = contacts.find((c) => c.id === id);
             if (next) setSelectedContact(next);
@@ -219,27 +313,92 @@ export default function ContactsPage({
       {!showingDetail && (contacts.length > 0 || (!loading && !error)) && (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm">
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface">
-            <ContactFiltersTab
-              open={filtersVisible}
-              hasActiveFilters={filtersActive}
-              onClick={handleFiltersTabClick}
-            />
-
-            {filtersVisible && (
-              <button
-                type="button"
-                aria-label="Close filters"
-                className="absolute inset-0 z-10 bg-stone-900/10"
-                onClick={() => setFiltersVisible(false)}
+            <div ref={toolbarRef}>
+              <ContactListToolbar
+                searchQuery={filters.searchQuery}
+                onSearchChange={(searchQuery) =>
+                  setFilters((current) => ({ ...current, searchQuery }))
+                }
+                filtersOpen={filtersVisible}
+                filtersActive={filtersActive}
+                onToggleFilters={() => setFiltersVisible((open) => !open)}
+                onClearFilters={() => setFilters(emptyContactFilters())}
               />
-            )}
+            </div>
 
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+              <div
+                ref={listScrollRef}
+                className="min-h-0 flex-1 overflow-y-auto"
+              >
+                <div className="px-4 pb-4 pt-2 pr-2">
+                  {selectedCount > 0 && (
+                    <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-crm-indigo/15 bg-crm-indigo-50 px-4 py-3 shadow-sm">
+                      <p className="text-sm font-medium text-crm-heading">
+                        {selectedCount} selected
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={clearSelection}
+                          disabled={deleting}
+                          className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                        >
+                          Clear
+                        </button>
+                        {contactsEditable && (
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteSelected()}
+                            disabled={deleting}
+                            className="rounded-xl border border-red-200 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {deleting ? 'Deleting…' : 'Delete'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {deleteError && (
+                    <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {deleteError}
+                    </div>
+                  )}
+
+                  <ContactList
+                    contacts={displayed}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleContactSelection}
+                    onSelect={setSelectedContact}
+                  />
+                </div>
+              </div>
+              <div className="flex min-h-0 shrink-0 self-stretch py-2 pr-3 pl-1">
+                <ContactAlphabetIndex
+                  availableLetters={availableLetters}
+                  onSelect={scrollToLetter}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {filtersVisible &&
+        !showingDetail &&
+        (contacts.length > 0 || (!loading && !error)) &&
+        createPortal(
+          <>
+            <button
+              type="button"
+              aria-label="Close filters"
+              className="fixed inset-0 z-[200] bg-stone-900/10"
+              onClick={() => setFiltersVisible(false)}
+            />
             <div
-              className={`absolute left-1/2 top-9 z-20 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 transition-all duration-300 ease-out ${
-                filtersVisible
-                  ? 'pointer-events-auto translate-y-0 opacity-100'
-                  : 'pointer-events-none -translate-y-2 opacity-0'
-              }`}
+              className="fixed left-1/2 z-[210] max-h-[min(70vh,520px)] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 overflow-y-auto"
+              style={{ top: filterPanelTop }}
             >
               <div className="overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-lg">
                 <ContactFilters
@@ -252,29 +411,9 @@ export default function ContactsPage({
                 />
               </div>
             </div>
-
-            <div className="flex min-h-0 flex-1 overflow-hidden pt-10">
-              <div
-                ref={listScrollRef}
-                className="min-h-0 flex-1 overflow-y-auto"
-              >
-                <div className="px-4 pb-4 pt-2 pr-2">
-                  <ContactList
-                    contacts={displayed}
-                    onSelect={setSelectedContact}
-                  />
-                </div>
-              </div>
-              <div className="flex h-full shrink-0 py-2 pr-3 pl-1">
-                <ContactAlphabetIndex
-                  availableLetters={availableLetters}
-                  onSelect={scrollToLetter}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+          </>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { SIGNUP_TIMELINES } from '../../data/timelines';
 import type { ApplicationFilterState } from '../../types/volunteer';
 import { LOCATION_OPTIONS } from '../../types/volunteer';
+import type { ApplicationFilterOption } from '../../utils/filterApplications';
 import { hasActiveFilters } from '../../utils/filterApplications';
 
 interface ApplicationFiltersProps {
@@ -9,6 +10,9 @@ interface ApplicationFiltersProps {
   onClear: () => void;
   matchingCount: number;
   totalCount: number;
+  variant?: 'standalone' | 'panel';
+  timelineOptions?: ApplicationFilterOption[];
+  locationOptions?: string[];
 }
 
 const selectClassName =
@@ -20,13 +24,34 @@ export default function ApplicationFilters({
   onClear,
   matchingCount,
   totalCount,
+  variant = 'standalone',
+  timelineOptions,
+  locationOptions,
 }: ApplicationFiltersProps) {
   const active = hasActiveFilters(filters);
   const selectedLocation = filters.locations[0] ?? '';
   const selectedTimeline = filters.timelineIds[0] ?? '';
+  const isPanel = variant === 'panel';
+
+  const timelines =
+    timelineOptions && timelineOptions.length > 0
+      ? timelineOptions
+      : SIGNUP_TIMELINES.map((timeline) => ({
+          id: timeline.id,
+          label: timeline.label,
+        }));
+
+  const locations =
+    locationOptions && locationOptions.length > 0
+      ? locationOptions
+      : [...LOCATION_OPTIONS];
+
+  const shellClass = isPanel
+    ? 'p-4'
+    : 'mb-8 rounded-3xl border border-crm-taupe/20 bg-crm-surface p-6 shadow-sm';
 
   return (
-    <div className="mb-8 rounded-3xl border border-crm-taupe/20 bg-crm-surface p-6 shadow-sm">
+    <div className={shellClass}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-lg font-semibold text-crm-heading">Filters</h2>
         {active && (
@@ -40,29 +65,33 @@ export default function ApplicationFilters({
         )}
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <label
-            htmlFor="volunteer-search"
-            className="text-sm font-medium text-crm-heading"
-          >
-            Search by name
-          </label>
-          <input
-            id="volunteer-search"
-            type="search"
-            placeholder="Search volunteers..."
-            value={filters.searchQuery}
-            onChange={(e) =>
-              onChange({ ...filters, searchQuery: e.target.value })
-            }
-            className={selectClassName}
-          />
-        </div>
+      <div
+        className={`mt-4 grid gap-4 ${isPanel ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3'}`}
+      >
+        {!isPanel && (
+          <div>
+            <label
+              htmlFor="volunteer-search"
+              className="text-sm font-medium text-crm-heading"
+            >
+              Search by name
+            </label>
+            <input
+              id="volunteer-search"
+              type="search"
+              placeholder="Search volunteers..."
+              value={filters.searchQuery}
+              onChange={(e) =>
+                onChange({ ...filters, searchQuery: e.target.value })
+              }
+              className={selectClassName}
+            />
+          </div>
+        )}
 
         <div>
           <label
-            htmlFor="filter-location"
+            htmlFor="filter-location-preference"
             className="text-sm font-medium text-crm-heading"
           >
             Location preference
@@ -79,7 +108,7 @@ export default function ApplicationFilters({
             className={selectClassName}
           >
             <option value="">All locations</option>
-            {LOCATION_OPTIONS.map((location) => (
+            {locations.map((location) => (
               <option key={location} value={location}>
                 {location}
               </option>
@@ -106,7 +135,7 @@ export default function ApplicationFilters({
             className={selectClassName}
           >
             <option value="">All timelines</option>
-            {SIGNUP_TIMELINES.map((timeline) => (
+            {timelines.map((timeline) => (
               <option key={timeline.id} value={timeline.id}>
                 {timeline.label}
               </option>
@@ -117,7 +146,8 @@ export default function ApplicationFilters({
 
       <p className="mt-6 text-sm text-crm-slate">
         Showing{' '}
-        <span className="font-semibold text-crm-heading">{matchingCount}</span> of{' '}
+        <span className="font-semibold text-crm-heading">{matchingCount}</span>{' '}
+        of{' '}
         <span className="font-semibold text-crm-heading">{totalCount}</span>{' '}
         volunteers
       </p>

@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { useContactDetail } from '../../hooks/useContactDetail';
+import { usePastorReferenceDrillDown } from '../../hooks/usePastorReferenceDrillDown';
+import { usePastorReferenceLinkOptions } from '../../hooks/usePastorReferenceLinkOptions';
 import type { ReactNode } from 'react';
-import type { ContactEmailMessage, ContactListItem } from '../../types/contact';
+import type { ContactDetail, ContactEmailMessage, ContactListItem } from '../../types/contact';
 import type { VolunteerTerm } from '../../types/volunteer';
+import FormFieldsPanel from '../applications/FormFieldsPanel';
+import ContactInternalNotesSection from './ContactInternalNotesSection';
+import ChurchInfoCard from './ChurchInfoCard';
 import ContactProfileCard from './ContactProfileCard';
 import ContactEmailDetailModal from './ContactEmailDetailModal';
 import ContactEmailThreadSection from './ContactEmailThreadSection';
 import ContactVolunteerFiles from './ContactVolunteerFiles';
 import DonationsList from './DonationsList';
+import PastorReferencePickerPanel from './PastorReferencePickerPanel';
 import TermDetailPanel from './TermDetailPanel';
 
 interface ContactDetailPanelProps {
@@ -17,7 +23,7 @@ interface ContactDetailPanelProps {
   onSelectContact?: (contactId: string) => void;
   onGoToRecruitment?: (prospectId: string) => void;
   onGoToApplication?: (applicationId: string) => void;
-  onContactUpdated?: () => void;
+  onContactUpdated?: (updated: ContactDetail) => void;
 }
 
 export default function ContactDetailPanel({
@@ -28,11 +34,72 @@ export default function ContactDetailPanel({
   onGoToApplication,
   onContactUpdated,
 }: ContactDetailPanelProps) {
-  const { detail, loading, error, saving, isReadOnly, updateCoreFields } =
+  const { detail, loading, error, saving, canEdit, updateCoreFields, updatePastorReference } =
     useContactDetail(contact.id);
   const [selectedTerm, setSelectedTerm] = useState<VolunteerTerm | null>(null);
   const [selectedEmail, setSelectedEmail] =
     useState<ContactEmailMessage | null>(null);
+  const [pastorReferencePickerOpen, setPastorReferencePickerOpen] =
+    useState(false);
+  const [pastorReferenceDetailOpen, setPastorReferenceDetailOpen] =
+    useState(false);
+  const [selectedPastorReferenceItemId, setSelectedPastorReferenceItemId] =
+    useState<string | null>(null);
+
+  const linkedPastorReferenceItemIds =
+    detail?.pastorReference?.linkedItemIds ?? [];
+  const hasMultiplePastorReferences = linkedPastorReferenceItemIds.length > 1;
+  const pastorReferenceUiOpen =
+    pastorReferencePickerOpen || pastorReferenceDetailOpen;
+
+  const pastorReferenceDrillDown = usePastorReferenceDrillDown(
+    selectedPastorReferenceItemId ?? undefined,
+  );
+  const pastorReferenceLinkOptions = usePastorReferenceLinkOptions(
+    linkedPastorReferenceItemIds,
+  );
+
+  const resetPastorReferenceFlow = () => {
+    setPastorReferencePickerOpen(false);
+    setPastorReferenceDetailOpen(false);
+    setSelectedPastorReferenceItemId(null);
+    pastorReferenceDrillDown.reset();
+    pastorReferenceLinkOptions.reset();
+  };
+
+  const openPastorReference = () => {
+    if (linkedPastorReferenceItemIds.length === 0) return;
+
+    if (linkedPastorReferenceItemIds.length === 1) {
+      setSelectedPastorReferenceItemId(linkedPastorReferenceItemIds[0]);
+      setPastorReferenceDetailOpen(true);
+      return;
+    }
+
+    setPastorReferencePickerOpen(true);
+  };
+
+  const closePastorReferencePicker = () => {
+    setPastorReferencePickerOpen(false);
+    setSelectedPastorReferenceItemId(null);
+    pastorReferenceLinkOptions.reset();
+  };
+
+  const closePastorReferenceDetail = () => {
+    setPastorReferenceDetailOpen(false);
+    pastorReferenceDrillDown.reset();
+    setSelectedPastorReferenceItemId(null);
+
+    if (hasMultiplePastorReferences) {
+      setPastorReferencePickerOpen(true);
+    }
+  };
+
+  const handlePickPastorReference = (itemId: string) => {
+    setSelectedPastorReferenceItemId(itemId);
+    setPastorReferencePickerOpen(false);
+    setPastorReferenceDetailOpen(true);
+  };
 
   const { requestClose: requestCloseTerm } = useNavLayer(
     selectedTerm !== null,
@@ -44,19 +111,52 @@ export default function ContactDetailPanel({
     () => setSelectedEmail(null),
     `contact-email-thread-${selectedEmail?.id ?? 'none'}-${contact.id}`,
   );
+  const closePastorReferenceAll = () => {
+    resetPastorReferenceFlow();
+  };
+  const { requestClose: requestClosePastorReferencePicker } = useNavLayer(
+    pastorReferencePickerOpen,
+    closePastorReferencePicker,
+    `pastor-reference-picker-${contact.id}`,
+  );
+  const { requestClose: requestClosePastorReferenceDetail } = useNavLayer(
+    pastorReferenceDetailOpen,
+    hasMultiplePastorReferences
+      ? closePastorReferenceDetail
+      : closePastorReferenceAll,
+    `pastor-reference-${selectedPastorReferenceItemId ?? 'none'}-${contact.id}`,
+  );
 
   useEffect(() => {
     setSelectedTerm(null);
     setSelectedEmail(null);
+    resetPastorReferenceFlow();
   }, [contact.id]);
 
   useEffect(() => {
+    if (!pastorReferencePickerOpen) return;
+    void pastorReferenceLinkOptions.load();
+  }, [pastorReferencePickerOpen, linkedPastorReferenceItemIds.join('|')]);
+
+  useEffect(() => {
+    if (!pastorReferenceDetailOpen || !selectedPastorReferenceItemId) return;
+    void pastorReferenceDrillDown.load();
+  }, [pastorReferenceDetailOpen, selectedPastorReferenceItemId]);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !selectedTerm && !selectedEmail) onBack();
+      if (
+        e.key === 'Escape' &&
+        !selectedTerm &&
+        !selectedEmail &&
+        !pastorReferenceUiOpen
+      ) {
+        onBack();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onBack, selectedTerm, selectedEmail]);
+  }, [onBack, selectedTerm, selectedEmail, pastorReferenceUiOpen]);
 
   const showDonations =
     detail &&
@@ -92,16 +192,49 @@ export default function ContactDetailPanel({
                 detail={detail}
                 saving={saving}
                 onGoToRecruitment={onGoToRecruitment}
-                canEdit={!isReadOnly}
+                canEdit={canEdit}
                 onSave={
-                  !isReadOnly
+                  canEdit
                     ? async (fields) => {
                         const updated = await updateCoreFields(fields);
-                        if (updated) onContactUpdated?.();
+                        onContactUpdated?.(updated);
                         return updated;
                       }
                     : undefined
                 }
+              />
+
+              {detail.tags.includes('volunteer') && (
+                <ChurchInfoCard
+                  volunteerName={detail.name}
+                  pastorReference={detail.pastorReference}
+                  linkedItemIds={linkedPastorReferenceItemIds}
+                  drillDownLoading={
+                    pastorReferenceDetailOpen && pastorReferenceDrillDown.loading
+                  }
+                  saving={saving}
+                  canEdit={canEdit}
+                  onSave={
+                    canEdit
+                      ? async (fields) => {
+                          const updated = await updatePastorReference(fields);
+                          onContactUpdated?.(updated);
+                          return updated;
+                        }
+                      : undefined
+                  }
+                  onViewPastorReference={
+                    linkedPastorReferenceItemIds.length > 0
+                      ? openPastorReference
+                      : undefined
+                  }
+                />
+              )}
+
+              <ContactInternalNotesSection
+                contactId={detail.id}
+                serviceTerms={detail.serviceTerms}
+                currentApplication={detail.currentApplication}
               />
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-stretch">
@@ -246,10 +379,15 @@ export default function ContactDetailPanel({
               {showDonations && (
                 <Panel title="Donations & payments">
                   <p className="mt-2 text-sm text-crm-slate">
-                    From QuickBooks
-                    {detail.quickbooksCustomerId
-                      ? ` · Customer ${detail.quickbooksCustomerId}`
-                      : ''}
+                    {import.meta.env.VITE_QBO_INCOME_SYNC_ENABLED === 'true'
+                      ? 'From Monday Donations board (includes QuickBooks income sync)'
+                      : `From Monday Donations board${
+                          detail.quickbooksCustomerId
+                            ? ` and QuickBooks · Customer ${detail.quickbooksCustomerId}`
+                            : import.meta.env.VITE_QUICKBOOKS_PROXY_URL
+                              ? ' and QuickBooks'
+                              : ''
+                        }`}
                   </p>
                   <div className="mt-4">
                     <DonationsList
@@ -278,6 +416,38 @@ export default function ContactDetailPanel({
             volunteerName={detail.name}
             onClose={requestCloseTerm}
             onGoToRecruitment={onGoToRecruitment}
+          />
+        )}
+
+        {pastorReferencePickerOpen && detail && (
+          <PastorReferencePickerPanel
+            volunteerName={detail.name}
+            options={pastorReferenceLinkOptions.options}
+            loading={pastorReferenceLinkOptions.loading}
+            error={pastorReferenceLinkOptions.error}
+            onSelect={handlePickPastorReference}
+            onClose={requestClosePastorReferencePicker}
+          />
+        )}
+
+        {pastorReferenceDetailOpen && detail && selectedPastorReferenceItemId && (
+          <FormFieldsPanel
+            title={`Pastor reference — ${detail.name}`}
+            backLabel={
+              hasMultiplePastorReferences
+                ? 'Choose reference'
+                : detail.name
+            }
+            fields={pastorReferenceDrillDown.fields}
+            emptyMessage={
+              pastorReferenceDrillDown.loading
+                ? 'Loading pastor reference…'
+                : pastorReferenceDrillDown.error ??
+                  'No pastor reference fields found on this item.'
+            }
+            loading={pastorReferenceDrillDown.loading}
+            pdfFile={pastorReferenceDrillDown.pdfFile}
+            onClose={requestClosePastorReferenceDetail}
           />
         )}
       </div>

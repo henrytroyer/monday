@@ -36,6 +36,9 @@ Edit [`src/config/columnMap.ts`](../src/config/columnMap.ts):
 | otherReferenceEmails | Other Reference Emails (comma/semicolon/newline separated) |
 | phone | Phone |
 | profilePhoto | Profile Photo |
+| passport | Passport Photo |
+| passportNew | Please upload New Passport |
+| releaseForms | Release Forms |
 | files | Files |
 
 Override via `.env` — see `.env.example` (`VITE_COL_*`).
@@ -124,7 +127,7 @@ Upload files to the **Files** column (and profile image to **Profile Photo**). T
 |------|-------------------------|
 | Passport | `passport` |
 | Background check | `background` — **password required** in the CRM (preset: `Background`) |
-| Child safeguarding certificate | `safeguard` |
+| Child safeguarding certificate | **Safeguarding Certificates** board (matched by applicant **Email**, or via **link to Contacts** → contact **link to Safeguarding Certificates (2.0)**). Falls back to **Files** with `safeguard` in the name. |
 | Profile photo | **Profile Photo** column, or an image in **Files** with `profile` in the name |
 
 Examples: `Passport.pdf`, `Background-check.pdf`, `Child-safeguarding-certificate.pdf`.

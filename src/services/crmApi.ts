@@ -1,11 +1,17 @@
-import mondaySdk from 'monday-sdk-js';
 import {
+  canAddApplicationNotes,
+  canEditApplications,
+  canEditContacts,
   isMondayReadOnly,
 } from '../config/boards';
+import {
+  encodeContactHubNoteBody,
+} from './contactInternalNotes';
+import type { ContactInternalNoteTarget } from '../types/contact';
 import { columnMap } from '../config/columnMap';
 import { contactMap } from '../config/contactMap';
-import type { ContactListItem } from '../types/contact';
-import type { MondayResponse } from '../types/monday';
+import { donationMap } from '../config/donationMap';
+import type { ContactListItem, ContactTag } from '../types/contact';
 import type { PipelineSection, VolunteerDetail } from '../types/volunteer';
 import { encodeTermNoteBody } from './termNotes';
 import { formatColumnValue, mutations, queries } from '../utils/mondayQueries';
@@ -16,25 +22,22 @@ import {
 import {
   mapBoardToPipeline,
   mapItemToVolunteerDetail,
+  type MondayBoardGroup,
   type MondayBoardItem,
   type MondayBoardPipeline,
   type MondayItemDetail,
 } from './mapMondayToCrm';
 import {
+  contactTagsUseSimpleColumnValue,
+  formatContactTagsColumnValue,
+  formatContactTagsSimpleValue,
   mapItemToContactListItem,
+  resolveContactTagsWriteColumn,
   type MondayContactItem,
 } from './mapMondayToContact';
-import type { ContactCoreFields } from './contactStorage';
-
-const monday = mondaySdk();
-
-const mondayApiProxyUrl = import.meta.env.VITE_MONDAY_API_PROXY_URL as
-  | string
-  | undefined;
-
-function useMondayApiProxy(): boolean {
-  return Boolean(mondayApiProxyUrl?.trim());
-}
+import type { ContactCoreFields, ContactPastorFields } from './contactStorage';
+import { mondayGraphQL as api } from './mondayGraphQL';
+import { fetchSafeguardingCertificateFromApplicationItem } from './safeguardingCertificate';
 
 function assertMondayWritable(action: string): void {
   if (isMondayReadOnly()) {
@@ -42,7 +45,23 @@ function assertMondayWritable(action: string): void {
   }
 }
 
-const PROXY_FETCH_TIMEOUT_MS = 45_000;
+function assertApplicationsWritable(action: string): void {
+  if (!canEditApplications()) {
+    throw new Error(`Applications are read-only: cannot ${action}`);
+  }
+}
+
+function assertContactsWritable(action: string): void {
+  if (!canEditContacts()) {
+    throw new Error(`Contacts are read-only: cannot ${action}`);
+  }
+}
+
+function assertApplicationNotesWritable(action: string): void {
+  if (!canAddApplicationNotes()) {
+    throw new Error(`Application notes are read-only: cannot ${action}`);
+  }
+}
 
 const CONTACT_LIST_COLUMN_KEYS = [
   'email',
@@ -51,71 +70,6 @@ const CONTACT_LIST_COLUMN_KEYS = [
   'type',
   'profilePhoto',
 ] as const satisfies ReadonlyArray<keyof typeof contactMap>;
-
-function proxyFetchError(err: unknown): Error {
-  if (err instanceof DOMException && err.name === 'TimeoutError') {
-    return new Error(
-      'Could not reach monday API proxy. Run `npm run monday:proxy` in a second terminal.',
-    );
-  }
-  if (err instanceof TypeError) {
-    return new Error(
-      'Could not reach monday API proxy. Run `npm run monday:proxy` in a second terminal.',
-    );
-  }
-  return err instanceof Error ? err : new Error('monday API proxy request failed');
-}
-
-async function api<T>(
-  query: string,
-  variables?: Record<string, unknown>,
-): Promise<T> {
-  if (useMondayApiProxy()) {
-    const base = mondayApiProxyUrl!.replace(/\/$/, '');
-    let res: Response;
-    try {
-      res = await fetch(`${base}/graphql`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, variables }),
-        signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS),
-      });
-    } catch (err) {
-      throw proxyFetchError(err);
-    }
-
-    const response = (await res.json()) as MondayResponse<T>;
-    if (!res.ok) {
-      throw new Error(
-        response.errors?.map((e) => e.message).join(', ') ||
-          `monday API proxy ${res.status}`,
-      );
-    }
-
-    if (response.errors?.length) {
-      throw new Error(response.errors.map((e) => e.message).join(', '));
-    }
-
-    if (!response.data) {
-      throw new Error('No data returned from monday.com API');
-    }
-
-    return response.data;
-  }
-
-  monday.setApiVersion('2023-10');
-  const response: MondayResponse<T> = await monday.api(query, { variables });
-
-  if (response.errors?.length) {
-    throw new Error(response.errors.map((e) => e.message).join(', '));
-  }
-
-  if (!response.data) {
-    throw new Error('No data returned from monday.com API');
-  }
-
-  return response.data;
-}
 
 async function resolveContactListColumnIds(boardId: string): Promise<string[]> {
   const columns = await fetchBoardColumns(boardId);
@@ -195,17 +149,34 @@ async function fetchBoardItemsPaginated(
 export async function fetchApplicationsPipeline(
   boardId: string,
 ): Promise<PipelineSection[]> {
-  const data = await api<{ boards: MondayBoardPipeline[] }>(
-    queries.getBoardPipeline,
-    { boardId: [boardId] },
-  );
+  const board = await fetchApplicationsBoardPipeline(boardId);
+  return mapBoardToPipeline(board);
+}
 
-  const board = data.boards?.[0];
-  if (!board) {
+async function fetchApplicationsBoardPipeline(
+  boardId: string,
+): Promise<MondayBoardPipeline> {
+  const meta = await api<{
+    boards: Array<{
+      id: string;
+      name: string;
+      groups: MondayBoardGroup[];
+    }>;
+  }>(queries.getBoard, { boardId: [boardId] });
+
+  const boardMeta = meta.boards?.[0];
+  if (!boardMeta) {
     throw new Error(`Board ${boardId} not found or not accessible`);
   }
 
-  return mapBoardToPipeline(board);
+  const items = await fetchApplicationsBoardItems(boardId);
+
+  return {
+    id: boardMeta.id,
+    name: boardMeta.name,
+    groups: boardMeta.groups,
+    items,
+  };
 }
 
 export async function fetchApplicationDetail(
@@ -220,19 +191,94 @@ export async function fetchApplicationDetail(
     throw new Error(`Item ${itemId} not found`);
   }
 
-  return mapItemToVolunteerDetail(item);
+  const detail = mapItemToVolunteerDetail(item);
+  let childSafeguardingFile: VolunteerDetail['childSafeguardingFile'];
+  try {
+    childSafeguardingFile = await fetchSafeguardingCertificateFromApplicationItem(
+      item,
+      detail.email !== '—' ? detail.email : undefined,
+    );
+  } catch {
+    childSafeguardingFile = undefined;
+  }
+
+  return {
+    ...detail,
+    childSafeguardingFile,
+  };
 }
 
-export async function fetchBoardColumns(boardId: string): Promise<
-  Array<{ id: string; title: string; type: string }>
-> {
+export type MondayBoardColumn = {
+  id: string;
+  title: string;
+  type: string;
+  settings_str?: string;
+};
+
+export async function fetchBoardColumns(boardId: string): Promise<MondayBoardColumn[]> {
   const data = await api<{
     boards: Array<{
-      columns: Array<{ id: string; title: string; type: string }>;
+      columns: MondayBoardColumn[];
     }>;
   }>(queries.getBoardColumns, { boardId: [boardId] });
 
   return data.boards?.[0]?.columns ?? [];
+}
+
+export async function fetchBoardName(boardId: string): Promise<string> {
+  const data = await api<{
+    boards: Array<{ id: string; name: string }>;
+  }>(queries.getBoard, { boardId: [boardId] });
+  return data.boards?.[0]?.name ?? `Board ${boardId}`;
+}
+
+export async function fetchBoardItemsFull(
+  boardId: string,
+): Promise<MondayContactItem[]> {
+  const limit = 500;
+  let cursor: string | null = null;
+  const allItems: MondayContactItem[] = [];
+
+  do {
+    const data: ItemsPageResponse = await api<ItemsPageResponse>(
+      queries.getBoardItemsPage,
+      {
+        boardId: [boardId],
+        limit,
+        cursor: cursor ?? undefined,
+      },
+    );
+
+    const page = data.boards?.[0]?.items_page;
+    if (!page?.items?.length) break;
+
+    allItems.push(...page.items);
+    cursor = page.cursor || null;
+  } while (cursor);
+
+  return allItems;
+}
+
+export async function fetchItemsUpdates(
+  itemIds: string[],
+): Promise<
+  Array<{
+    id: string;
+    name: string;
+    updates?: import('./termNotes').MondayItemUpdateRaw[];
+  }>
+> {
+  if (itemIds.length === 0) return [];
+
+  const data = await api<{
+    items: Array<{
+      id: string;
+      name: string;
+      updates?: import('./termNotes').MondayItemUpdateRaw[];
+    }>;
+  }>(queries.getItemsWithUpdates, { itemIds });
+
+  return data.items ?? [];
 }
 
 export async function fetchContactsBoard(
@@ -267,22 +313,163 @@ export async function fetchContactItem(
   return item;
 }
 
+export async function fetchMondayItemSummaries(
+  itemIds: string[],
+): Promise<Array<{ id: string; name: string }>> {
+  if (itemIds.length === 0) return [];
+
+  const data = await api<{ items: Array<{ id: string; name: string }> }>(
+    queries.getItemSummaries,
+    { itemIds },
+  );
+
+  return data.items ?? [];
+}
+
+export async function fetchDonationItemsByIds(
+  itemIds: string[],
+): Promise<Array<{ id: string; name: string; column_values: MondayContactItem['column_values'] }>> {
+  if (itemIds.length === 0) return [];
+
+  const chunkSize = 100;
+  const allItems: Array<{
+    id: string;
+    name: string;
+    column_values: MondayContactItem['column_values'];
+  }> = [];
+
+  for (let i = 0; i < itemIds.length; i += chunkSize) {
+    const chunk = itemIds.slice(i, i + chunkSize);
+    const data = await api<{
+      items: Array<{
+        id: string;
+        name: string;
+        column_values: MondayContactItem['column_values'];
+      }>;
+    }>(queries.getDonationItemsByIds, { itemIds: chunk });
+    if (data.items?.length) {
+      allItems.push(...data.items);
+    }
+  }
+
+  return allItems;
+}
+
+export async function fetchDonationItemsByEmail(
+  boardId: string,
+  email: string,
+  emailColumnId: string,
+): Promise<Array<{ id: string; name: string; column_values: MondayContactItem['column_values'] }>> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || normalizedEmail === '—') return [];
+
+  const limit = 100;
+  let cursor: string | null = null;
+  const allItems: Array<{
+    id: string;
+    name: string;
+    column_values: MondayContactItem['column_values'];
+  }> = [];
+
+  type PageResponse = {
+    boards: Array<{
+      items_page: {
+        cursor: string | null;
+        items: Array<{
+          id: string;
+          name: string;
+          column_values: MondayContactItem['column_values'];
+        }>;
+      };
+    }>;
+  };
+
+  do {
+    const data: PageResponse = await api<PageResponse>(
+      queries.getDonationItemsByEmail,
+      {
+        boardId: [boardId],
+        rules: [
+          {
+            column_id: emailColumnId,
+            compare_value: [normalizedEmail],
+            operator: 'contains_text',
+          },
+        ],
+        limit,
+        cursor: cursor ?? undefined,
+      },
+    );
+
+    const page = data.boards?.[0]?.items_page;
+    if (!page?.items?.length) break;
+
+    allItems.push(...page.items);
+    cursor = page.cursor || null;
+  } while (cursor);
+
+  return allItems;
+}
+
+export async function resolveDonationEmailColumnId(
+  boardId: string,
+): Promise<string> {
+  const explicit = import.meta.env.VITE_DONATION_COL_EMAIL_ID as string | undefined;
+  if (explicit?.trim()) return explicit.trim();
+
+  const columns = await fetchBoardColumns(boardId);
+  const target = normalizeColumnTitle(donationMap.donorEmail);
+  const column = columns.find(
+    (entry) => normalizeColumnTitle(entry.title) === target,
+  );
+  return column?.id ?? 'email';
+}
+
 export async function fetchApplicationsBoardItems(
   boardId: string,
 ): Promise<MondayBoardItem[]> {
-  const data = await api<{ boards: MondayBoardPipeline[] }>(
-    queries.getBoardPipeline,
-    { boardId: [boardId] },
-  );
+  const limit = 500;
+  let cursor: string | null = null;
+  const allItems: MondayBoardItem[] = [];
 
-  const board = data.boards?.[0];
-  if (!board) {
-    throw new Error(
-      `Applications board ${boardId} not found or not accessible`,
+  type ApplicationsPageResponse = {
+    boards: Array<{
+      items_page: {
+        cursor: string | null;
+        items: MondayBoardItem[];
+      };
+    }>;
+  };
+
+  do {
+    const data: ApplicationsPageResponse = await api<ApplicationsPageResponse>(
+      queries.getBoardItemsPage,
+      {
+        boardId: [boardId],
+        limit,
+        cursor: cursor ?? undefined,
+      },
     );
+
+    const page = data.boards?.[0]?.items_page;
+    if (!page?.items?.length) break;
+
+    allItems.push(...page.items);
+    cursor = page.cursor || null;
+  } while (cursor);
+
+  if (allItems.length === 0) {
+    const meta = await api<{ boards: Array<{ id: string }> }>(queries.getBoard, {
+      boardId: [boardId],
+    });
+    if (!meta.boards?.[0]) {
+      throw new Error(
+        `Applications board ${boardId} not found or not accessible`,
+      );
+    }
   }
 
-  return board.items;
+  return allItems;
 }
 
 export async function addTermNote(
@@ -290,7 +477,7 @@ export async function addTermNote(
   timelineId: string,
   body: string,
 ): Promise<void> {
-  assertMondayWritable('add term notes');
+  assertApplicationNotesWritable('add term notes');
   const trimmed = body.trim();
   if (!trimmed) {
     throw new Error('Note cannot be empty');
@@ -299,6 +486,43 @@ export async function addTermNote(
   await api<{ create_update: { id: string } }>(mutations.createUpdate, {
     itemId,
     body: encodeTermNoteBody(timelineId, trimmed),
+  });
+}
+
+export async function addRecruitmentNoteOnContact(
+  contactItemId: string,
+  prospectId: string,
+  body: string,
+): Promise<void> {
+  assertContactsWritable('add recruitment note');
+  const trimmed = body.trim();
+  if (!trimmed) {
+    throw new Error('Note cannot be empty');
+  }
+
+  await api<{ create_update: { id: string } }>(mutations.createUpdate, {
+    itemId: contactItemId,
+    body: encodeContactHubNoteBody(
+      { kind: 'recruitment', prospectId, sourceLabel: 'Recruitment' },
+      trimmed,
+    ),
+  });
+}
+
+export async function addContactHubNoteOnContact(
+  contactItemId: string,
+  target: ContactInternalNoteTarget,
+  body: string,
+): Promise<void> {
+  assertContactsWritable('add contact internal note');
+  const trimmed = body.trim();
+  if (!trimmed) {
+    throw new Error('Note cannot be empty');
+  }
+
+  await api<{ create_update: { id: string } }>(mutations.createUpdate, {
+    itemId: contactItemId,
+    body: encodeContactHubNoteBody(target, trimmed),
   });
 }
 
@@ -318,6 +542,7 @@ export interface SendApplicationEmailParams {
 export async function sendApplicationEmail(
   _params: SendApplicationEmailParams,
 ): Promise<void> {
+  assertMondayWritable('send application email');
   throw new Error(
     'Direct send is not configured yet. Use "Open in email app" to send from your mail client, or connect Gmail in a future update.',
   );
@@ -325,6 +550,57 @@ export async function sendApplicationEmail(
 
 function normalizeColumnTitle(title: string): string {
   return title.trim().toLowerCase();
+}
+
+function columnWriteError(
+  columnTitle: string,
+  columnType: string,
+  err: unknown,
+): Error {
+  const message = err instanceof Error ? err.message : 'Unknown error';
+  return new Error(
+    `Could not save "${columnTitle}" (${columnType}): ${message}`,
+  );
+}
+
+async function writeMondayColumnValue(
+  boardId: string,
+  itemId: string,
+  column: MondayBoardColumn,
+  value: string,
+  options?: { createLabelsIfMissing?: boolean },
+): Promise<void> {
+  try {
+    await api(mutations.updateColumnValue, {
+      boardId,
+      itemId,
+      columnId: column.id,
+      value,
+      createLabelsIfMissing: options?.createLabelsIfMissing ?? false,
+    });
+  } catch (err) {
+    throw columnWriteError(column.title, column.type, err);
+  }
+}
+
+async function writeMondaySimpleColumnValue(
+  boardId: string,
+  itemId: string,
+  column: MondayBoardColumn,
+  value: string,
+  options?: { createLabelsIfMissing?: boolean },
+): Promise<void> {
+  try {
+    await api(mutations.updateSimpleColumnValue, {
+      boardId,
+      itemId,
+      columnId: column.id,
+      value,
+      createLabelsIfMissing: options?.createLabelsIfMissing ?? false,
+    });
+  } catch (err) {
+    throw columnWriteError(column.title, column.type, err);
+  }
 }
 
 export async function setQuickBooksInvoiceIdOnItem(
@@ -396,7 +672,7 @@ export async function updateApplicationStatus(
   itemId: string,
   statusLabel: string,
 ): Promise<void> {
-  assertMondayWritable('update application status');
+  assertApplicationsWritable('update application status');
   const columns = await fetchBoardColumns(boardId);
   const target = normalizeColumnTitle(columnMap.status);
   const column = columns.find(
@@ -441,6 +717,14 @@ const CONTACT_UPDATE_COLUMNS: Array<{
     getValue: (fields) => fields.demographics?.city?.trim() || '',
   },
   {
+    fieldKey: 'state',
+    getValue: (fields) => fields.demographics?.state?.trim() || '',
+  },
+  {
+    fieldKey: 'zip',
+    getValue: (fields) => fields.demographics?.zip?.trim() || '',
+  },
+  {
     fieldKey: 'country',
     getValue: (fields) => fields.demographics?.country?.trim() || '',
   },
@@ -450,19 +734,88 @@ const CONTACT_UPDATE_COLUMNS: Array<{
   },
 ];
 
+const CONTACT_PASTOR_UPDATE_COLUMNS: Array<{
+  fieldKey: keyof typeof contactMap;
+  getValue: (
+    fields: ContactPastorFields,
+  ) => string | MondayPhoneColumnValue;
+}> = [
+  {
+    fieldKey: 'pastorName',
+    getValue: (fields) => fields.name?.trim() ?? '',
+  },
+  {
+    fieldKey: 'pastorEmail',
+    getValue: (fields) => fields.email?.trim() ?? '',
+  },
+  {
+    fieldKey: 'pastorPhone',
+    getValue: (fields) => phoneForMondayColumn(fields.phone?.trim() ?? ''),
+  },
+  {
+    fieldKey: 'churchName',
+    getValue: (fields) => fields.church?.trim() ?? '',
+  },
+];
+
+export async function updateContactTagsOnMonday(
+  boardId: string,
+  itemId: string,
+  tags: ContactTag[],
+  columns?: MondayBoardColumn[],
+): Promise<void> {
+  assertContactsWritable('update contact tags');
+
+  const boardColumns = columns ?? (await fetchBoardColumns(boardId));
+  const column = resolveContactTagsWriteColumn(boardColumns);
+  if (!column) {
+    throw new Error(
+      `Column "${contactMap.tags}" (or "${contactMap.type}") not found on board. Set VITE_CONTACT_COL_TAGS or VITE_CONTACT_COL_TYPE.`,
+    );
+  }
+
+  if (contactTagsUseSimpleColumnValue(column.type)) {
+    await writeMondaySimpleColumnValue(
+      boardId,
+      itemId,
+      column,
+      formatContactTagsSimpleValue(tags),
+    );
+    return;
+  }
+
+  await writeMondayColumnValue(
+    boardId,
+    itemId,
+    column,
+    formatContactTagsColumnValue(
+      tags,
+      column.type,
+      column.settings_str,
+      column.title,
+    ),
+    { createLabelsIfMissing: true },
+  );
+}
+
 export async function updateContactFieldsOnMonday(
   boardId: string,
   itemId: string,
   fields: ContactCoreFields,
 ): Promise<void> {
-  assertMondayWritable('update contact profile');
+  assertContactsWritable('update contact profile');
 
   const trimmedName = fields.name.trim();
   if (trimmedName) {
-    await api(mutations.updateItemName, {
-      itemId,
-      itemName: trimmedName,
-    });
+    try {
+      await api(mutations.updateItemName, {
+        boardId,
+        itemId,
+        itemName: trimmedName,
+      });
+    } catch (err) {
+      throw columnWriteError('Name', 'name', err);
+    }
   }
 
   const columns = await fetchBoardColumns(boardId);
@@ -470,6 +823,15 @@ export async function updateContactFieldsOnMonday(
   for (const { fieldKey, getValue } of CONTACT_UPDATE_COLUMNS) {
     const value = getValue(fields);
     if (value === undefined) continue;
+    if (value === '') continue;
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      'phone' in value &&
+      !String((value as MondayPhoneColumnValue).phone ?? '').trim()
+    ) {
+      continue;
+    }
 
     const target = normalizeColumnTitle(contactMap[fieldKey]);
     const column = columns.find(
@@ -477,12 +839,66 @@ export async function updateContactFieldsOnMonday(
     );
     if (!column) continue;
 
-    await api(mutations.updateColumnValue, {
+    await writeMondayColumnValue(
       boardId,
       itemId,
-      columnId: column.id,
-      value: formatColumnValue(value, column.type),
-    });
+      column,
+      formatColumnValue(value, column.type),
+    );
+  }
+
+  if (fields.tags !== undefined) {
+    try {
+      await updateContactTagsOnMonday(boardId, itemId, fields.tags, columns);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save tags';
+      throw new Error(
+        `${message} Other profile fields may have saved; tags did not.`,
+      );
+    }
+  }
+}
+
+export async function updateContactPastorReferenceOnMonday(
+  boardId: string,
+  itemId: string,
+  fields: ContactPastorFields,
+): Promise<void> {
+  assertContactsWritable('update pastor reference');
+
+  const columns = await fetchBoardColumns(boardId);
+
+  for (const { fieldKey, getValue } of CONTACT_PASTOR_UPDATE_COLUMNS) {
+    const value = getValue(fields);
+    const target = normalizeColumnTitle(contactMap[fieldKey]);
+    const column = columns.find(
+      (entry) => normalizeColumnTitle(entry.title) === target,
+    );
+    if (!column) continue;
+
+    await writeMondayColumnValue(
+      boardId,
+      itemId,
+      column,
+      formatColumnValue(value, column.type),
+    );
+  }
+}
+
+export async function deleteMondayItems(itemIds: string[]): Promise<void> {
+  assertContactsWritable('delete contacts');
+
+  const uniqueIds = [...new Set(itemIds.map(String))].filter(Boolean);
+  if (uniqueIds.length === 0) return;
+
+  const batchSize = 5;
+  for (let i = 0; i < uniqueIds.length; i += batchSize) {
+    const batch = uniqueIds.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map((itemId) =>
+        api(mutations.deleteItem, { itemId }),
+      ),
+    );
   }
 }
 

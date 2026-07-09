@@ -38,24 +38,60 @@ localStorage key: crm-term-notes:{itemId}:{timelineId}
 | Timeline column changed after notes | Notes remain keyed by the tag at write time; filter uses `timeline=` in the tag |
 | Legacy “Internal Notes” column | Not shown in UI; optional import is out of scope |
 
-## Future: Contacts page
+## Contact hub writes (Contacts board only)
 
-Foundation for a **Contacts** view (not built yet):
+Notes added from the **contact page** are stored on the **Contacts item** only:
 
-1. Add a **Contact** link column on the Applications board (column name TBD).
-2. A contact item links to one or more application items (one per term).
-3. UI: accordion per `VolunteerTerm` (label, dates, status) with `TermNotesChat` per term.
-4. Service: `fetchContactTerms(contactId)` → `VolunteerTerm[]` with `notes` from `parseTermNotes` on each linked item’s updates.
+```text
+[CRM_CONTACT_NOTE source=recruitment prospect={prospectId}]
+Note body...
+
+[CRM_CONTACT_NOTE source=term timeline={timelineId} application={applicationItemId}]
+Note body...
+```
+
+Legacy formats `[CRM_RECRUITMENT_NOTE …]` and Applications-board `[CRM_TERM_NOTE …]` are still **read** for history.
+
+## Note review inbox
+
+Harvested monday updates that are not already CRM-tagged go to the **Note review** inbox. Matching uses strict rules (board relation, exact email, CRM tags) — never fuzzy name matching. You approve or dismiss each note before it appears on a contact.
+
+## Contact internal notes hub
+
+On the **Contacts** detail page, all internal notes appear in one timeline:
+
+| Source | Stored on | Tag format |
+|--------|-----------|------------|
+| Contact page (new writes) | Contacts board item | `[CRM_CONTACT_NOTE source=…]` |
+| Service term (legacy read) | Applications board item | `[CRM_TERM_NOTE timeline=…]` |
+| Recruitment (legacy read) | Contacts board item | `[CRM_RECRUITMENT_NOTE prospect=…]` |
+| Approved harvest | localStorage link | Shown with board source pill |
+
+**Contact-page writes go to the Contacts board only** — not Applications.
+
+Implementation: `src/services/contactInternalNotes.ts`, `src/services/fetchContactInternalNotes.ts`, `ContactInternalNotesSection`.
+
+Recruitment notes previously in localStorage are migrated to the Contacts item on first load (text notes only; attachments stay local).
+
+## Contacts page (built)
+
+1. Contact item links to application items via board relations / email match.
+2. UI: unified **Internal notes** timeline on contact detail; per-term `TermNotesChat` in service record overlay.
+3. Service: `fetchContactInternalNotes(contactId, serviceTerms)` aggregates updates from Contacts + linked Applications items.
 
 ```mermaid
 flowchart LR
   Contact[Contact item]
   App1[Application item term A]
   App2[Application item term B]
+  Contact --> RecNotes[Recruitment updates]
   Contact --> App1
   Contact --> App2
   App1 --> NotesA[Updates tagged timeline A]
   App2 --> NotesB[Updates tagged timeline B]
+  RecNotes --> Hub[Contact notes timeline]
+  NotesA --> Hub
+  NotesB --> Hub
 ```
 
-Types: `VolunteerTerm` and `TermNote` in `src/types/volunteer.ts`.
+Types: `VolunteerTerm`, `TermNote`, and `ContactInternalNote` in `src/types/`.

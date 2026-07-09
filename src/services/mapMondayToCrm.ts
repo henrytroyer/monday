@@ -1,12 +1,19 @@
+import type { ContactDemographics } from '../types/contact';
 import { columnMap } from '../config/columnMap';
 import { resolveTimelineId } from '../config/timelineMap';
 import { buildApplicationEmailsFromColumns } from '../utils/applicationEmails';
 import { getColumnPhone } from '../utils/phoneFormat';
 import {
+  mergeVolunteerGalleryFiles,
+  parseMondayFileColumn,
+  resolvePassportFile,
+  resolveProfilePhotoUrl,
+} from './mondayFileColumns';
+import { parseItineraryFromColumns } from './itinerary';
+import {
   buildApplicationFormFields,
   buildPastorReferenceFormFields,
 } from './applicationFormFields';
-import { parseItineraryFromColumns } from './itinerary';
 import {
   isTermNoteUpdate,
   parseTermNotes,
@@ -19,6 +26,7 @@ import type {
   VolunteerDetail,
   VolunteerFile,
 } from '../types/volunteer';
+import { resolveApplicationDemographics } from '../utils/applicationDemographics';
 
 export interface MondayColumnValue {
   id: string;
@@ -26,6 +34,16 @@ export interface MondayColumnValue {
   value: string | null;
   type: string;
   column?: { title: string } | null;
+  /** Present on board_relation columns when queried with BoardRelationValue fragment. */
+  linked_item_ids?: string[] | null;
+  /** Present on file columns when queried with FileValue fragment. */
+  files?: Array<{
+    asset_id?: string | number | null;
+    name?: string | null;
+    public_url?: string | null;
+    url?: string | null;
+    is_image?: boolean | null;
+  }> | null;
 }
 
 export interface MondayBoardItem {
@@ -78,64 +96,22 @@ export function getColumnText(
   return findColumn(columnValues, fieldKey)?.text?.trim() || '';
 }
 
-function parseMondayFiles(col: MondayColumnValue | undefined): VolunteerFile[] {
-  if (!col) return [];
-
-  if (col.value) {
-    try {
-      const data = JSON.parse(col.value) as {
-        files?: Array<Record<string, unknown>>;
-      };
-      const files = data.files ?? [];
-      return files.map((file, index) => {
-        const name = String(file.name ?? 'File');
-        const url =
-          (file.url as string | undefined) ||
-          (file.public_url as string | undefined) ||
-          (file.linkToFile as string | undefined);
-        const isImage =
-          file.isImage === 'true' ||
-          file.isImage === true ||
-          /\.(png|jpe?g|gif|webp|svg)$/i.test(name);
-
-        return {
-          id: String(file.assetId ?? file.id ?? index),
-          name,
-          url,
-          isImage,
-        };
-      });
-    } catch {
-      // fall through to text
-    }
-  }
-
-  if (col.text?.trim()) {
-    return col.text.split(',').map((part, index) => {
-      const name = part.trim();
-      return {
-        id: `text-${index}`,
-        name,
-        isImage: /\.(png|jpe?g|gif|webp|svg)$/i.test(name),
-      };
-    });
-  }
-
-  return [];
-}
-
 function getProfilePhotoUrl(
   columnValues: MondayColumnValue[],
 ): string | undefined {
-  const fromProfile = parseMondayFiles(
+  return resolveProfilePhotoUrl(
     findColumn(columnValues, 'profilePhoto'),
-  ).find((f) => f.isImage && f.url);
-  if (fromProfile?.url) return fromProfile.url;
-
-  const fromGallery = parseMondayFiles(findColumn(columnValues, 'files')).find(
-    (f) => f.isImage && f.url,
+    findColumn(columnValues, 'files'),
   );
-  return fromGallery?.url;
+}
+
+function getApplicationPassportFile(
+  columnValues: MondayColumnValue[],
+): VolunteerFile | undefined {
+  return resolvePassportFile(
+    findColumn(columnValues, 'passport'),
+    findColumn(columnValues, 'passportNew'),
+  );
 }
 
 export function getApplicationFilesFromColumns(
@@ -147,30 +123,19 @@ export function getApplicationFilesFromColumns(
 function getFileGallery(
   columnValues: MondayColumnValue[],
 ): VolunteerFile[] {
-  const gallery = parseMondayFiles(findColumn(columnValues, 'files'));
-  const itineraryFiles = parseMondayFiles(
-    findColumn(columnValues, 'itineraryFiles'),
-  );
-  const profileFiles = parseMondayFiles(
-    findColumn(columnValues, 'profilePhoto'),
-  );
-
   const profilePhotoUrl = getProfilePhotoUrl(columnValues);
-  const merged = [...itineraryFiles, ...profileFiles, ...gallery];
-  const seen = new Set<string>();
-  return merged.filter((file) => {
-    if (
-      profilePhotoUrl &&
-      file.isImage &&
-      file.url === profilePhotoUrl
-    ) {
-      return false;
-    }
-    const key = `${file.id}-${file.name}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const passportFile = getApplicationPassportFile(columnValues);
+  const passportPhotoUrl = passportFile?.url;
+
+  return mergeVolunteerGalleryFiles(
+    [
+      parseMondayFileColumn(findColumn(columnValues, 'itineraryFiles')),
+      parseMondayFileColumn(findColumn(columnValues, 'releaseForms')),
+      parseMondayFileColumn(findColumn(columnValues, 'files')),
+      parseMondayFileColumn(findColumn(columnValues, 'profilePhoto')),
+    ],
+    { profilePhotoUrl, passportPhotoUrl },
+  );
 }
 
 function isStepComplete(value: string): boolean {
@@ -183,6 +148,12 @@ function isStepComplete(value: string): boolean {
     v === 'paid' ||
     v === 'received'
   );
+}
+
+function buildApplicationDemographics(
+  columnValues: MondayColumnValue[],
+): ContactDemographics | undefined {
+  return resolveApplicationDemographics(columnValues);
 }
 
 export function mapItemToVolunteer(item: MondayBoardItem): Volunteer {
@@ -291,7 +262,9 @@ export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetai
   const phoneRaw = getColumnPhone(item.column_values, columnMap);
   const phone = phoneRaw || '—';
   const profilePhotoUrl = getProfilePhotoUrl(item.column_values);
+  const passportFile = getApplicationPassportFile(item.column_values);
   const files = getFileGallery(item.column_values);
+  const demographics = buildApplicationDemographics(item.column_values);
 
   return {
     ...base,
@@ -299,11 +272,14 @@ export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetai
     emails,
     phone,
     profilePhotoUrl,
+    passportFile,
     files,
+    demographics,
     housing,
     itinerary,
     coordinator,
     termNotes,
+    rawUpdates: item.updates,
     onboardingSteps,
     activityTimeline,
     applicationFormFields: buildApplicationFormFields(item.column_values),

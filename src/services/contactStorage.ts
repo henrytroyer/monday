@@ -6,6 +6,7 @@ import type {
   ContactDemographics,
   ContactDetail,
   ContactListItem,
+  ContactPastorReference,
   ContactTag,
 } from '../types/contact';
 import type { RecruitmentProspect } from '../types/recruitment';
@@ -14,6 +15,7 @@ import { mergeContactDetailWithSync } from './contactSyncStorage';
 
 const OVERRIDES_KEY = 'crm-contact-overrides';
 const CREATED_KEY = 'crm-contact-created';
+const DELETED_KEY = 'crm-contact-deleted';
 
 interface ContactFieldOverride {
   name?: string;
@@ -21,6 +23,7 @@ interface ContactFieldOverride {
   phone?: string;
   tags?: ContactTag[];
   demographics?: ContactDemographics;
+  pastorReference?: ContactPastorReference;
 }
 
 function readOverrides(): Record<string, ContactFieldOverride> {
@@ -53,6 +56,21 @@ function writeCreated(contacts: ContactListItem[]): void {
   localStorage.setItem(CREATED_KEY, JSON.stringify(contacts));
 }
 
+function readDeleted(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as string[];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeDeleted(ids: Set<string>): void {
+  localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
+}
+
 function normalizeEmail(email: string): string {
   return email === '—' ? '' : email.trim().toLowerCase();
 }
@@ -73,13 +91,16 @@ function mergeListItem(
 
 export function getAllContacts(): ContactListItem[] {
   const overrides = readOverrides();
+  const deleted = readDeleted();
   const byId = new Map<string, ContactListItem>();
 
   for (const contact of MOCK_CONTACTS_LIST) {
+    if (deleted.has(contact.id)) continue;
     byId.set(contact.id, mergeListItem(contact, overrides[contact.id]));
   }
 
   for (const contact of readCreated()) {
+    if (deleted.has(contact.id)) continue;
     byId.set(contact.id, mergeListItem(contact, overrides[contact.id]));
   }
 
@@ -108,13 +129,21 @@ export function getContactDetailBase(contactId: string): ContactDetail {
       ...(override?.demographics !== undefined
         ? { demographics: override.demographics }
         : {}),
+      ...(override?.pastorReference !== undefined
+        ? { pastorReference: override.pastorReference }
+        : {}),
     });
   }
 
-  if (override?.demographics !== undefined) {
+  if (override?.demographics !== undefined || override?.pastorReference !== undefined) {
     return mergeContactDetailWithSync(contactId, {
       ...mockDetail,
-      demographics: override.demographics,
+      ...(override.demographics !== undefined
+        ? { demographics: override.demographics }
+        : {}),
+      ...(override.pastorReference !== undefined
+        ? { pastorReference: override.pastorReference }
+        : {}),
     });
   }
 
@@ -196,7 +225,57 @@ export interface ContactCoreFields {
   name: string;
   email: string;
   phone?: string;
+  tags?: ContactTag[];
   demographics?: ContactDemographics;
+}
+
+export type ContactPastorFields = ContactPastorReference;
+
+function normalizePastorReference(
+  pastorReference: ContactPastorFields,
+): ContactPastorReference | undefined {
+  const name = pastorReference.name?.trim() || undefined;
+  const email = pastorReference.email?.trim() || undefined;
+  const phone = normalizeStoredPhone(pastorReference.phone);
+  const church = pastorReference.church?.trim() || undefined;
+
+  if (!name && !email && !phone && !church) {
+    return undefined;
+  }
+
+  return {
+    ...(name ? { name } : {}),
+    ...(email ? { email } : {}),
+    ...(phone ? { phone } : {}),
+    ...(church ? { church } : {}),
+  };
+}
+
+/** Merge saved pastor fields into an existing detail (e.g. when refetch fails after write). */
+export function applyPastorReferenceToDetail(
+  detail: ContactDetail,
+  fields: ContactPastorFields,
+): ContactDetail {
+  return {
+    ...detail,
+    pastorReference: normalizePastorReference(fields),
+  };
+}
+
+/** Merge saved profile fields into an existing detail (e.g. when refetch fails after write). */
+export function applyCoreFieldsToDetail(
+  detail: ContactDetail,
+  fields: ContactCoreFields,
+): ContactDetail {
+  const demographics = normalizeDemographics(fields.demographics);
+  return {
+    ...detail,
+    name: fields.name.trim(),
+    email: fields.email.trim() || '—',
+    phone: normalizeStoredPhone(fields.phone),
+    ...(fields.tags !== undefined ? { tags: [...new Set(fields.tags)] } : {}),
+    ...(demographics !== undefined ? { demographics } : {}),
+  };
 }
 
 function normalizeDemographics(
@@ -206,14 +285,20 @@ function normalizeDemographics(
 
   const address = demographics.address?.trim() || undefined;
   const city = demographics.city?.trim() || undefined;
+  const state = demographics.state?.trim() || undefined;
+  const zip = demographics.zip?.trim() || undefined;
   const country = demographics.country?.trim() || undefined;
   const dateOfBirth = demographics.dateOfBirth?.trim() || undefined;
 
-  if (!address && !city && !country && !dateOfBirth) return undefined;
+  if (!address && !city && !state && !zip && !country && !dateOfBirth) {
+    return undefined;
+  }
 
   return {
     ...(address ? { address } : {}),
     ...(city ? { city } : {}),
+    ...(state ? { state } : {}),
+    ...(zip ? { zip } : {}),
     ...(country ? { country } : {}),
     ...(dateOfBirth ? { dateOfBirth } : {}),
   };
@@ -230,11 +315,18 @@ export function updateContactCoreFields(
   const email = fields.email.trim() || '—';
   const phone = normalizeStoredPhone(fields.phone);
   const demographics = normalizeDemographics(fields.demographics);
+  const tags =
+    fields.tags !== undefined ? [...new Set(fields.tags)] : undefined;
 
   const overrides = readOverrides();
   const created = readCreated();
   const isCreated = created.some((contact) => contact.id === contactId);
-  const patch = { name, email, phone };
+  const patch = {
+    name,
+    email,
+    phone,
+    ...(tags !== undefined ? { tags } : {}),
+  };
 
   if (isCreated) {
     writeCreated(
@@ -256,4 +348,42 @@ export function updateContactCoreFields(
   writeOverrides(overrides);
 
   return getContactListItem(contactId) ?? null;
+}
+
+export function updateContactPastorReference(
+  contactId: string,
+  fields: ContactPastorFields,
+): ContactListItem | null {
+  const listItem = getContactListItem(contactId);
+  if (!listItem) return null;
+
+  const pastorReference = normalizePastorReference(fields);
+  const overrides = readOverrides();
+
+  overrides[contactId] = {
+    ...overrides[contactId],
+    pastorReference,
+  };
+
+  writeOverrides(overrides);
+
+  return getContactListItem(contactId) ?? null;
+}
+
+export function deleteMockContacts(contactIds: string[]): void {
+  if (contactIds.length === 0) return;
+
+  const remove = new Set(contactIds);
+  const deleted = readDeleted();
+  const overrides = readOverrides();
+
+  writeCreated(readCreated().filter((contact) => !remove.has(contact.id)));
+
+  for (const id of contactIds) {
+    deleted.add(id);
+    delete overrides[id];
+  }
+
+  writeDeleted(deleted);
+  writeOverrides(overrides);
 }

@@ -1,12 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
-import { CONTACT_TAG_LABELS, type ContactDetail } from '../../types/contact';
+import { CONTACT_TAG_LABELS, CONTACT_TAGS, type ContactDetail } from '../../types/contact';
 import type { ContactCoreFields } from '../../services/contactStorage';
 import {
   buildGoogleMapsUrl,
   formatContactAddress,
 } from '../../utils/formatContactAddress';
-import { contactTagPillClass } from '../../utils/contactTagStyles';
+import {
+  contactTagFilterSelectedClass,
+  contactTagPillClass,
+} from '../../utils/contactTagStyles';
+import { toggleContactTag } from '../../utils/filterContacts';
 import VolunteerAvatar from '../applications/VolunteerAvatar';
 import FilePreviewModal from '../applications/FilePreviewModal';
 import ContactCallModal from './ContactCallModal';
@@ -50,9 +54,14 @@ export default function ContactProfileCard({
     detail.demographics?.address ?? '',
   );
   const [addressCity, setAddressCity] = useState(detail.demographics?.city ?? '');
+  const [addressState, setAddressState] = useState(
+    detail.demographics?.state ?? '',
+  );
+  const [addressZip, setAddressZip] = useState(detail.demographics?.zip ?? '');
   const [addressCountry, setAddressCountry] = useState(
     detail.demographics?.country ?? '',
   );
+  const [tags, setTags] = useState(detail.tags);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const editable = canEdit && Boolean(onSave);
@@ -90,14 +99,23 @@ export default function ContactProfileCard({
     setDateOfBirth(detail.demographics?.dateOfBirth ?? '');
     setAddressStreet(detail.demographics?.address ?? '');
     setAddressCity(detail.demographics?.city ?? '');
+    setAddressState(detail.demographics?.state ?? '');
+    setAddressZip(detail.demographics?.zip ?? '');
     setAddressCountry(detail.demographics?.country ?? '');
+    setTags(detail.tags);
   };
 
   useEffect(() => {
     resetForm();
     setEditing(false);
     setSaveMessage(null);
-  }, [detail]);
+  }, [detail.id]);
+
+  useEffect(() => {
+    if (!editing) {
+      resetForm();
+    }
+  }, [detail, editing]);
 
   const formattedAddress = detail.demographics
     ? formatContactAddress(detail.demographics)
@@ -112,22 +130,26 @@ export default function ContactProfileCard({
     const trimmedName = name.trim();
     if (!trimmedName) return;
 
-    const saved = await onSave({
-      name: trimmedName,
-      email: email.trim() || '—',
-      phone: phone.trim() || undefined,
-      demographics: {
-        dateOfBirth: dateOfBirth.trim() || undefined,
-        address: addressStreet.trim() || undefined,
-        city: addressCity.trim() || undefined,
-        country: addressCountry.trim() || undefined,
-      },
-    });
-
-    if (saved) {
+    try {
+      await onSave({
+        name: trimmedName,
+        email: email.trim() || '—',
+        phone: phone.trim() || undefined,
+        tags: [...tags],
+        demographics: {
+          dateOfBirth: dateOfBirth.trim() || undefined,
+          address: addressStreet.trim() || undefined,
+          city: addressCity.trim() || undefined,
+          state: addressState.trim() || undefined,
+          zip: addressZip.trim() || undefined,
+          country: addressCountry.trim() || undefined,
+        },
+      });
       setEditing(false);
       setSaveMessage('Saved');
       window.setTimeout(() => setSaveMessage(null), 2000);
+    } catch {
+      // Stay in edit mode; ContactDetailPanel shows the error banner.
     }
   };
 
@@ -159,14 +181,41 @@ export default function ContactProfileCard({
           )}
         </div>
 
-        {detail.tags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {detail.tags.map((tag) => (
-              <span key={tag} className={contactTagPillClass(tag)}>
-                {CONTACT_TAG_LABELS[tag]}
-              </span>
-            ))}
+        {editing ? (
+          <div className="mt-3">
+            <p className="mb-2 text-xs text-crm-slate">Click to change tag type</p>
+            <div className="flex flex-wrap gap-2">
+              {CONTACT_TAGS.map((tag) => {
+                const selected = tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() =>
+                      setTags((current) => toggleContactTag(current, tag))
+                    }
+                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                      selected
+                        ? contactTagFilterSelectedClass(tag)
+                        : 'contact-tag-pulse bg-crm-white text-crm-text ring-1 ring-crm-taupe/25 hover:bg-crm-taupe-100'
+                    }`}
+                  >
+                    {CONTACT_TAG_LABELS[tag]}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        ) : (
+          detail.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {detail.tags.map((tag) => (
+                <span key={tag} className={contactTagPillClass(tag)}>
+                  {CONTACT_TAG_LABELS[tag]}
+                </span>
+              ))}
+            </div>
+          )
         )}
 
         <dl className="mt-5 grid grid-cols-2 gap-3">
@@ -229,21 +278,37 @@ export default function ContactProfileCard({
             </Field>
             <Field label="Address" tall={editing}>
               {editing ? (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <input
                     type="text"
                     value={addressStreet}
                     onChange={(e) => setAddressStreet(e.target.value)}
-                    placeholder="Street address"
+                    placeholder="Street"
                     className={inputClass}
                   />
-                  <input
-                    type="text"
-                    value={addressCity}
-                    onChange={(e) => setAddressCity(e.target.value)}
-                    placeholder="City"
-                    className={inputClass}
-                  />
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <input
+                      type="text"
+                      value={addressCity}
+                      onChange={(e) => setAddressCity(e.target.value)}
+                      placeholder="City"
+                      className={inputClass}
+                    />
+                    <input
+                      type="text"
+                      value={addressState}
+                      onChange={(e) => setAddressState(e.target.value)}
+                      placeholder="State"
+                      className={inputClass}
+                    />
+                    <input
+                      type="text"
+                      value={addressZip}
+                      onChange={(e) => setAddressZip(e.target.value)}
+                      placeholder="Zip"
+                      className={inputClass}
+                    />
+                  </div>
                   <input
                     type="text"
                     value={addressCountry}

@@ -16,6 +16,7 @@ interface InvoiceDetailModalProps {
   boardId?: string | null;
   onInvoiceLinked?: (invoiceId: string) => void;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
 function defaultCreateLines(): QuickBooksLineItem[] {
@@ -51,6 +52,7 @@ export default function InvoiceDetailModal({
   boardId,
   onInvoiceLinked,
   onClose,
+  readOnly = false,
 }: InvoiceDetailModalProps) {
   const resolvedBackLabel = backLabel ?? volunteerName;
   const {
@@ -316,33 +318,37 @@ export default function InvoiceDetailModal({
                     Line items
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={handleAddLine}
-                      className="rounded-xl border border-crm-taupe/20 px-3 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
-                    >
-                      Add line item
-                    </button>
-                    {isCreateMode ? (
-                      <button
-                        type="button"
-                        disabled={saving || draftLines.length === 0}
-                        onClick={handleCreate}
-                        className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
-                      >
-                        {saving ? 'Creating…' : 'Create invoice'}
-                      </button>
-                    ) : (
-                      dirty && (
+                    {!readOnly && (
+                      <>
                         <button
                           type="button"
-                          disabled={saving}
-                          onClick={handleSave}
-                          className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
+                          onClick={handleAddLine}
+                          className="rounded-xl border border-crm-taupe/20 px-3 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
                         >
-                          {saving ? 'Saving…' : 'Save to QuickBooks'}
+                          Add line item
                         </button>
-                      )
+                        {isCreateMode ? (
+                          <button
+                            type="button"
+                            disabled={saving || draftLines.length === 0}
+                            onClick={handleCreate}
+                            className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
+                          >
+                            {saving ? 'Creating…' : 'Create invoice'}
+                          </button>
+                        ) : (
+                          dirty && (
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={handleSave}
+                              className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
+                            >
+                              {saving ? 'Saving…' : 'Save to QuickBooks'}
+                            </button>
+                          )
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -372,6 +378,8 @@ export default function InvoiceDetailModal({
                                 )
                               }
                               className="w-full rounded-lg border border-crm-taupe/20 px-2 py-1"
+                              readOnly={readOnly}
+                              disabled={readOnly}
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -388,6 +396,8 @@ export default function InvoiceDetailModal({
                                 )
                               }
                               className="w-full rounded-lg border border-crm-taupe/20 px-2 py-1"
+                              readOnly={readOnly}
+                              disabled={readOnly}
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -404,13 +414,15 @@ export default function InvoiceDetailModal({
                                 )
                               }
                               className="w-full rounded-lg border border-crm-taupe/20 px-2 py-1"
+                              readOnly={readOnly}
+                              disabled={readOnly}
                             />
                           </td>
                           <td className="px-3 py-2 text-right font-medium text-crm-heading">
                             {formatMoney(line.amount, currency)}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {draftLines.length > 1 && (
+                            {!readOnly && draftLines.length > 1 && (
                               <button
                                 type="button"
                                 onClick={() => handleRemoveLine(index)}

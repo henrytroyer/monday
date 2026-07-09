@@ -9,6 +9,7 @@ interface OnboardingProgressProps {
   itemId?: string;
   boardId?: string | null;
   onInvoiceLinked?: (invoiceId: string) => void;
+  readOnly?: boolean;
 }
 
 export default function OnboardingProgress({
@@ -17,6 +18,7 @@ export default function OnboardingProgress({
   itemId,
   boardId,
   onInvoiceLinked,
+  readOnly = false,
 }: OnboardingProgressProps) {
   const [invoiceModal, setInvoiceModal] = useState<{
     invoiceId?: string;
@@ -67,6 +69,7 @@ export default function OnboardingProgress({
           boardId={boardId}
           onInvoiceLinked={handleLinked}
           onClose={requestCloseInvoice}
+          readOnly={readOnly}
         />
       )}
     </>

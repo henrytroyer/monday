@@ -1,5 +1,6 @@
 import type { ContactDemographics } from './contact';
 import type { VolunteerItinerary } from "./itinerary";
+import type { MondayItemUpdateRaw } from '../services/termNotes';
 
 export interface SignupTimeline {
   id: string;
@@ -91,11 +92,15 @@ export interface VolunteerDetail extends Volunteer {
   emails: ApplicationEmail[];
   phone: string;
   demographics?: ContactDemographics;
+  passportFile?: VolunteerFile;
+  childSafeguardingFile?: VolunteerFile;
   files: VolunteerFile[];
   housing: string;
   itinerary: VolunteerItinerary;
   coordinator: string;
   termNotes: TermNote[];
+  /** Raw monday item updates (for aggregating notes across timelines). */
+  rawUpdates?: MondayItemUpdateRaw[];
   onboardingSteps: OnboardingStep[];
   activityTimeline: ActivityTimelineEvent[];
   applicationFormFields: ApplicationFormField[];

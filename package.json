@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "tsx --test src/services/contactTagColumnWrite.test.ts src/services/mondayFileColumns.test.ts src/utils/volunteerFileSlots.test.ts src/utils/formatContactAddress.test.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "monday:tunnel": "npx @mondaydotcomorg/monday-cli tunnel start 4040",
@@ -17,6 +18,8 @@
     "firebase:init": "firebase init hosting",
     "sync:contacts": "tsx scripts/sync-contacts.ts",
     "quickbooks:proxy": "node server/quickbooks-proxy.mjs",
+    "qbo:watch-income": "node server/qbo-income-watcher.mjs",
+    "qbo:sync-income-once": "node server/qbo-income-watcher.mjs --once",
     "monday:proxy": "node server/monday-api-proxy.mjs",
     "git:sync": "./scripts/sync-git.sh",
     "git:pull": "git pull origin main",

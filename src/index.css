@@ -42,3 +42,25 @@ h3,
 h4 {
   color: var(--color-crm-heading);
 }
+
+@keyframes contact-tag-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-crm-taupe) 35%, transparent);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-crm-taupe) 18%, transparent);
+  }
+}
+
+.contact-tag-pulse {
+  animation: contact-tag-pulse 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-tag-pulse {
+    animation: none;
+  }
+}

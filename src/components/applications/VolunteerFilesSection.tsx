@@ -18,6 +18,7 @@ interface VolunteerFilesSectionProps {
   volunteerName?: string;
   profilePhotoUrl?: string;
   passportFile?: VolunteerFile;
+  childSafeguardingFile?: VolunteerFile;
   files?: VolunteerFile[];
   showOtherFiles?: boolean;
   variant?: 'panel' | 'inline';
@@ -35,6 +36,7 @@ export default function VolunteerFilesSection({
   volunteerName,
   profilePhotoUrl,
   passportFile,
+  childSafeguardingFile,
   files = [],
   showOtherFiles = false,
   variant = 'inline',
@@ -70,6 +72,7 @@ export default function VolunteerFilesSection({
     profilePhotoUrl,
     files,
     passportFile,
+    childSafeguardingFile,
   );
 
   const defaultFilenameFor = (file: VolunteerFile, slotKey: VolunteerFileSlotKey) =>
