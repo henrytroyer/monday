@@ -2,11 +2,13 @@ import type { VolunteerFile } from '../types/volunteer';
 import { inferVolunteerFileIsImage } from '../utils/inferVolunteerFileIsImage';
 import type { MondayColumnValue } from './mapMondayToCrm';
 
+const viteEnv = (): Record<string, string | undefined> => import.meta.env ?? {};
+
 export function mondayAssetProxyUrl(
   assetId: string,
   proxyBase?: string,
 ): string | undefined {
-  const base = (proxyBase ?? import.meta.env.VITE_MONDAY_API_PROXY_URL)
+  const base = (proxyBase ?? viteEnv().VITE_MONDAY_API_PROXY_URL)
     ?.trim()
     .replace(/\/$/, '');
   if (!base) return undefined;
@@ -44,7 +46,8 @@ export function resolveColumnFileUrl(
       : undefined);
 
   if (assetId) {
-    return mondayAssetProxyUrl(assetId, proxyBase);
+    const proxyUrl = mondayAssetProxyUrl(assetId, proxyBase);
+    if (proxyUrl) return proxyUrl;
   }
 
   const text = col.text?.trim();

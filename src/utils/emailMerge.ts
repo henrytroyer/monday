@@ -89,3 +89,5 @@ export function buildMailtoUrl(
   params.set('body', body);
   return `mailto:${encodeURIComponent(to)}?${params.toString()}`;
 }
+
+export { buildOnboardingMergeContext } from './onboardingPipeline';

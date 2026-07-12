@@ -37,7 +37,10 @@ import {
 } from './mapMondayToContact';
 import type { ContactCoreFields, ContactPastorFields } from './contactStorage';
 import { mondayGraphQL as api } from './mondayGraphQL';
-import { fetchSafeguardingCertificateFromApplicationItem } from './safeguardingCertificate';
+import {
+  fetchSafeguardingCertificateByEmail,
+  fetchSafeguardingCertificateFromApplicationItem,
+} from './safeguardingCertificate';
 
 function assertMondayWritable(action: string): void {
   if (isMondayReadOnly()) {
@@ -202,9 +205,30 @@ export async function fetchApplicationDetail(
     childSafeguardingFile = undefined;
   }
 
+  let couple = detail.couple;
+  if (couple?.partner.email) {
+    try {
+      const partnerSafeguarding = await fetchSafeguardingCertificateByEmail(
+        couple.partner.email,
+      );
+      if (partnerSafeguarding) {
+        couple = {
+          ...couple,
+          partner: {
+            ...couple.partner,
+            childSafeguardingFile: partnerSafeguarding,
+          },
+        };
+      }
+    } catch {
+      // spouse safeguarding optional
+    }
+  }
+
   return {
     ...detail,
     childSafeguardingFile,
+    couple,
   };
 }
 

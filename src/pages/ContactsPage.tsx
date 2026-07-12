@@ -83,6 +83,7 @@ export default function ContactsPage({
   );
 
   const showingDetail = selectedContact !== null;
+  const listReady = contacts.length > 0 || (!loading && !error);
 
   const { setDetailMode } = useLayout();
 
@@ -310,8 +311,12 @@ export default function ContactsPage({
         </div>
       )}
 
-      {!showingDetail && (contacts.length > 0 || (!loading && !error)) && (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm">
+      {listReady && (
+        <div
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm${
+            showingDetail ? ' hidden' : ''
+          }`}
+        >
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface">
             <div ref={toolbarRef}>
               <ContactListToolbar
@@ -387,7 +392,7 @@ export default function ContactsPage({
 
       {filtersVisible &&
         !showingDetail &&
-        (contacts.length > 0 || (!loading && !error)) &&
+        listReady &&
         createPortal(
           <>
             <button

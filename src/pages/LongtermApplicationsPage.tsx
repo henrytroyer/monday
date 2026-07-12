@@ -125,8 +125,11 @@ export default function LongtermApplicationsPage() {
         />
       )}
 
-      {!showingDetail && (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto${
+          showingDetail ? ' hidden' : ''
+        }`}
+      >
           <div className="space-y-8 pb-4">
             {sections.map((section) => (
               <PipelineSection
@@ -142,7 +145,6 @@ export default function LongtermApplicationsPage() {
             ))}
           </div>
         </div>
-      )}
     </div>
   );
 }

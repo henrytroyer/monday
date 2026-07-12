@@ -9,15 +9,17 @@ import {
   resolvePassportFile,
   resolveProfilePhotoUrl,
 } from './mondayFileColumns';
+import {
+  buildCoupleApplication,
+  buildCouplePreview,
+} from './coupleApplication';
 import { parseItineraryFromColumns } from './itinerary';
 import {
   buildApplicationFormFields,
   buildPastorReferenceFormFields,
 } from './applicationFormFields';
 import {
-  isTermNoteUpdate,
   parseTermNotes,
-  stripHtml,
   type MondayItemUpdateRaw,
 } from './termNotes';
 import type {
@@ -96,6 +98,29 @@ export function getColumnText(
   return findColumn(columnValues, fieldKey)?.text?.trim() || '';
 }
 
+/** Date columns may store ISO dates in `value` JSON while `text` is empty. */
+export function getColumnDateText(
+  columnValues: MondayColumnValue[],
+  fieldKey: keyof typeof columnMap,
+): string {
+  const col = findColumn(columnValues, fieldKey);
+  if (!col) return '';
+
+  const text = col.text?.trim();
+  if (text) return text;
+
+  if (col.value) {
+    try {
+      const parsed = JSON.parse(col.value) as { date?: string };
+      if (parsed.date?.trim()) return parsed.date.trim();
+    } catch {
+      // fall through
+    }
+  }
+
+  return '';
+}
+
 function getProfilePhotoUrl(
   columnValues: MondayColumnValue[],
 ): string | undefined {
@@ -113,6 +138,8 @@ function getApplicationPassportFile(
     findColumn(columnValues, 'passportNew'),
   );
 }
+
+export { buildCoupleApplication, buildCouplePreview, firstNameFromFullName } from './coupleApplication';
 
 export function getApplicationFilesFromColumns(
   columnValues: MondayColumnValue[],
@@ -166,6 +193,7 @@ export function mapItemToVolunteer(item: MondayBoardItem): Volunteer {
     getColumnText(item.column_values, 'status') || '—';
   const timelineLabel = getColumnText(item.column_values, 'signupTimeline');
   const timelineId = resolveTimelineId(timelineLabel);
+  const couplePreview = buildCouplePreview(item.name, item.column_values);
 
   return {
     id: item.id,
@@ -174,7 +202,12 @@ export function mapItemToVolunteer(item: MondayBoardItem): Volunteer {
     location,
     status,
     timelineId,
+    preferredDates: timelineLabel || undefined,
+    termStart: getColumnDateText(item.column_values, 'arrivalDate') || undefined,
+    termEnd: getColumnDateText(item.column_values, 'departureDate') || undefined,
+    pipelineStage: item.group?.title || undefined,
     profilePhotoUrl: getProfilePhotoUrl(item.column_values),
+    couplePreview,
   };
 }
 
@@ -242,21 +275,6 @@ export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetai
 
   const termNotes = parseTermNotes(item.id, item.updates, base.timelineId);
 
-  const activityTimeline =
-    item.updates
-      ?.filter((update) => !isTermNoteUpdate(update.text_body || ''))
-      .map((update) => ({
-        date: formatUpdateDate(update.created_at),
-        text: stripHtml(update.text_body || '').trim() || 'Update',
-      })) ?? [];
-
-  if (activityTimeline.length === 0 && item.created_at) {
-    activityTimeline.push({
-      date: formatUpdateDate(item.created_at),
-      text: 'Application created',
-    });
-  }
-
   const email = getColumnText(item.column_values, 'email') || '—';
   const emails = buildApplicationEmailsFromColumns(item.column_values);
   const phoneRaw = getColumnPhone(item.column_values, columnMap);
@@ -265,6 +283,7 @@ export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetai
   const passportFile = getApplicationPassportFile(item.column_values);
   const files = getFileGallery(item.column_values);
   const demographics = buildApplicationDemographics(item.column_values);
+  const couple = buildCoupleApplication(item.name, item.column_values);
 
   return {
     ...base,
@@ -275,28 +294,19 @@ export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetai
     passportFile,
     files,
     demographics,
+    couple,
     housing,
     itinerary,
     coordinator,
     termNotes,
     rawUpdates: item.updates,
     onboardingSteps,
-    activityTimeline,
+    activityTimeline: [],
+    itemCreatedAt: item.created_at || undefined,
     applicationFormFields: buildApplicationFormFields(item.column_values),
     pastorReferenceFormFields: buildPastorReferenceFormFields(
       item.column_values,
     ),
   };
-}
-
-function formatUpdateDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
 }
 

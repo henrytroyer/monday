@@ -10,6 +10,7 @@ import { countVolunteers } from '../data/mockApplications';
 import { useApplicationsPipeline } from '../hooks/useApplicationsPipeline';
 import type { ApplicationFilterState, Volunteer } from '../types/volunteer';
 import {
+  collectPipelineItemIds,
   countMatchingVolunteers,
   deriveLocationOptions,
   deriveTimelineOptions,
@@ -19,6 +20,7 @@ import {
   hasActiveFilters,
 } from '../utils/filterApplications';
 import { syncAllContactsFromPipeline } from '../services/contactApplicationSync';
+import { registerWatchedApplicationItemIds } from '../services/emailTimelineWatcher';
 
 export default function ApplicationsPage({
   focusApplicationId,
@@ -78,6 +80,7 @@ export default function ApplicationsPage({
 
   const filtersActive = hasActiveFilters(filters);
   const showingDetail = selectedApplication !== null;
+  const listReady = !loading && !error;
 
   const { setDetailMode } = useLayout();
 
@@ -107,6 +110,11 @@ export default function ApplicationsPage({
   useEffect(() => {
     if (!isMock || loading) return;
     syncAllContactsFromPipeline(pipeline);
+  }, [isMock, loading, pipeline]);
+
+  useEffect(() => {
+    if (isMock || loading) return;
+    registerWatchedApplicationItemIds(collectPipelineItemIds(pipeline));
   }, [isMock, loading, pipeline]);
 
   useEffect(() => {
@@ -146,7 +154,7 @@ export default function ApplicationsPage({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [filtersVisible]);
 
-  const showListCard = !loading && !error && !showingDetail;
+  const showListCard = listReady;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -221,7 +229,11 @@ export default function ApplicationsPage({
       )}
 
       {showListCard && (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm">
+        <div
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm${
+            showingDetail ? ' hidden' : ''
+          }`}
+        >
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface">
             <div ref={toolbarRef}>
               <ApplicationListToolbar

@@ -249,6 +249,23 @@ export const queries = {
     }
   }`,
 
+  /** Item updates with HTML body — used for SuperMail email logs. */
+  getItemEmailUpdates: `query ($itemIds: [ID!]) {
+    items(ids: $itemIds) {
+      id
+      updates(limit: 100) {
+        id
+        body
+        text_body
+        created_at
+        creator {
+          name
+          email
+        }
+      }
+    }
+  }`,
+
   getItemSummaries: `query ($itemIds: [ID!]) {
     items(ids: $itemIds) {
       id
@@ -320,6 +337,29 @@ export const queries = {
         id
         name
         state
+      }
+    }
+  }`,
+
+  /**
+   * Emails & Activities timeline for an item (API 2025-01+)
+   */
+  getItemTimeline: `query ($itemId: ID!, $limit: Int, $cursor: String) {
+    timeline(id: $itemId) {
+      timeline_items_page(limit: $limit, cursor: $cursor) {
+        cursor
+        timeline_items {
+          id
+          title
+          content
+          created_at
+          custom_activity_id
+          user {
+            id
+            name
+            email
+          }
+        }
       }
     }
   }`,

@@ -52,3 +52,15 @@ export function formatTimelineArrival(id: string, fallbackArrival?: string): str
     year: 'numeric',
   });
 }
+
+export function formatTimelineEnd(id: string, fallbackEnd?: string): string {
+  if (fallbackEnd?.trim()) return fallbackEnd.trim();
+  const timeline = getTimelineById(id);
+  if (!timeline) return '—';
+  const end = new Date(`${timeline.endDate}T00:00:00`);
+  return end.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}

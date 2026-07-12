@@ -22,6 +22,23 @@ function matchesLocationFilter(
   });
 }
 
+function matchesSearch(volunteer: Volunteer, query: string): boolean {
+  const parts = [volunteer.name];
+  const preview = volunteer.couplePreview;
+  if (preview) {
+    parts.push(
+      preview.displayName,
+      preview.primaryFirstName ?? '',
+      preview.primaryEmail ?? '',
+      preview.partnerName,
+      preview.partnerFirstName ?? '',
+      preview.partnerEmail ?? '',
+    );
+  }
+  const haystack = parts.join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+
 function matchesFilters(
   volunteer: Volunteer,
   filters: ApplicationFilterState,
@@ -43,7 +60,7 @@ function matchesFilters(
 
   if (searchActive) {
     const query = filters.searchQuery.trim().toLowerCase();
-    if (!volunteer.name.toLowerCase().includes(query)) {
+    if (!matchesSearch(volunteer, query)) {
       return false;
     }
   }
@@ -146,5 +163,17 @@ export function deriveLocationOptions(pipeline: PipelineSection[]): string[] {
     }
   }
   return Array.from(seen).sort((a, b) => a.localeCompare(b));
+}
+
+export function collectPipelineItemIds(pipeline: PipelineSection[]): string[] {
+  const ids: string[] = [];
+  for (const section of pipeline) {
+    for (const volunteer of section.volunteers) {
+      if (volunteer.id && !volunteer.id.startsWith('mock-')) {
+        ids.push(volunteer.id);
+      }
+    }
+  }
+  return ids;
 }
 

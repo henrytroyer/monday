@@ -59,6 +59,36 @@ export interface ApplicationEmail {
   address: string;
 }
 
+/** Lightweight couple fields for pipeline rows (no extra API call). */
+export interface CouplePreview {
+  displayName: string;
+  primaryFirstName?: string;
+  primaryEmail?: string;
+  partnerName: string;
+  partnerFirstName?: string;
+  partnerEmail?: string;
+  partnerPhotoUrl?: string;
+}
+
+export interface ApplicationPartner {
+  firstName?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  profilePhotoUrl?: string;
+  passportFile?: VolunteerFile;
+  childSafeguardingFile?: VolunteerFile;
+}
+
+export interface CoupleApplication {
+  isCouple: true;
+  displayName: string;
+  primaryFirstName?: string;
+  partner: ApplicationPartner;
+}
+
 export interface Volunteer {
   id: string;
   name: string;
@@ -66,13 +96,45 @@ export interface Volunteer {
   location: string;
   status: string;
   timelineId: string;
+  /** Raw Signup Timeline / Preferred Dates column from monday.com */
+  preferredDates?: string;
+  termStart?: string;
+  termEnd?: string;
+  /** monday.com pipeline group title (e.g. Sent To Field) */
+  pipelineStage?: string;
   profilePhotoUrl?: string;
+  couplePreview?: CouplePreview;
 }
 
 export interface OnboardingStep {
   title: string;
   status: string;
   quickbooksInvoiceId?: string;
+}
+
+export type OnboardingStepStatus =
+  | 'not_started'
+  | 'waiting'
+  | 'received'
+  | 'complete';
+
+export interface OnboardingPipelineStep {
+  stepId: string;
+  status: OnboardingStepStatus;
+  waitingDate?: string;
+  receivedDate?: string;
+  completedDate?: string;
+  projectedDate?: string;
+  quickbooksInvoiceId?: string;
+  note?: string;
+}
+
+export interface OnboardingPipeline {
+  volunteerId: string;
+  timelineId: string;
+  applicationReceivedAt?: string;
+  steps: OnboardingPipelineStep[];
+  lastEmailSentAt?: string;
 }
 
 export interface ApplicationFormField {
@@ -87,6 +149,17 @@ export interface ActivityTimelineEvent {
   text: string;
 }
 
+export type ApplicationActivityCategory = 'note' | 'email' | 'created';
+
+export interface ApplicationActivityEvent {
+  id: string;
+  occurredAt: string;
+  category: ApplicationActivityCategory;
+  actorName: string;
+  summary: string;
+  detail?: string;
+}
+
 export interface VolunteerDetail extends Volunteer {
   email: string;
   emails: ApplicationEmail[];
@@ -94,6 +167,7 @@ export interface VolunteerDetail extends Volunteer {
   demographics?: ContactDemographics;
   passportFile?: VolunteerFile;
   childSafeguardingFile?: VolunteerFile;
+  couple?: CoupleApplication;
   files: VolunteerFile[];
   housing: string;
   itinerary: VolunteerItinerary;
@@ -103,6 +177,8 @@ export interface VolunteerDetail extends Volunteer {
   rawUpdates?: MondayItemUpdateRaw[];
   onboardingSteps: OnboardingStep[];
   activityTimeline: ActivityTimelineEvent[];
+  /** monday item created_at — used for activity log */
+  itemCreatedAt?: string;
   applicationFormFields: ApplicationFormField[];
   pastorReferenceFormFields: ApplicationFormField[];
 }

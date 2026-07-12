@@ -1,19 +1,21 @@
-import type { PipelineSection, Volunteer } from '../types/volunteer';
+import type { PipelineSection, Volunteer, CouplePreview } from '../types/volunteer';
 import { mockProfilePhotoUrl } from '../utils/mockProfilePhoto';
 
-type VolunteerSeed = Omit<Volunteer, 'profilePhotoUrl'> & {
-  photoSeed?: string;
-};
-
 function v(seed: VolunteerSeed): Volunteer {
-  const { photoSeed, ...rest } = seed;
+  const { photoSeed, couplePreview, ...rest } = seed;
   const slug =
     photoSeed ?? seed.name.split(/\s+/)[0]?.toLowerCase() ?? seed.id;
   return {
     ...rest,
     profilePhotoUrl: mockProfilePhotoUrl(slug),
+    ...(couplePreview ? { couplePreview } : {}),
   };
 }
+
+type VolunteerSeed = Omit<Volunteer, 'profilePhotoUrl'> & {
+  photoSeed?: string;
+  couplePreview?: CouplePreview;
+};
 
 const STAGE_VOLUNTEERS: Record<string, VolunteerSeed[]> = {
   'New Applications': [
@@ -135,6 +137,24 @@ const STAGE_VOLUNTEERS: Record<string, VolunteerSeed[]> = {
     },
   ],
   'Confirmed Location': [
+    {
+      id: 'mock-couple-fisher',
+      name: 'Arlen & Sharon Fisher',
+      locationPreference: 'Lesvos',
+      location: 'Athens',
+      status: 'Housing Confirmed',
+      timelineId: 'summer-2026-a',
+      photoSeed: 'arlen',
+      couplePreview: {
+        displayName: 'Arlen & Sharon Fisher',
+        primaryFirstName: 'Arlen',
+        primaryEmail: 'arlen.fisher@example.com',
+        partnerName: 'Sharon Fisher',
+        partnerFirstName: 'Sharon',
+        partnerEmail: 'sharon.fisher@example.com',
+        partnerPhotoUrl: mockProfilePhotoUrl('sharon'),
+      },
+    },
     {
       id: 'mock-4',
       name: 'Michael Torres',

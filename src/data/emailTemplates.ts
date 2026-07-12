@@ -7,6 +7,23 @@ export interface EmailTemplate {
 
 export const EMAIL_TEMPLATES: EmailTemplate[] = [
   {
+    id: 'onboarding-progress-update',
+    name: 'Onboarding progress update',
+    subject: 'Your onboarding update — {{timelineLabel}}',
+    body: `Hi {{firstName}},
+
+Here is an update on your onboarding progress for {{timelineLabel}}:
+
+{{onboardingProgressSummary}}
+
+Next expected step: {{nextStepTitle}} (projected {{nextStepProjectedDate}})
+
+If you have questions, reply to this email.
+
+{{coordinator}}
+Volunteer Coordination Team`,
+  },
+  {
     id: 'onboarding-welcome',
     name: 'Onboarding welcome',
     subject: 'Welcome to the team — {{name}}',

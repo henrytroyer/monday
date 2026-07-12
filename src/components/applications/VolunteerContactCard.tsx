@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react';
-import { getTimelineLabel } from '../../data/timelines';
 import type { VolunteerDetail } from '../../types/volunteer';
 import {
   buildGoogleMapsUrl,
@@ -14,6 +13,7 @@ import {
   hasConfirmedLocation,
 } from '../../utils/volunteerLocation';
 import VolunteerAvatar from './VolunteerAvatar';
+import VolunteerTermDisplay from './VolunteerTermDisplay';
 
 interface VolunteerContactCardProps {
   detail: VolunteerDetail;
@@ -32,7 +32,6 @@ export default function VolunteerContactCard({
   besideFiles,
   splitFilesRow = false,
 }: VolunteerContactCardProps) {
-  const timelineLabel = getTimelineLabel(detail.timelineId);
   const formattedAddress = detail.demographics
     ? formatContactAddress(detail.demographics)
     : null;
@@ -75,9 +74,7 @@ export default function VolunteerContactCard({
                 {displayLocationPreferenceOnly(detail)}
               </span>
             )}
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800">
-              {timelineLabel}
-            </span>
+            <VolunteerTermDisplay volunteer={detail} variant="pill" />
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-700">
               {detail.status}
             </span>

@@ -77,6 +77,7 @@ const mockDetails: Record<string, VolunteerDetail> = {
     location: '—',
     status: 'Awaiting Reference',
     timelineId: 'summer-2026-a',
+    preferredDates: 'June 8 – July 19',
     profilePhotoUrl: mockProfilePhotoUrl('john'),
     email: 'john.doe@example.com',
     emails: buildApplicationEmails({
@@ -120,6 +121,83 @@ const mockDetails: Record<string, VolunteerDetail> = {
     ],
     applicationFormFields: MOCK_APPLICATION_FORM_FIELDS,
     pastorReferenceFormFields: MOCK_PASTOR_REFERENCE_FORM_FIELDS,
+  },
+  'mock-couple-fisher': {
+    id: 'mock-couple-fisher',
+    name: 'Arlen & Sharon Fisher',
+    locationPreference: 'Lesvos',
+    location: 'Athens',
+    status: 'Housing Confirmed',
+    timelineId: 'summer-2026-a',
+    preferredDates: 'June 8 – July 19',
+    profilePhotoUrl: mockProfilePhotoUrl('arlen'),
+    email: 'arlen.fisher@example.com',
+    emails: buildApplicationEmails({
+      volunteerEmail: 'arlen.fisher@example.com',
+      parentEmail: 'parent.fisher@example.com',
+      pastorEmail: 'pastor@church.example.com',
+    }),
+    phone: '+1 (555) 301-4401',
+    files: mockFiles('fisher'),
+    housing: 'Shared apartment',
+    itinerary: mockItinerary(
+      {
+        date: 'June 8, 2026',
+        time: '2:30 PM',
+        airport: 'Athens (ATH)',
+      },
+      {
+        date: 'July 19, 2026',
+        time: '10:15 AM',
+        airport: 'Athens (ATH)',
+      },
+    ),
+    coordinator: 'Sarah',
+    termNotes: [],
+    onboardingSteps: [
+      { title: 'Application Submitted', status: 'Complete' },
+      { title: 'Invoice Paid', status: 'Complete' },
+      { title: 'Pastor Reference', status: 'Complete' },
+      { title: 'Added To Chat Group', status: 'Pending' },
+      { title: 'Sent To Field', status: 'Pending' },
+    ],
+    activityTimeline: [{ date: 'Apr 12', text: 'Couple application submitted' }],
+    applicationFormFields: MOCK_APPLICATION_FORM_FIELDS,
+    pastorReferenceFormFields: MOCK_PASTOR_REFERENCE_FORM_FIELDS,
+    couple: {
+      isCouple: true,
+      displayName: 'Arlen & Sharon Fisher',
+      primaryFirstName: 'Arlen',
+      partner: {
+        firstName: 'Sharon',
+        name: 'Sharon Fisher',
+        email: 'sharon.fisher@example.com',
+        phone: '+1 (555) 301-4402',
+        dateOfBirth: 'March 14, 1990',
+        profilePhotoUrl: mockProfilePhotoUrl('sharon'),
+        passportFile: {
+          id: 'sharon-passport',
+          name: 'Passport - sharon-passport.pdf',
+          isImage: false,
+          url: MOCK_PDF_URL,
+        },
+        childSafeguardingFile: {
+          id: 'sharon-safeguarding',
+          name: 'Child safeguarding certificate',
+          isImage: false,
+          url: MOCK_PDF_URL,
+        },
+      },
+    },
+    couplePreview: {
+      displayName: 'Arlen & Sharon Fisher',
+      primaryFirstName: 'Arlen',
+      primaryEmail: 'arlen.fisher@example.com',
+      partnerName: 'Sharon Fisher',
+      partnerFirstName: 'Sharon',
+      partnerEmail: 'sharon.fisher@example.com',
+      partnerPhotoUrl: mockProfilePhotoUrl('sharon'),
+    },
   },
   'mock-2': {
     id: 'mock-2',
@@ -179,7 +257,19 @@ function withDemographics(detail: VolunteerDetail): VolunteerDetail {
 
 export function buildMockVolunteerDetail(volunteer: Volunteer): VolunteerDetail {
   const preset = mockDetails[volunteer.id];
-  if (preset) return withDemographics(preset);
+  if (preset) {
+    return withDemographics({
+      ...preset,
+      status: volunteer.status,
+      location: volunteer.location,
+      locationPreference: volunteer.locationPreference,
+      timelineId: volunteer.timelineId,
+      preferredDates: volunteer.preferredDates ?? preset.preferredDates,
+      pipelineStage: volunteer.pipelineStage ?? preset.pipelineStage,
+      termStart: volunteer.termStart ?? preset.termStart,
+      termEnd: volunteer.termEnd ?? preset.termEnd,
+    });
+  }
 
   const seed = volunteer.id.replace(/\W/g, '') || 'volunteer';
   return withDemographics({

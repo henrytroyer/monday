@@ -95,8 +95,11 @@ export default function RecruitmentPage({
         />
       )}
 
-      {!showingDetail && (
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto">
+      <div
+        className={`min-h-0 flex-1 space-y-6 overflow-y-auto${
+          showingDetail ? ' hidden' : ''
+        }`}
+      >
           <form
             onSubmit={handleAdd}
             className="rounded-3xl border border-crm-taupe/20 bg-crm-surface p-6 shadow-sm"
@@ -151,7 +154,6 @@ export default function RecruitmentPage({
 
           <RecruitmentList prospects={prospects} onSelect={setSelected} />
         </div>
-      )}
     </div>
   );
 }

@@ -13,18 +13,21 @@ interface NoteReviewInboxProps {
 }
 
 export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
-  const { items, pendingCount, approve, dismiss, refresh } = useNoteReview();
+  const { items, pendingCount, approve, dismiss, bulkApproveSuggested, refresh } =
+    useNoteReview();
   const isMock = useMockData();
   const contactsBoardId = resolveContactsBoardId();
   const [contacts, setContacts] = useState<ContactListItem[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [harvesting, setHarvesting] = useState(false);
+  const [bulkApproving, setBulkApproving] = useState(false);
   const [harvestMessage, setHarvestMessage] = useState<string | null>(null);
   const [selectedContactByNote, setSelectedContactByNote] = useState<
     Record<string, string>
   >({});
 
   const contactOptions = useMemo(() => contacts, [contacts]);
+  const matchedCount = items.filter((item) => item.suggestedContactId).length;
 
   async function loadContacts() {
     if (isMock || !contactsBoardId) return;
@@ -64,6 +67,25 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
     }
   }
 
+  async function runBulkApprove() {
+    setBulkApproving(true);
+    setHarvestMessage(null);
+    try {
+      const result = bulkApproveSuggested();
+      refresh();
+      notifyNoteReviewChanged();
+      setHarvestMessage(
+        `Approved ${result.approved} matched note${result.approved === 1 ? '' : 's'}${
+          result.skipped > 0
+            ? ` · ${result.skipped} skipped (no suggested contact)`
+            : ''
+        }`,
+      );
+    } finally {
+      setBulkApproving(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-crm-indigo/35 p-4">
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-2xl">
@@ -74,7 +96,8 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
             </h2>
             <p className="mt-1 text-sm text-crm-slate">
               {pendingCount} note{pendingCount === 1 ? '' : 's'} need review.
-              Matches are suggestions only — approve to link to a contact.
+              Notes with a strict contact match auto-link on sync; only
+              unmatched notes need manual approval.
             </p>
           </div>
           <button
@@ -87,14 +110,28 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
         </div>
 
         <div className="border-b border-crm-taupe/20 px-5 py-3">
-          <button
-            type="button"
-            onClick={() => void runHarvest()}
-            disabled={harvesting || isMock}
-            className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
-          >
-            {harvesting ? 'Syncing from monday…' : 'Sync notes from monday'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void runHarvest()}
+              disabled={harvesting || isMock}
+              className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
+            >
+              {harvesting ? 'Syncing from monday…' : 'Sync notes from monday'}
+            </button>
+            {matchedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => void runBulkApprove()}
+                disabled={bulkApproving}
+                className="rounded-xl border border-crm-taupe/20 bg-crm-white px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50 disabled:opacity-50"
+              >
+                {bulkApproving
+                  ? 'Approving…'
+                  : `Approve all matched (${matchedCount})`}
+              </button>
+            )}
+          </div>
           {harvestMessage && (
             <p className="mt-2 text-xs text-crm-slate">{harvestMessage}</p>
           )}

@@ -5,24 +5,29 @@ import { formatNoteTimestamp } from '../../services/termNotes';
 import { useTermNotes } from '../../hooks/useTermNotes';
 import type { TermNote } from '../../types/volunteer';
 
+type TermNotesState = ReturnType<typeof useTermNotes>;
+
 interface TermNotesChatProps {
   itemId: string;
   timelineId: string;
   initialNotes: TermNote[];
+  termNotesState?: TermNotesState;
 }
 
 export default function TermNotesChat({
   itemId,
   timelineId,
   initialNotes,
+  termNotesState,
 }: TermNotesChatProps) {
   const timelineLabel = getTimelineLabel(timelineId);
   const notesWritable = canAddApplicationNotes();
-  const { notes, sending, error, addNote } = useTermNotes({
+  const internalNotes = useTermNotes({
     itemId,
     timelineId,
     initialNotes,
   });
+  const { notes, sending, error, addNote } = termNotesState ?? internalNotes;
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 

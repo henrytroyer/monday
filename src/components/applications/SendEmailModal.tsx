@@ -13,6 +13,7 @@ import OverlayBackButton from '../layout/OverlayBackButton';
 interface SendEmailModalProps {
   detail: VolunteerDetail;
   onClose: () => void;
+  onAfterSend?: () => void;
   initialTemplateId?: string;
   initialRecipientRole?: EmailRecipientRole;
   extraMergeContext?: Record<string, string>;
@@ -21,6 +22,7 @@ interface SendEmailModalProps {
 export default function SendEmailModal({
   detail,
   onClose,
+  onAfterSend,
   initialTemplateId,
   initialRecipientRole,
   extraMergeContext,
@@ -104,6 +106,7 @@ export default function SendEmailModal({
         body: merged.body,
       });
       setStatusMessage('Email sent successfully.');
+      onAfterSend?.();
     } catch (err) {
       setStatusMessage(
         err instanceof Error ? err.message : 'Could not send email.',
@@ -227,6 +230,7 @@ export default function SendEmailModal({
           {mailtoUrl && (
             <a
               href={mailtoUrl}
+              onClick={() => onAfterSend?.()}
               className="rounded-xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
             >
               Open in email app

@@ -3,7 +3,7 @@ import {
   useMockData,
 } from '../config/boards';
 import type { ContactDetail, ContactListItem, ContactTag } from '../types/contact';
-import { buildMockContactEmailThread } from '../data/mockContactEmailThread';
+import { aggregateContactEmailCorrespondence } from './contactEmailAggregation';
 import {
   getPendingIncomingDonations,
   markIncomingDonationIngested,
@@ -221,15 +221,20 @@ export async function fetchContactDetail(
       (term) => !isRecruitmentServiceTerm(term),
     );
 
+    const serviceTerms = [...recruitmentRecords, ...applicationTerms];
+    const emailCorrespondence =
+      detail.emailCorrespondence ??
+      (await aggregateContactEmailCorrespondence({
+        contactId,
+        contactEmail: detail.email,
+        contactName: detail.name,
+        serviceTerms,
+      }));
+
     return {
       ...detail,
-      emailCorrespondence:
-        detail.emailCorrespondence ??
-        buildMockContactEmailThread(contactId, {
-          name: detail.name,
-          email: detail.email,
-        }),
-      serviceTerms: [...recruitmentRecords, ...applicationTerms],
+      emailCorrespondence,
+      serviceTerms,
     };
   }
 
@@ -300,10 +305,17 @@ export async function fetchContactDetail(
     ? mondayDonations
     : mergeContactDonationRecords(mondayDonations, quickbooksDonations);
 
+  const emailCorrespondence = await aggregateContactEmailCorrespondence({
+    contactId,
+    contactEmail: base.email,
+    contactName: base.name,
+    serviceTerms: [...mergedRecruitment, ...applicationTerms],
+  });
+
   return {
     ...base,
     ...enriched,
-    emailCorrespondence: [],
+    emailCorrespondence,
     donations,
     serviceTerms: [...mergedRecruitment, ...applicationTerms],
   };

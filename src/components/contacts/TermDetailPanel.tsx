@@ -7,9 +7,11 @@ import type { VolunteerTerm } from '../../types/volunteer';
 import FormFieldsPanel from '../applications/FormFieldsPanel';
 import InvoiceDetailModal from '../applications/InvoiceDetailModal';
 import TermNotesChat from '../applications/TermNotesChat';
+import TermEmailCorrespondence from '../applications/TermEmailCorrespondence';
 import VolunteerFilesSection from '../applications/VolunteerFilesSection';
 import OverlayBackButton from '../layout/OverlayBackButton';
 import RecruitmentServiceRecordPanel from './RecruitmentServiceRecordPanel';
+import ServiceRecordEmailCorrespondence from './ServiceRecordEmailCorrespondence';
 
 interface TermDetailPanelProps {
   term: VolunteerTerm;
@@ -99,11 +101,17 @@ export default function TermDetailPanel({
           )}
 
           {!loading && isRecruitmentRecord && (
-            <RecruitmentServiceRecordPanel
-              term={term}
-              contactName={volunteerName}
-              onGoToRecruitment={onGoToRecruitment}
-            />
+            <div className="space-y-6">
+              <RecruitmentServiceRecordPanel
+                term={term}
+                contactName={volunteerName}
+                onGoToRecruitment={onGoToRecruitment}
+              />
+              <ServiceRecordEmailCorrespondence
+                serviceRecordId={term.recruitmentProspectId ?? term.itemId}
+                contactName={volunteerName}
+              />
+            </div>
           )}
 
           {!loading && !isRecruitmentRecord && application && (
@@ -145,6 +153,19 @@ export default function TermDetailPanel({
                     itemId={term.itemId}
                     timelineId={term.timelineId}
                     initialNotes={application.termNotes}
+                  />
+                </div>
+              </section>
+
+              <section>
+                <div className="mt-3">
+                  <TermEmailCorrespondence
+                    itemId={term.itemId}
+                    timelineId={term.timelineId}
+                    timelineLabel={term.timelineLabel}
+                    contactName={volunteerName}
+                    contactEmail={application.email}
+                    contactEmails={application.emails.map((e) => e.address)}
                   />
                 </div>
               </section>

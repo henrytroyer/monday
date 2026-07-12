@@ -1,24 +1,42 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { LONGTERM_REFERENCE_TYPE_LABELS } from '../../constants/longtermReferenceSlots';
-import { getTimelineLabel } from '../../data/timelines';
 import { buildLongtermReferenceSlots } from '../../data/mockLongtermReferences';
 import { useApplicationDetail } from '../../hooks/useApplicationDetail';
 import { openItem } from '../../utils/mondayHelpers';
-import type { Volunteer } from '../../types/volunteer';
+import { savePipeline } from '../../services/onboardingPipelineStorage';
+import type { OnboardingPipeline, Volunteer, VolunteerDetail } from '../../types/volunteer';
+import {
+  buildOnboardingMergeContext,
+  mergePipelineWithStorage,
+} from '../../utils/onboardingPipeline';
 import {
   displayLocationPreferenceOnly,
   displayConfirmedLocation,
   hasConfirmedLocation,
 } from '../../utils/volunteerLocation';
+import {
+  displayConfirmedTerm,
+  displayPreferredDates,
+  displayTermOfService,
+  hasConfirmedTerm,
+} from '../../utils/volunteerTerm';
 import FormFieldsPanel, { findFormPdf } from './FormFieldsPanel';
 import ItineraryBubbles from './ItineraryBubbles';
 import LongtermReferencesPanel from './LongtermReferencesPanel';
 import OnboardingProgress from './OnboardingProgress';
 import SendEmailModal from './SendEmailModal';
 import TermNotesChat from './TermNotesChat';
+import TermEmailCorrespondence from './TermEmailCorrespondence';
+import ApplicationActivityTimeline from './ApplicationActivityTimeline';
 import VolunteerContactCard from './VolunteerContactCard';
+import CoupleApplicationCard from './CoupleApplicationCard';
+import VolunteerAvatar from './VolunteerAvatar';
+import CoupleAvatarStack from './CoupleAvatarStack';
+import VolunteerTermDisplay from './VolunteerTermDisplay';
 import ContactCallModal from '../contacts/ContactCallModal';
+import { useTermNotes } from '../../hooks/useTermNotes';
+import { useApplicationActivityTimeline } from '../../hooks/useApplicationActivityTimeline';
 
 type DrillDownView = 'application' | 'pastor' | null;
 
@@ -51,6 +69,8 @@ export default function ApplicationDetailPanel({
   const [referenceReminderSlot, setReferenceReminderSlot] = useState<
     number | null
   >(null);
+  const [onboardingEmailOpen, setOnboardingEmailOpen] = useState(false);
+  const [pipeline, setPipeline] = useState<OnboardingPipeline | null>(null);
   const [callOpen, setCallOpen] = useState(false);
   const [drillDown, setDrillDown] = useState<DrillDownView>(null);
   const [selectedReferenceSlot, setSelectedReferenceSlot] = useState<
@@ -68,8 +88,31 @@ export default function ApplicationDetailPanel({
     () => {
       setSendEmailOpen(false);
       setReferenceReminderSlot(null);
+      setOnboardingEmailOpen(false);
     },
     `send-email-${volunteer.id}`,
+  );
+
+  useEffect(() => {
+    if (detail) {
+      setPipeline(mergePipelineWithStorage(volunteer, detail));
+    }
+  }, [volunteer.id, volunteer.timelineId, detail]);
+
+  const handlePipelineChange = (next: OnboardingPipeline) => {
+    setPipeline(next);
+    savePipeline(next);
+  };
+
+  const handleSendProgressEmail = (_stepId?: string) => {
+    setOnboardingEmailOpen(true);
+    setReferenceReminderSlot(null);
+    setSendEmailOpen(true);
+  };
+
+  const onboardingMergeContext = useMemo(
+    () => (pipeline ? buildOnboardingMergeContext(pipeline) : {}),
+    [pipeline],
   );
 
   const { requestClose: requestCloseCall } = useNavLayer(
@@ -94,8 +137,22 @@ export default function ApplicationDetailPanel({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onBack, drillDown, sendEmailOpen, callOpen, selectedReferenceSlot]);
 
-  const timelineLabel = getTimelineLabel(volunteer.timelineId);
   const display = detail ?? null;
+  const emailCorrespondenceRefetch = useRef<(() => void) | null>(null);
+  const termNotesState = useTermNotes({
+    itemId: volunteer.id,
+    timelineId: volunteer.timelineId,
+    initialNotes: detail?.termNotes ?? [],
+  });
+  const activityTimeline = useApplicationActivityTimeline({
+    itemId: volunteer.id,
+    timelineId: volunteer.timelineId,
+    timelineLabel: display ? displayTermOfService(display) : '',
+    termNotes: termNotesState.notes,
+    contactEmail: display?.email,
+    contactEmails: display?.emails.map((entry) => entry.address),
+    itemCreatedAt: display?.itemCreatedAt,
+  });
   const selectedReference = referenceSlots.find(
     (slot) => slot.slotIndex === selectedReferenceSlot,
   );
@@ -149,6 +206,8 @@ export default function ApplicationDetailPanel({
           </button>
         </div>
 
+        <ApplicationIdentityBar display={display} volunteer={volunteer} loading={loading} />
+
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {loading && (
             <p className="text-center text-crm-slate">
@@ -164,35 +223,63 @@ export default function ApplicationDetailPanel({
 
           {display && !loading && (
             <div className="space-y-6">
-              <VolunteerContactCard
-                detail={display}
-                onEmailClick={() => setSendEmailOpen(true)}
-                onPhoneClick={() => setCallOpen(true)}
-                beforeFiles={quickActions}
-                splitFilesRow={quickActionsBeforeFiles}
-                besideFiles={
-                  quickActionsBeforeFiles ? (
-                    <LongtermReferencesPanel
-                      slots={referenceSlots}
-                      onSelectReference={setSelectedReferenceSlot}
-                      onSendReminder={(slotIndex) => {
-                        setReferenceReminderSlot(slotIndex);
-                        setSendEmailOpen(true);
-                      }}
-                    />
-                  ) : undefined
-                }
-              />
+              {display.couple ? (
+                <CoupleApplicationCard
+                  detail={display}
+                  onEmailClick={() => setSendEmailOpen(true)}
+                  onPhoneClick={() => setCallOpen(true)}
+                  sharedContent={quickActions}
+                  splitFilesRow={quickActionsBeforeFiles}
+                  besideFiles={
+                    quickActionsBeforeFiles ? (
+                      <LongtermReferencesPanel
+                        slots={referenceSlots}
+                        onSelectReference={setSelectedReferenceSlot}
+                        onSendReminder={(slotIndex) => {
+                          setReferenceReminderSlot(slotIndex);
+                          setSendEmailOpen(true);
+                        }}
+                      />
+                    ) : undefined
+                  }
+                />
+              ) : (
+                <VolunteerContactCard
+                  detail={display}
+                  onEmailClick={() => setSendEmailOpen(true)}
+                  onPhoneClick={() => setCallOpen(true)}
+                  beforeFiles={quickActions}
+                  splitFilesRow={quickActionsBeforeFiles}
+                  besideFiles={
+                    quickActionsBeforeFiles ? (
+                      <LongtermReferencesPanel
+                        slots={referenceSlots}
+                        onSelectReference={setSelectedReferenceSlot}
+                        onSendReminder={(slotIndex) => {
+                          setReferenceReminderSlot(slotIndex);
+                          setSendEmailOpen(true);
+                        }}
+                      />
+                    ) : undefined
+                  }
+                />
+              )}
 
               <Panel title="Onboarding Progress">
-                <OnboardingProgress
-                  steps={display.onboardingSteps}
-                  volunteerName={display.name}
-                  itemId={display.id}
-                  boardId={boardId}
-                  onInvoiceLinked={() => refetch()}
-                  readOnly={!applicationsEditable}
-                />
+                {pipeline && (
+                  <OnboardingProgress
+                    pipeline={pipeline}
+                    volunteer={volunteer}
+                    volunteerName={display.name}
+                    housing={display.housing}
+                    itemId={display.id}
+                    boardId={boardId}
+                    onPipelineChange={handlePipelineChange}
+                    onSendProgressEmail={handleSendProgressEmail}
+                    invoiceReadOnly={!applicationsEditable}
+                    onInvoiceLinked={() => refetch()}
+                  />
+                )}
               </Panel>
 
               <Panel title="Placement Details">
@@ -207,7 +294,24 @@ export default function ApplicationDetailPanel({
                       value={displayConfirmedLocation(display)}
                     />
                   )}
-                  <InfoCard label="Signup timeline" value={timelineLabel} />
+                  {hasConfirmedTerm(display) ? (
+                    <InfoCard
+                      label="Term of service"
+                      value={`Confirmed: ${displayConfirmedTerm(display)}`}
+                      valueClassName="text-green-800"
+                    />
+                  ) : (
+                    <>
+                      <InfoCard
+                        label="Preferred dates"
+                        value={displayPreferredDates(display)}
+                      />
+                      <InfoCard
+                        label="Term of service"
+                        value={displayTermOfService(display)}
+                      />
+                    </>
+                  )}
                   <InfoCard label="Coordinator" value={display.coordinator} />
                   <InfoCard label="Housing" value={display.housing} />
                 </div>
@@ -225,23 +329,26 @@ export default function ApplicationDetailPanel({
                 itemId={display.id}
                 timelineId={display.timelineId}
                 initialNotes={display.termNotes}
+                termNotesState={termNotesState}
               />
 
-              <Panel title="Application Timeline">
-                <div className="mt-4 space-y-3">
-                  {display.activityTimeline.length === 0 ? (
-                    <p className="text-sm text-crm-slate">No updates yet.</p>
-                  ) : (
-                    display.activityTimeline.map((event, index) => (
-                      <TimelineEvent
-                        key={`${event.date}-${index}`}
-                        date={event.date}
-                        text={event.text}
-                      />
-                    ))
-                  )}
-                </div>
-              </Panel>
+              <TermEmailCorrespondence
+                itemId={display.id}
+                timelineId={display.timelineId}
+                timelineLabel={displayTermOfService(display)}
+                contactName={display.name}
+                contactEmail={display.email}
+                contactEmails={display.emails.map((e) => e.address)}
+                onRefetchReady={(refetch) => {
+                  emailCorrespondenceRefetch.current = refetch;
+                }}
+              />
+
+              <ApplicationActivityTimeline
+                events={activityTimeline.events}
+                loading={activityTimeline.loading}
+                error={activityTimeline.error}
+              />
             </div>
           )}
         </div>
@@ -250,8 +357,17 @@ export default function ApplicationDetailPanel({
           <SendEmailModal
             detail={display}
             onClose={requestCloseEmail}
+            onAfterSend={() => {
+              window.setTimeout(() => {
+                emailCorrespondenceRefetch.current?.();
+              }, 3000);
+            }}
             initialTemplateId={
-              referenceReminderSlot !== null ? 'reference-reminder' : undefined
+              referenceReminderSlot !== null
+                ? 'reference-reminder'
+                : onboardingEmailOpen
+                  ? 'onboarding-progress-update'
+                  : undefined
             }
             initialRecipientRole={
               referenceReminderSlot !== null ? 'volunteer' : undefined
@@ -266,7 +382,9 @@ export default function ApplicationDetailPanel({
                         referenceSlots[referenceReminderSlot]?.type ?? 'friend'
                       ],
                   }
-                : undefined
+                : onboardingEmailOpen
+                  ? onboardingMergeContext
+                  : undefined
             }
           />
         )}
@@ -323,6 +441,65 @@ export default function ApplicationDetailPanel({
   );
 }
 
+function ApplicationIdentityBar({
+  display,
+  volunteer,
+  loading,
+}: {
+  display: VolunteerDetail | null;
+  volunteer: Volunteer;
+  loading: boolean;
+}) {
+  const name =
+    display?.couple?.displayName ?? display?.name ?? volunteer.name;
+  const status = display?.status ?? volunteer.status;
+  const source = display ?? volunteer;
+
+  return (
+    <div className="z-20 shrink-0 border-b border-crm-taupe/20 bg-crm-surface px-6 py-3 shadow-sm">
+      <div className="flex min-w-0 items-center gap-3">
+        {display?.couple ? (
+          <CoupleAvatarStack
+            primaryName={display.name}
+            partnerName={display.couple.partner.name}
+            primaryPhotoUrl={display.profilePhotoUrl}
+            partnerPhotoUrl={display.couple.partner.profilePhotoUrl}
+            size="sm"
+          />
+        ) : (
+          <VolunteerAvatar
+            name={name}
+            profilePhotoUrl={display?.profilePhotoUrl ?? volunteer.profilePhotoUrl}
+            size="sm"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-lg font-semibold text-crm-heading">
+            {loading && !display ? 'Loading…' : name}
+          </h2>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-crm-slate">
+            {hasConfirmedLocation(source) ? (
+              <span className="font-medium text-green-800">
+                {displayConfirmedLocation(source)}
+              </span>
+            ) : (
+              <span>{displayLocationPreferenceOnly(source)}</span>
+            )}
+            <span className="text-crm-taupe/40">·</span>
+            <VolunteerTermDisplay
+              volunteer={source}
+              pipelineStage={volunteer.pipelineStage}
+            />
+          </div>
+        </div>
+        <span className="hidden shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-700 sm:inline">
+          {status}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
@@ -350,22 +527,19 @@ function ActionButton({
   );
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
+function InfoCard({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
   return (
     <div className="rounded-2xl bg-crm-surface p-4 ring-1 ring-crm-taupe/20">
       <div className="text-sm text-crm-slate">{label}</div>
-      <div className="mt-2 font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function TimelineEvent({ date, text }: { date: string; text: string }) {
-  return (
-    <div className="flex items-center gap-4 rounded-2xl bg-crm-surface p-4 ring-1 ring-crm-taupe/20">
-      <div className="rounded-full bg-crm-white px-3 py-1 text-sm font-semibold">
-        {date}
-      </div>
-      <div>{text}</div>
+      <div className={`mt-2 font-semibold ${valueClassName ?? ''}`}>{value}</div>
     </div>
   );
 }

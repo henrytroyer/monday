@@ -12,6 +12,12 @@ const MERGE_FIELDS = [
   { key: 'coordinator', description: 'Coordinator name' },
   { key: 'housing', description: 'Housing' },
   { key: 'phone', description: 'Phone number' },
+  { key: 'onboardingProgressSummary', description: 'Full onboarding pipeline status summary (multi-line)' },
+  { key: 'currentStepTitle', description: 'Current incomplete onboarding step' },
+  { key: 'nextStepTitle', description: 'Next projected onboarding step' },
+  { key: 'nextStepProjectedDate', description: 'Projected date for next step' },
+  { key: 'completedStepCount', description: 'Number of completed onboarding steps' },
+  { key: 'totalStepCount', description: 'Total onboarding steps (9)' },
 ];
 
 export default function EmailTemplatesPage() {

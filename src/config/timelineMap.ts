@@ -1,3 +1,5 @@
+import { SIGNUP_TIMELINES } from '../data/timelines';
+
 /**
  * Map monday.com dropdown/status labels to internal timeline ids.
  * Add entries when your board uses different wording than timelines.ts labels.
@@ -12,7 +14,17 @@ export const labelToTimelineId: Record<string, string> = {
 export function resolveTimelineId(mondayLabel: string): string {
   const trimmed = mondayLabel.trim();
   if (!trimmed) return 'unknown';
+
   const mapped = labelToTimelineId[trimmed];
   if (mapped) return mapped;
+
+  const lower = trimmed.toLowerCase();
+  for (const [label, id] of Object.entries(labelToTimelineId)) {
+    if (label.toLowerCase() === lower) return id;
+  }
+  for (const timeline of SIGNUP_TIMELINES) {
+    if (timeline.label.toLowerCase() === lower) return timeline.id;
+  }
+
   return `raw:${trimmed}`;
 }

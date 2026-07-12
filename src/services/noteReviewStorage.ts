@@ -191,6 +191,54 @@ export function getApprovedNotesForContact(
   return readApproved().filter((link) => link.contactId === contactId);
 }
 
+export function bulkApproveSuggestedReviewItems(): {
+  approved: number;
+  skipped: number;
+  contactIds: string[];
+} {
+  const pending = getPendingReviewItems();
+  let approved = 0;
+  let skipped = 0;
+  const contactIds = new Set<string>();
+
+  for (const item of pending) {
+    if (!item.suggestedContactId) {
+      skipped += 1;
+      continue;
+    }
+
+    const link = approveReviewItem(
+      item.id,
+      item.suggestedContactId,
+      item.suggestedContactName ?? 'Contact',
+    );
+    if (link) {
+      approved += 1;
+      contactIds.add(item.suggestedContactId);
+    } else {
+      skipped += 1;
+    }
+  }
+
+  return {
+    approved,
+    skipped,
+    contactIds: [...contactIds],
+  };
+}
+
+export function dismissUnmatchedReviewItems(): number {
+  const pending = getPendingReviewItems().filter(
+    (item) => !item.suggestedContactId,
+  );
+
+  for (const item of pending) {
+    dismissReviewItem(item.id);
+  }
+
+  return pending.length;
+}
+
 export function clearNoteReviewData(): void {
   localStorage.removeItem(QUEUE_KEY);
   localStorage.removeItem(APPROVED_KEY);

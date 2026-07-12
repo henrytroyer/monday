@@ -64,3 +64,100 @@ h4 {
     animation: none;
   }
 }
+
+.email-body-content {
+  max-width: 68ch;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--color-crm-text);
+  word-break: break-word;
+}
+
+.email-body-content--plain > p + p,
+.email-body-content--plain > ul + p,
+.email-body-content--plain > ol + p,
+.email-body-content--plain > p + ul,
+.email-body-content--plain > p + ol {
+  margin-top: 1rem;
+}
+
+.email-body-content--plain > ul,
+.email-body-content--plain > ol {
+  margin-top: 0.75rem;
+  padding-left: 1.35rem;
+}
+
+.email-body-content--plain > ul {
+  list-style: disc;
+}
+
+.email-body-content--plain > ol {
+  list-style: decimal;
+}
+
+.email-body-content a {
+  color: var(--color-crm-indigo);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.email-body-content a:hover {
+  color: var(--color-crm-indigo-dark);
+}
+
+.email-body-content--html p,
+.email-body-content--html div,
+.email-body-content--html li {
+  margin: 0;
+}
+
+.email-body-content--html p + p,
+.email-body-content--html div + div,
+.email-body-content--html p + div,
+.email-body-content--html div + p {
+  margin-top: 1rem;
+}
+
+.email-body-content--html ul,
+.email-body-content--html ol {
+  margin: 0.85rem 0;
+  padding-left: 1.35rem;
+}
+
+.email-body-content--html ul {
+  list-style: disc;
+}
+
+.email-body-content--html ol {
+  list-style: decimal;
+}
+
+.email-body-content--html blockquote {
+  margin: 1rem 0;
+  border-left: 3px solid color-mix(in srgb, var(--color-crm-taupe) 55%, transparent);
+  padding-left: 1rem;
+  color: var(--color-crm-slate);
+}
+
+.email-body-content--html h1,
+.email-body-content--html h2,
+.email-body-content--html h3,
+.email-body-content--html h4 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.email-body-content--html hr {
+  margin: 1.25rem 0;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-crm-taupe) 35%, transparent);
+}
+
+.email-body-content--html strong,
+.email-body-content--html b {
+  font-weight: 600;
+  color: var(--color-crm-heading);
+}
+

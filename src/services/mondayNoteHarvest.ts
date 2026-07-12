@@ -17,6 +17,7 @@ import {
   isRecruitmentNoteUpdate,
 } from './contactInternalNotes';
 import {
+  type NoteMatchResult,
   type RawMondayNote,
   resolveContactForHarvest,
 } from './matchNoteToContact';
@@ -44,6 +45,10 @@ function isSkippableCrmNote(body: string): boolean {
     isRecruitmentNoteUpdate(body) ||
     isContactHubNoteUpdate(body)
   );
+}
+
+function shouldAutoApproveMatch(match: NoteMatchResult): boolean {
+  return match.matched === true && Boolean(match.contactId) && Boolean(match.matchReason);
 }
 
 async function mapInBatches<T, R>(
@@ -153,11 +158,7 @@ export async function harvestMondayNotes(
         const match = resolveContactForHarvest(raw, index, itemEmail);
         if (match.matched) matchedSuggestions += 1;
 
-        if (
-          match.matchReason === 'contacts_item' &&
-          match.contactId &&
-          match.contactName
-        ) {
+        if (shouldAutoApproveMatch(match) && match.contactId) {
           autoApproveContactItemNote({
             noteKey,
             contactId: match.contactId,
@@ -169,7 +170,7 @@ export async function harvestMondayNotes(
             createdAt: raw.createdAt,
             authorName: raw.authorName,
             sourceLabel: match.sourceLabel ?? raw.boardName,
-            matchReason: 'contacts_item',
+            matchReason: match.matchReason!,
           });
           autoApproved += 1;
           affectedContactIds.add(match.contactId);

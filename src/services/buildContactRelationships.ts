@@ -7,7 +7,7 @@ import type {
   LinkedVolunteerSummary,
 } from '../types/contact';
 import type { VolunteerTerm, VolunteerFile } from '../types/volunteer';
-import { getColumnText, getApplicationFilesFromColumns, type MondayBoardItem } from './mapMondayToCrm';
+import { getColumnText, getColumnDateText, getApplicationFilesFromColumns, type MondayBoardItem } from './mapMondayToCrm';
 import {
   mergeContactAndApplicationDemographics,
 } from '../utils/formatContactAddress';
@@ -50,8 +50,8 @@ function mapApplicationToTerm(item: MondayBoardItem): VolunteerTerm {
     itemId: item.id,
     timelineId,
     timelineLabel: getTimelineLabel(timelineId) || timelineLabel || '—',
-    termStart: getColumnText(item.column_values, 'arrivalDate') || undefined,
-    termEnd: getColumnText(item.column_values, 'departureDate') || undefined,
+    termStart: getColumnDateText(item.column_values, 'arrivalDate') || undefined,
+    termEnd: getColumnDateText(item.column_values, 'departureDate') || undefined,
     status,
     pipelineStage: item.group?.title ?? '—',
     quickbooksInvoiceId:

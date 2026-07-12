@@ -16,9 +16,10 @@ dotenv.config();
 const PORT = Number(process.env.PORT || 4042);
 const TOKEN = process.env.MONDAY_API_TOKEN;
 const MONDAY_API = 'https://api.monday.com/v2';
-const API_VERSION = '2024-10';
+const API_VERSION = '2025-01';
 
 function sendJson(res, status, data) {
+  if (res.headersSent) return;
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -26,6 +27,14 @@ function sendJson(res, status, data) {
     'Access-Control-Allow-Headers': 'Content-Type',
   });
   res.end(JSON.stringify(data));
+}
+
+function sendError(res, status, message) {
+  if (res.headersSent) {
+    res.end();
+    return;
+  }
+  sendJson(res, status, { error: message });
 }
 
 async function readJsonBody(req) {
@@ -103,15 +112,23 @@ async function streamAssetResponse(res, publicUrl) {
     'Access-Control-Allow-Origin': '*',
   });
 
-  if (upstream.body) {
-    const reader = upstream.body.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(value);
+  try {
+    if (upstream.body) {
+      const reader = upstream.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+    }
+    res.end();
+  } catch (err) {
+    if (!res.headersSent) {
+      sendError(res, 500, err instanceof Error ? err.message : 'Asset stream failed');
+    } else {
+      res.destroy();
     }
   }
-  res.end();
 }
 
 const server = http.createServer(async (req, res) => {
@@ -160,9 +177,7 @@ const server = http.createServer(async (req, res) => {
 
     sendJson(res, 404, { error: 'Not found' });
   } catch (err) {
-    sendJson(res, 500, {
-      error: err instanceof Error ? err.message : 'Server error',
-    });
+    sendError(res, 500, err instanceof Error ? err.message : 'Server error');
   }
 });
 

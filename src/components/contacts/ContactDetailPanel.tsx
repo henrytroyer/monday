@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { useContactDetail } from '../../hooks/useContactDetail';
+import { useContactEmailCorrespondence } from '../../hooks/useContactEmailCorrespondence';
 import { usePastorReferenceDrillDown } from '../../hooks/usePastorReferenceDrillDown';
 import { usePastorReferenceLinkOptions } from '../../hooks/usePastorReferenceLinkOptions';
 import type { ReactNode } from 'react';
@@ -11,7 +12,7 @@ import ContactInternalNotesSection from './ContactInternalNotesSection';
 import ChurchInfoCard from './ChurchInfoCard';
 import ContactProfileCard from './ContactProfileCard';
 import ContactEmailDetailModal from './ContactEmailDetailModal';
-import ContactEmailThreadSection from './ContactEmailThreadSection';
+import EmailCorrespondencePanel from '../shared/EmailCorrespondencePanel';
 import ContactVolunteerFiles from './ContactVolunteerFiles';
 import DonationsList from './DonationsList';
 import PastorReferencePickerPanel from './PastorReferencePickerPanel';
@@ -36,6 +37,16 @@ export default function ContactDetailPanel({
 }: ContactDetailPanelProps) {
   const { detail, loading, error, saving, canEdit, updateCoreFields, updatePastorReference } =
     useContactDetail(contact.id);
+  const {
+    messages: emailCorrespondence,
+    loading: emailLoading,
+    error: emailError,
+  } = useContactEmailCorrespondence({
+    contactId: detail && !loading ? detail.id : null,
+    contactName: detail?.name ?? contact.name,
+    contactEmail: detail?.email ?? contact.email,
+    serviceTerms: detail?.serviceTerms ?? [],
+  });
   const [selectedTerm, setSelectedTerm] = useState<VolunteerTerm | null>(null);
   const [selectedEmail, setSelectedEmail] =
     useState<ContactEmailMessage | null>(null);
@@ -239,9 +250,13 @@ export default function ContactDetailPanel({
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-stretch">
                 <div className="min-w-0">
-                  <ContactEmailThreadSection
-                    messages={detail.emailCorrespondence}
+                  <EmailCorrespondencePanel
+                    messages={emailCorrespondence}
                     onSelect={setSelectedEmail}
+                    description="All communication with this contact"
+                    showSourceTags
+                    loading={loading || emailLoading}
+                    error={emailError}
                   />
                 </div>
                 <div className="min-w-0">

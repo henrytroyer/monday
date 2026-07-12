@@ -1,19 +1,24 @@
-/** Curved ribbon arrows aligned to the i58 logo "8" region (cropped viewBox). */
+/** Curved ribbon arrows aligned to the i58 logo "58" region (shared SVG viewBox). */
 
-/** Crop to the right portion of the logo where the 8 and arrow live. */
-export const EMAIL_DIRECTION_VIEWBOX = '720 0 461 764';
+/** Crop to the blue numerals where the 8 and directional arrow read clearly. */
+export const EMAIL_DIRECTION_VIEWBOX = '620 0 620 764';
 
-/** Dark indigo — high contrast over the logo at small sizes. */
-export const EMAIL_ARROW_COLOR = '#3d5466';
+/** Full logo coordinate space (for positioning the raster under the crop). */
+export const I58_LOGO_WIDTH = 1181;
+export const I58_LOGO_HEIGHT = 764;
 
-/** Received into i58 — tail outside the 8 on the right, head inside the 8. */
+/** Warm accent — high contrast on the logo blue at small sizes. */
+export const EMAIL_ARROW_FILL = '#d97706';
+export const EMAIL_ARROW_STROKE = '#ffffff';
+
+/** Received into i58 — arrow curves in from the right toward the 8. */
 export const INBOUND_ARROW_PATH =
-  'M 1175 295 C 1090 215 980 215 880 275 C 825 315 775 325 735 330 ' +
-  'L 690 360 L 635 382 L 690 404 L 735 434 ' +
-  'C 775 429 825 439 880 489 C 980 549 1090 549 1175 469 Z';
+  'M 1165 250 C 1085 170 965 170 860 235 C 800 280 755 300 710 310 ' +
+  'L 655 340 L 590 365 L 655 390 L 710 420 ' +
+  'C 755 410 800 430 860 485 C 965 550 1085 550 1165 470 Z';
 
-/** Sent from i58 — tail inside the 8 on the left, head exits to the right. */
+/** Sent from i58 — arrow exits the 8 toward the right. */
 export const OUTBOUND_ARROW_PATH =
-  'M 735 295 C 820 215 930 215 1030 275 C 1085 315 1135 325 1175 330 ' +
-  'L 1220 360 L 1275 382 L 1220 404 L 1175 434 ' +
-  'C 1135 429 1085 439 1030 489 C 930 549 820 549 735 469 Z';
+  'M 655 250 C 735 170 855 170 960 235 C 1020 280 1065 300 1110 310 ' +
+  'L 1165 340 L 1230 365 L 1165 390 L 1110 420 ' +
+  'C 1065 410 1020 430 960 485 C 855 550 735 550 655 470 Z';

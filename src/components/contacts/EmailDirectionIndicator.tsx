@@ -1,8 +1,11 @@
 import { I58_LOGO_COLOR_URL } from '../../constants/i58Brand';
 import type { ContactEmailMessage } from '../../types/contact';
 import {
-  EMAIL_ARROW_COLOR,
+  EMAIL_ARROW_FILL,
+  EMAIL_ARROW_STROKE,
   EMAIL_DIRECTION_VIEWBOX,
+  I58_LOGO_HEIGHT,
+  I58_LOGO_WIDTH,
   INBOUND_ARROW_PATH,
   OUTBOUND_ARROW_PATH,
 } from './emailDirectionArrowPaths';
@@ -12,10 +15,9 @@ interface EmailDirectionIndicatorProps {
   size?: 'sm' | 'md';
 }
 
-/** Narrow crop — mostly the 8, arrow dominates. */
 const sizes = {
-  sm: { height: 22, width: 26 },
-  md: { height: 26, width: 30 },
+  sm: { height: 28, width: 34 },
+  md: { height: 34, width: 40 },
 } as const;
 
 export default function EmailDirectionIndicator({
@@ -29,26 +31,35 @@ export default function EmailDirectionIndicator({
 
   return (
     <span
-      className="relative mt-0.5 inline-block shrink-0 overflow-hidden"
+      className="relative mt-0.5 inline-block shrink-0"
       style={{ height, width }}
       aria-label={label}
       title={label}
     >
-      <img
-        src={I58_LOGO_COLOR_URL}
-        alt=""
-        className="absolute top-0 right-0 h-full w-auto max-w-none opacity-40"
-        aria-hidden
-      />
       <svg
-        className="pointer-events-none absolute inset-0 h-full w-full"
+        className="h-full w-full drop-shadow-sm"
         viewBox={EMAIL_DIRECTION_VIEWBOX}
         preserveAspectRatio="xMidYMid meet"
-        fill="none"
         xmlns="http://www.w3.org/2000/svg"
+        role="img"
         aria-hidden
       >
-        <path d={arrowPath} fill={EMAIL_ARROW_COLOR} />
+        <image
+          href={I58_LOGO_COLOR_URL}
+          x="0"
+          y="0"
+          width={I58_LOGO_WIDTH}
+          height={I58_LOGO_HEIGHT}
+          opacity="1"
+        />
+        <path
+          d={arrowPath}
+          fill={EMAIL_ARROW_FILL}
+          stroke={EMAIL_ARROW_STROKE}
+          strokeWidth="18"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
       </svg>
     </span>
   );

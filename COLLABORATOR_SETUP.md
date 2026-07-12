@@ -110,6 +110,7 @@ Open **http://localhost:4040** — uses fixture data from `src/data/mock*.ts`.
 - **QuickBooks invoices:** `npm run quickbooks:proxy` (port 4041) — see [docs/crm-local-dev.md](./docs/crm-local-dev.md)
 - **Board View in monday.com:** `npm run dev` + `npm run monday:tunnel` — see [docs/crm-board-view-setup.md](./docs/crm-board-view-setup.md)
 - **Column title mapping:** [docs/crm-column-mapping.md](./docs/crm-column-mapping.md)
+- **Email correspondence:** [docs/crm-send-email.md](./docs/crm-send-email.md) — live threads from monday **Emails & Activities** on Applications items (requires E&A enabled on the board; proxy uses API version `2025-01`)
 - **Mailchimp sync:** [SETUP_OTHER_MACHINE.md](./SETUP_OTHER_MACHINE.md#mailchimp-contact-sync)
 
 ---
@@ -119,6 +120,7 @@ Open **http://localhost:4040** — uses fixture data from `src/data/mock*.ts`.
 | Issue | Fix |
 |-------|-----|
 | “Could not load contacts” | Set `MONDAY_API_TOKEN`, board IDs, and run `npm run dev:live` |
+| Email correspondence empty | Enable **Emails & Activities** on the Applications board and log emails on items in monday.com |
 | Blank or loading forever | Is `npm run monday:proxy` running? Run `npm run verify` |
 | Wrong column data | Check `VITE_COL_*` overrides in `.env.example` |
 | Port in use | Stop other Node processes or change port in `vite.config.ts` |

@@ -70,6 +70,11 @@ export interface LinkedVolunteerSummary {
   relationship: 'child' | 'reference';
 }
 
+export type EmailCorrespondenceSource =
+  | 'application'
+  | 'recruitment'
+  | 'general';
+
 export interface ContactEmailMessage {
   id: string;
   contactId: string;
@@ -80,7 +85,17 @@ export interface ContactEmailMessage {
   recipientEmail: string;
   subject: string;
   body: string;
+  /** Raw HTML from Monday E&A when available — used for rich detail view. */
+  bodyHtml?: string;
   sentAt: string;
+  source: EmailCorrespondenceSource;
+  sourceLabel: string;
+  itemId?: string;
+  timelineId?: string;
+  serviceRecordId?: string;
+  mondayTimelineItemId?: string;
+  mondayUpdateId?: string;
+  templateId?: string;
 }
 
 export interface FinancialRecord {

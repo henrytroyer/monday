@@ -18,12 +18,12 @@ export default function ContactEmailThreadSection({
   onSelect,
 }: ContactEmailThreadSectionProps) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
+    <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
       <h3 className="text-lg font-semibold text-crm-heading">
         Email correspondence
       </h3>
 
-      <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface md:max-h-72">
+      <div className="mt-4 max-h-72 overflow-y-auto overscroll-y-contain rounded-2xl border border-crm-taupe/20 bg-crm-surface">
         {messages.length === 0 ? (
           <p className="py-6 text-center text-sm text-crm-slate">
             No email correspondence yet.
@@ -34,7 +34,7 @@ export default function ContactEmailThreadSection({
               className="sticky top-0 z-10 flex items-center gap-3 border-b border-crm-taupe/20 bg-crm-surface px-3 py-2"
               aria-hidden
             >
-              <span className="w-[26px] shrink-0" />
+              <span className="w-[34px] shrink-0" />
               <div className={`min-w-0 flex-1 ${emailRowGrid}`}>
                 <span />
                 <span className="text-center text-xs font-medium uppercase tracking-wide text-crm-slate">

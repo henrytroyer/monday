@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   approveReviewItem,
+  bulkApproveSuggestedReviewItems,
   dismissReviewItem,
   getPendingReviewCount,
   getPendingReviewItems,
@@ -48,6 +49,16 @@ export function useNoteReview() {
     [refresh],
   );
 
+  const bulkApproveSuggested = useCallback(() => {
+    const result = bulkApproveSuggestedReviewItems();
+    refresh();
+    window.dispatchEvent(new Event('crm-note-review-changed'));
+    if (result.contactIds.length > 0) {
+      notifyContactNotesChanged(result.contactIds);
+    }
+    return result;
+  }, [refresh]);
+
   const pendingForContact = useCallback((contactId: string) => {
     return getPendingReviewItemsForContact(contactId);
   }, []);
@@ -58,6 +69,7 @@ export function useNoteReview() {
     refresh,
     approve,
     dismiss,
+    bulkApproveSuggested,
     pendingForContact,
   };
 }

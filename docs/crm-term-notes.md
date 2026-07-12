@@ -54,7 +54,7 @@ Legacy formats `[CRM_RECRUITMENT_NOTE …]` and Applications-board `[CRM_TERM_NO
 
 ## Note review inbox
 
-Harvested monday updates that are not already CRM-tagged go to the **Note review** inbox. Matching uses strict rules (board relation, exact email, CRM tags) — never fuzzy name matching. You approve or dismiss each note before it appears on a contact.
+Harvested monday updates that are not already CRM-tagged are matched to contacts using strict rules (board relation, exact email, CRM tags, or Contacts board item) — never fuzzy name matching. Notes with a strict match are **auto-approved** on sync and appear on the contact immediately. The inbox is only for unmatched notes; use **Approve all matched** to clear any pending items that already have a suggested contact from a prior harvest.
 
 ## Contact internal notes hub
 

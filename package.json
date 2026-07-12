@@ -12,7 +12,7 @@
     "dev:live": "bash scripts/dev-live.sh",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "tsx --test src/services/contactTagColumnWrite.test.ts src/services/mondayFileColumns.test.ts src/utils/volunteerFileSlots.test.ts src/utils/formatContactAddress.test.ts",
+    "test": "tsx --test src/services/contactTagColumnWrite.test.ts src/services/mondayFileColumns.test.ts src/services/buildCoupleApplication.test.ts src/utils/volunteerFileSlots.test.ts src/utils/formatContactAddress.test.ts src/utils/filterApplications.test.ts src/utils/termProgress.test.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "monday:tunnel": "npx @mondaydotcomorg/monday-cli tunnel start 4040",

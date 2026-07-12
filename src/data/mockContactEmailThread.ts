@@ -118,6 +118,13 @@ function outboundMessage(
   scenario: ThreadScenario,
   index: number,
   sentAt: string,
+  meta?: {
+    source?: ContactEmailMessage['source'];
+    sourceLabel?: string;
+    itemId?: string;
+    timelineId?: string;
+    serviceRecordId?: string;
+  },
 ): ContactEmailMessage {
   const template =
     EMAIL_TEMPLATES.find((item) => item.id === scenario.templateId) ??
@@ -135,6 +142,12 @@ function outboundMessage(
     subject: applyPlaceholders(template.subject, context),
     body: applyPlaceholders(template.body, context),
     sentAt,
+    source: meta?.source ?? 'application',
+    sourceLabel: meta?.sourceLabel ?? 'Summer 2026 — Team A',
+    itemId: meta?.itemId,
+    timelineId: meta?.timelineId ?? 'summer-2026-a',
+    serviceRecordId: meta?.serviceRecordId,
+    templateId: scenario.templateId,
   };
 }
 
@@ -144,6 +157,13 @@ function inboundMessage(
   scenario: ThreadScenario,
   index: number,
   sentAt: string,
+  meta?: {
+    source?: ContactEmailMessage['source'];
+    sourceLabel?: string;
+    itemId?: string;
+    timelineId?: string;
+    serviceRecordId?: string;
+  },
 ): ContactEmailMessage {
   const context = buildContext(contact);
   const subject =
@@ -164,6 +184,11 @@ function inboundMessage(
     subject: applyPlaceholders(subject, context),
     body: applyPlaceholders(bodyTemplate, context),
     sentAt,
+    source: meta?.source ?? 'application',
+    sourceLabel: meta?.sourceLabel ?? 'Summer 2026 — Team A',
+    itemId: meta?.itemId,
+    timelineId: meta?.timelineId ?? 'summer-2026-a',
+    serviceRecordId: meta?.serviceRecordId,
   };
 }
 
@@ -179,14 +204,47 @@ export function buildCuratedJohnDoeEmailThread(): ContactEmailMessage[] {
   const contactId = 'contact-1';
 
   const messages: ContactEmailMessage[] = [
-    outboundMessage(contactId, contact, THREAD_SCENARIOS[0]!, 0, isoDaysAgo(2, 9, 15)),
-    inboundMessage(contactId, contact, THREAD_SCENARIOS[1]!, 1, isoDaysAgo(1, 14, 42)),
-    outboundMessage(contactId, contact, THREAD_SCENARIOS[2]!, 2, isoDaysAgo(8, 10, 5)),
-    inboundMessage(contactId, contact, THREAD_SCENARIOS[3]!, 3, isoDaysAgo(6, 16, 20)),
-    outboundMessage(contactId, contact, THREAD_SCENARIOS[4]!, 4, isoDaysAgo(14, 11, 0)),
-    outboundMessage(contactId, contact, THREAD_SCENARIOS[5]!, 5, isoDaysAgo(21, 9, 30)),
-    inboundMessage(contactId, contact, THREAD_SCENARIOS[6]!, 6, isoDaysAgo(20, 18, 10)),
-    outboundMessage(contactId, contact, THREAD_SCENARIOS[7]!, 7, isoDaysAgo(28, 8, 45)),
+    outboundMessage(contactId, contact, THREAD_SCENARIOS[0]!, 0, isoDaysAgo(2, 9, 15), {
+      source: 'application',
+      sourceLabel: 'Summer 2026 — Team A',
+      itemId: 'mock-1',
+      timelineId: 'summer-2026-a',
+    }),
+    inboundMessage(contactId, contact, THREAD_SCENARIOS[1]!, 1, isoDaysAgo(1, 14, 42), {
+      source: 'application',
+      sourceLabel: 'Summer 2026 — Team A',
+      itemId: 'mock-1',
+      timelineId: 'summer-2026-a',
+    }),
+    outboundMessage(contactId, contact, THREAD_SCENARIOS[2]!, 2, isoDaysAgo(8, 10, 5), {
+      source: 'recruitment',
+      sourceLabel: 'Recruitment',
+      serviceRecordId: 'recruitment-prospect-1',
+    }),
+    inboundMessage(contactId, contact, THREAD_SCENARIOS[3]!, 3, isoDaysAgo(6, 16, 20), {
+      source: 'recruitment',
+      sourceLabel: 'Recruitment',
+    }),
+    outboundMessage(contactId, contact, THREAD_SCENARIOS[4]!, 4, isoDaysAgo(14, 11, 0), {
+      source: 'application',
+      sourceLabel: 'Fall 2025 — Team B',
+      itemId: 'mock-past',
+      timelineId: 'fall-2025',
+    }),
+    outboundMessage(contactId, contact, THREAD_SCENARIOS[5]!, 5, isoDaysAgo(21, 9, 30), {
+      source: 'application',
+      sourceLabel: 'Summer 2026 — Team A',
+      itemId: 'mock-1',
+    }),
+    inboundMessage(contactId, contact, THREAD_SCENARIOS[6]!, 6, isoDaysAgo(20, 18, 10), {
+      source: 'application',
+      sourceLabel: 'Summer 2026 — Team A',
+      itemId: 'mock-1',
+    }),
+    outboundMessage(contactId, contact, THREAD_SCENARIOS[7]!, 7, isoDaysAgo(28, 8, 45), {
+      source: 'general',
+      sourceLabel: 'Contact',
+    }),
   ];
 
   return messages.sort(
