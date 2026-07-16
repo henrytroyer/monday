@@ -2,7 +2,12 @@
 
 React + TypeScript volunteer operations dashboard connected to live monday.com boards (Contacts, Applications, Donations).
 
-**New collaborator?** Start here: **[COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md)**
+**Production (i58 finance Admin):** open **Admin → Monday Project** at
+`https://i58-finance.web.app/admin?tab=monday-project`. Live API calls use Cloud Function
+`mondayApiProxy` (admin Firebase Auth + Secret Manager `MONDAY_API_TOKEN`). CRM source is
+mounted from this repo into `i58-receipts-v2` via the Vite `@monday` alias.
+
+**New collaborator (local)?** Start here: **[COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md)**
 
 ## Quick start
 

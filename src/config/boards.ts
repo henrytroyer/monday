@@ -1,4 +1,5 @@
 import type { MondayContext } from '../types/monday';
+import { getMondayProxyBaseOverride } from '../services/mondayProxyAuth';
 
 export function useMockData(): boolean {
   return import.meta.env.VITE_USE_MOCK_DATA === 'true';
@@ -30,7 +31,10 @@ export function canAddApplicationNotes(): boolean {
 }
 
 export function useMondayApiProxy(): boolean {
-  return Boolean(import.meta.env.VITE_MONDAY_API_PROXY_URL?.trim());
+  return Boolean(
+    getMondayProxyBaseOverride() ||
+      import.meta.env.VITE_MONDAY_API_PROXY_URL?.trim(),
+  );
 }
 
 export function hasStandaloneBoardConfig(): boolean {

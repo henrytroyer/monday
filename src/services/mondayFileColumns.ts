@@ -6,6 +6,10 @@ import {
   isDuplicateVolunteerFile,
 } from '../utils/volunteerFileDedup';
 import type { MondayColumnValue } from './mapMondayToCrm';
+import {
+  getCachedMondayProxyAuthToken,
+  getMondayProxyBaseOverride,
+} from './mondayProxyAuth';
 
 const viteEnv = (): Record<string, string | undefined> => import.meta.env ?? {};
 
@@ -13,11 +17,19 @@ export function mondayAssetProxyUrl(
   assetId: string,
   proxyBase?: string,
 ): string | undefined {
-  const base = (proxyBase ?? viteEnv().VITE_MONDAY_API_PROXY_URL)
+  const base = (
+    proxyBase ??
+    getMondayProxyBaseOverride() ??
+    viteEnv().VITE_MONDAY_API_PROXY_URL
+  )
     ?.trim()
     .replace(/\/$/, '');
   if (!base) return undefined;
-  return `${base}/assets/${assetId}`;
+  const url = `${base}/assets/${assetId}`;
+  // img/src cannot send Authorization; Cloud Function accepts ?token=
+  const token = getCachedMondayProxyAuthToken();
+  if (!token) return url;
+  return `${url}?token=${encodeURIComponent(token)}`;
 }
 
 /** Combined PDF download/preview when a volunteer has multiple itinerary PDFs. */
