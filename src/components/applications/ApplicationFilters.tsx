@@ -42,9 +42,7 @@ export default function ApplicationFilters({
         }));
 
   const locations =
-    locationOptions && locationOptions.length > 0
-      ? locationOptions
-      : [...LOCATION_OPTIONS];
+    locationOptions !== undefined ? locationOptions : [...LOCATION_OPTIONS];
 
   const shellClass = isPanel
     ? 'p-4'

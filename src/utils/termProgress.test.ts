@@ -59,8 +59,8 @@ describe('resolveTermProgressSnapshot', () => {
     );
     assert.ok(snapshot);
     assert.equal(snapshot.phase, 'active');
-    assert.equal(snapshot.startLabel, 'Jun 8, 2026');
-    assert.equal(snapshot.endLabel, 'Jul 19, 2026');
+    assert.equal(snapshot.startLabel, 'June 8, 2026');
+    assert.equal(snapshot.endLabel, 'July 19, 2026');
     assert.match(snapshot.statusLabel, /Day \d+ of \d+/);
   });
 });

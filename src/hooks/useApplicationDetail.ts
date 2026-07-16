@@ -9,6 +9,7 @@ import {
 import { buildMockVolunteerDemographics } from '../data/mockVolunteerContactProfile';
 import { fetchApplicationDetail } from '../services/crmApi';
 import type { VolunteerItinerary } from '../types/itinerary';
+import { emptyItinerary, itineraryHasData } from '../types/itinerary';
 import type { Volunteer, VolunteerDetail, VolunteerFile } from '../types/volunteer';
 import { buildApplicationEmails } from '../utils/applicationEmails';
 import { mockProfilePhotoUrl } from '../utils/mockProfilePhoto';
@@ -258,6 +259,11 @@ function withDemographics(detail: VolunteerDetail): VolunteerDetail {
 export function buildMockVolunteerDetail(volunteer: Volunteer): VolunteerDetail {
   const preset = mockDetails[volunteer.id];
   if (preset) {
+    const pipelineItinerary =
+      volunteer.itinerary && itineraryHasData(volunteer.itinerary)
+        ? volunteer.itinerary
+        : preset.itinerary;
+
     return withDemographics({
       ...preset,
       status: volunteer.status,
@@ -268,10 +274,16 @@ export function buildMockVolunteerDetail(volunteer: Volunteer): VolunteerDetail 
       pipelineStage: volunteer.pipelineStage ?? preset.pipelineStage,
       termStart: volunteer.termStart ?? preset.termStart,
       termEnd: volunteer.termEnd ?? preset.termEnd,
+      itinerary: pipelineItinerary,
     });
   }
 
   const seed = volunteer.id.replace(/\W/g, '') || 'volunteer';
+  const pipelineItinerary =
+    volunteer.itinerary && itineraryHasData(volunteer.itinerary)
+      ? volunteer.itinerary
+      : undefined;
+
   return withDemographics({
     ...volunteer,
     profilePhotoUrl:
@@ -285,10 +297,7 @@ export function buildMockVolunteerDetail(volunteer: Volunteer): VolunteerDetail 
     phone: '+1 (555) 000-0000',
     files: mockFiles(seed),
     housing: 'Pending',
-    itinerary: mockItinerary(
-      { date: '', time: '', airport: '' },
-      { date: '', time: '', airport: '' },
-    ),
+    itinerary: pipelineItinerary ?? emptyItinerary(),
     coordinator: '—',
     termNotes: [],
     onboardingSteps: [

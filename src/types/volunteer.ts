@@ -17,6 +17,8 @@ export interface VolunteerFile {
   url?: string;
   isImage: boolean;
   access?: VolunteerFileAccess;
+  /** Source monday asset ids when url points at a merged itinerary PDF. */
+  mergeSourceAssetIds?: string[];
 }
 
 export interface TermNote {
@@ -40,9 +42,17 @@ export interface VolunteerTerm {
   quickbooksInvoiceId?: string;
   pastorReferenceStatus?: string;
   locationPreference?: string;
-  /** Application pipeline term vs recruitment service record */
-  recordType?: 'application' | 'recruitment';
+  /** Application pipeline term vs recruitment vs ended service record */
+  recordType?: 'application' | 'recruitment' | 'service-ended';
   recruitmentProspectId?: string;
+  /** Short Term application item linked from ended board (for deduplication) */
+  linkedApplicationItemId?: string;
+  /** End of service review matched by completion date (Volunteer Feedback Form board) */
+  endOfServiceReview?: {
+    itemId: string;
+    completedAt?: string;
+    fields?: ApplicationFormField[];
+  };
 }
 
 export const RECRUITMENT_TIMELINE_ID = 'recruitment';
@@ -104,6 +114,8 @@ export interface Volunteer {
   pipelineStage?: string;
   profilePhotoUrl?: string;
   couplePreview?: CouplePreview;
+  /** Parsed arrival / departure from itinerary columns or notes. */
+  itinerary?: VolunteerItinerary;
 }
 
 export interface OnboardingStep {
@@ -167,6 +179,8 @@ export interface VolunteerDetail extends Volunteer {
   demographics?: ContactDemographics;
   passportFile?: VolunteerFile;
   childSafeguardingFile?: VolunteerFile;
+  /** ISO date (YYYY-MM-DD) when safeguarding certificate was received on Monday */
+  childSafeguardingReceivedDate?: string;
   couple?: CoupleApplication;
   files: VolunteerFile[];
   housing: string;

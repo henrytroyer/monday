@@ -4,6 +4,8 @@ import {
   resolveApplicationsBoardId,
   resolveContactsBoardId,
   resolveDonationsBoardId,
+  resolveEndOfServiceReviewBoardId,
+  resolveServiceEndedBoardId,
   useMockData,
 } from '../config/boards';
 import {
@@ -22,6 +24,8 @@ export function useContactDetail(contactId: string | null) {
   const contactsBoardId = resolveContactsBoardId(context);
   const applicationsBoardId = resolveApplicationsBoardId(context);
   const donationsBoardId = resolveDonationsBoardId(context);
+  const serviceEndedBoardId = resolveServiceEndedBoardId(context);
+  const endOfServiceReviewBoardId = resolveEndOfServiceReviewBoardId(context);
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -39,6 +43,8 @@ export function useContactDetail(contactId: string | null) {
         contactsBoardId: isMock ? undefined : contactsBoardId,
         applicationsBoardId: isMock ? undefined : applicationsBoardId,
         donationsBoardId: isMock ? undefined : donationsBoardId,
+        serviceEndedBoardId: isMock ? undefined : serviceEndedBoardId,
+        endOfServiceReviewBoardId: isMock ? undefined : endOfServiceReviewBoardId,
       });
       setDetail(data);
     } catch (err) {
@@ -55,6 +61,8 @@ export function useContactDetail(contactId: string | null) {
     contactsBoardId,
     applicationsBoardId,
     donationsBoardId,
+    serviceEndedBoardId,
+    endOfServiceReviewBoardId,
   ]);
 
   useEffect(() => {
@@ -73,6 +81,8 @@ export function useContactDetail(contactId: string | null) {
           contactsBoardId: isMock ? undefined : contactsBoardId,
           applicationsBoardId: isMock ? undefined : applicationsBoardId,
           donationsBoardId: isMock ? undefined : donationsBoardId,
+          serviceEndedBoardId: isMock ? undefined : serviceEndedBoardId,
+        endOfServiceReviewBoardId: isMock ? undefined : endOfServiceReviewBoardId,
           fallbackDetail: detail ?? undefined,
         });
         setDetail(updated);
@@ -93,6 +103,7 @@ export function useContactDetail(contactId: string | null) {
       contactsBoardId,
       applicationsBoardId,
       donationsBoardId,
+      serviceEndedBoardId,
       detail,
     ],
   );
@@ -109,6 +120,8 @@ export function useContactDetail(contactId: string | null) {
           contactsBoardId: isMock ? undefined : contactsBoardId,
           applicationsBoardId: isMock ? undefined : applicationsBoardId,
           donationsBoardId: isMock ? undefined : donationsBoardId,
+          serviceEndedBoardId: isMock ? undefined : serviceEndedBoardId,
+        endOfServiceReviewBoardId: isMock ? undefined : endOfServiceReviewBoardId,
           fallbackDetail: detail ?? undefined,
         });
         setDetail(updated);
@@ -129,6 +142,7 @@ export function useContactDetail(contactId: string | null) {
       contactsBoardId,
       applicationsBoardId,
       donationsBoardId,
+      serviceEndedBoardId,
       detail,
     ],
   );

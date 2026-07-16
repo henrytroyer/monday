@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavLayer } from "../../context/NavigationHistoryContext";
 import type { VolunteerFile } from "../../types/volunteer";
-import { getFilePreviewKind } from "../../utils/filePreview";
+import { getFilePreviewKind, fetchVolunteerFileBlob } from "../../utils/filePreview";
 import {
   inferVolunteerFileSlotKey,
   suggestedDownloadFilename,
@@ -27,6 +27,7 @@ export default function FilePreviewModal({
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfPreviewError, setPdfPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     setImagePreviewFailed(false);
@@ -35,27 +36,26 @@ export default function FilePreviewModal({
   useEffect(() => {
     if (previewKind !== "pdf" || !url) {
       setPdfPreviewUrl(null);
+      setPdfPreviewError(null);
       return;
     }
 
     let cancelled = false;
     let objectUrl: string | null = null;
 
-    fetch(url)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Preview failed (${response.status})`);
-        }
-        return response.blob();
-      })
+    fetchVolunteerFileBlob(file)
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
         setPdfPreviewUrl(objectUrl);
+        setPdfPreviewError(null);
       })
       .catch(() => {
         if (!cancelled) {
-          setPdfPreviewUrl(url);
+          setPdfPreviewUrl(null);
+          setPdfPreviewError(
+            "Could not load this itinerary PDF. Restart npm run dev:live and try again.",
+          );
         }
       });
 
@@ -65,7 +65,7 @@ export default function FilePreviewModal({
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [previewKind, url]);
+  }, [previewKind, url, file]);
 
   const defaultFilename = useMemo(() => {
     if (!volunteerName) return file.name;
@@ -170,6 +170,20 @@ export default function FilePreviewModal({
                   src={pdfPreviewUrl}
                   className="h-[70vh] w-full rounded-lg border border-crm-taupe/20 bg-crm-surface shadow-md"
                 />
+              ) : pdfPreviewError ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+                  <FileTypeIcon />
+                  <p className="max-w-sm text-sm text-crm-slate">{pdfPreviewError}</p>
+                  {url && (
+                    <button
+                      type="button"
+                      onClick={() => setDownloadOpen(true)}
+                      className="rounded-xl bg-crm-indigo px-5 py-2.5 text-sm font-medium text-white transition hover:bg-crm-indigo-dark"
+                    >
+                      Download
+                    </button>
+                  )}
+                </div>
               ) : (
                 <p className="py-12 text-center text-sm text-crm-slate">
                   Loading preview…

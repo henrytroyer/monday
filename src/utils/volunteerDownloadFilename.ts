@@ -3,6 +3,7 @@ export type VolunteerFileSlotKey =
   | 'passport'
   | 'backgroundcheck'
   | 'childsafeguarding'
+  | 'itinerary'
   | 'other';
 
 const SLOT_SUFFIX: Record<Exclude<VolunteerFileSlotKey, 'other'>, string> = {
@@ -10,6 +11,7 @@ const SLOT_SUFFIX: Record<Exclude<VolunteerFileSlotKey, 'other'>, string> = {
   passport: 'passport',
   backgroundcheck: 'backgroundcheck',
   childsafeguarding: 'childsafeguarding',
+  itinerary: 'itinerary',
 };
 
 export function slugifyVolunteerName(name: string): string {
@@ -36,6 +38,7 @@ export function inferVolunteerFileSlotKey(
   if (/passport/i.test(file.name)) return 'passport';
   if (/background/i.test(file.name)) return 'backgroundcheck';
   if (/safeguard/i.test(file.name)) return 'childsafeguarding';
+  if (/itinerary/i.test(file.name)) return 'itinerary';
   return 'other';
 }
 

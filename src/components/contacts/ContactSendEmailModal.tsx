@@ -6,6 +6,7 @@ import {
   buildMailtoUrl,
   mergeEmailTemplate,
 } from '../../utils/emailMerge';
+import EmailTemplateSourceBadge from '../email-templates/EmailTemplateSourceBadge';
 import OverlayBackButton from '../layout/OverlayBackButton';
 
 interface ContactSendEmailModalProps {
@@ -105,12 +106,21 @@ export default function ContactSendEmailModal({
                           : 'border-crm-taupe/20 bg-crm-surface hover:border-crm-taupe/28 hover:bg-crm-taupe-50'
                       }`}
                     >
-                      <p className="font-medium text-crm-heading">
-                        {template.name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-crm-heading">
+                          {template.name}
+                        </p>
+                        <EmailTemplateSourceBadge source={template.source} />
+                      </div>
                       <p className="mt-1 line-clamp-2 text-sm text-crm-slate">
                         {template.subject}
                       </p>
+                      {template.source === 'supermail' && template.sendCount ? (
+                        <p className="mt-1 text-xs text-crm-slate">
+                          {template.sendCount} matching SuperMail send
+                          {template.sendCount === 1 ? '' : 's'}
+                        </p>
+                      ) : null}
                     </button>
                   </li>
                 );

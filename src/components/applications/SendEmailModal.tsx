@@ -8,6 +8,10 @@ import {
   buildMergeContext,
   mergeEmailTemplate,
 } from '../../utils/emailMerge';
+import {
+  formatEmailTemplateOptionLabel,
+  groupEmailTemplates,
+} from '../../utils/emailTemplateDisplay';
 import OverlayBackButton from '../layout/OverlayBackButton';
 
 interface SendEmailModalProps {
@@ -47,6 +51,8 @@ export default function SendEmailModal({
     recipients[recipientIndex];
   const selectedTemplate =
     EMAIL_TEMPLATES.find((t) => t.id === templateId) ?? EMAIL_TEMPLATES[0];
+  const { crm: crmTemplates, supermail: supermailTemplates } =
+    groupEmailTemplates();
 
   const merged = useMemo(() => {
     if (!selectedRecipient || !selectedTemplate) {
@@ -194,12 +200,33 @@ export default function SendEmailModal({
                   onChange={(e) => setTemplateId(e.target.value)}
                   className="mt-2 w-full rounded-xl border border-crm-taupe/20 px-3 py-2.5 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
                 >
-                  {EMAIL_TEMPLATES.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name}
-                    </option>
-                  ))}
+                  {crmTemplates.length > 0 && (
+                    <optgroup label="CRM templates">
+                      {crmTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {formatEmailTemplateOptionLabel(template)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {supermailTemplates.length > 0 && (
+                    <optgroup label="SuperMail (mined)">
+                      {supermailTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {formatEmailTemplateOptionLabel(template)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
+                {selectedTemplate?.source === 'supermail' && (
+                  <p className="mt-2 text-xs text-crm-slate">
+                    Imported from SuperMail send logs
+                    {selectedTemplate.sendCount
+                      ? ` · ${selectedTemplate.sendCount} matching send(s)`
+                      : ''}
+                  </p>
+                )}
               </div>
 
               <div>

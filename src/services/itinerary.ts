@@ -1,7 +1,12 @@
 import { columnMap } from '../config/columnMap';
 import type { ItineraryLeg, VolunteerItinerary } from '../types/itinerary';
-import { emptyItinerary } from '../types/itinerary';
-import { getColumnText, type MondayColumnValue } from './mapMondayToCrm';
+import { emptyItinerary, emptyItineraryLeg } from '../types/itinerary';
+import {
+  getArrivalDepartureTimelineRange,
+  getMappedColumnDateText,
+  getMappedColumnText,
+} from './mondayTimelineColumn';
+import type { MondayColumnValue } from './mondayTimelineColumn';
 
 function legFromParts(
   date: string,
@@ -107,9 +112,86 @@ function parseLegLine(line: string): ItineraryLeg {
   return legFromParts(line, '', '');
 }
 
-function parseItineraryFreeText(text: string): VolunteerItinerary | null {
+const INTELE_TRAVEL_LEG_PATTERN =
+  /(Arrive|Depart)\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})\s+(\d{1,2}:\d{2}\s+(?:AM|PM))[^\n]*?\b([A-Z]{3})\b/gi;
+
+function legFromInteleTravelMatch(match: RegExpExecArray): ItineraryLeg {
+  return legFromParts(match[2], match[3], match[4]);
+}
+
+/** Parse InteleTravel / airline traveler receipt PDFs (e.g. Gloria Hershberger). */
+export function parseInteleTravelReceiptText(
+  text: string,
+): VolunteerItinerary | null {
+  if (!/traveler\s+receipt|inteletravel|booking information/i.test(text)) {
+    return null;
+  }
+
+  const legs: Array<{ kind: 'arrive' | 'depart'; leg: ItineraryLeg }> = [];
+  let match: RegExpExecArray | null;
+  const pattern = new RegExp(
+    INTELE_TRAVEL_LEG_PATTERN.source,
+    INTELE_TRAVEL_LEG_PATTERN.flags,
+  );
+  while ((match = pattern.exec(text)) !== null) {
+    legs.push({
+      kind: match[1].toLowerCase() === 'arrive' ? 'arrive' : 'depart',
+      leg: legFromInteleTravelMatch(match),
+    });
+  }
+
+  if (legs.length === 0) return null;
+
+  const inboundIdx = text.search(/\bInbound\b/i);
+
+  let arrival =
+    legs.find((entry) => entry.kind === 'arrive' && entry.leg.airport === 'ATH')
+      ?.leg ?? null;
+  let departure =
+    legs.find((entry) => entry.kind === 'depart' && entry.leg.airport === 'ATH')
+      ?.leg ?? null;
+
+  if (!arrival) {
+    const outboundArrives =
+      inboundIdx >= 0
+        ? legs.filter(
+            (entry) =>
+              entry.kind === 'arrive' &&
+              text.indexOf(entry.leg.date) < inboundIdx,
+          )
+        : legs.filter((entry) => entry.kind === 'arrive');
+    arrival = outboundArrives.at(-1)?.leg ?? null;
+  }
+
+  if (!departure) {
+    const inboundDeparts =
+      inboundIdx >= 0
+        ? legs.filter(
+            (entry) =>
+              entry.kind === 'depart' &&
+              text.indexOf(entry.leg.date) >= inboundIdx,
+          )
+        : legs.filter((entry) => entry.kind === 'depart');
+    departure =
+      inboundDeparts.find((entry) => entry.leg.airport === 'ATH')?.leg ??
+      inboundDeparts[0]?.leg ??
+      null;
+  }
+
+  if (!arrival && !departure) return null;
+
+  const result = emptyItinerary();
+  if (arrival) result.arrival = arrival;
+  if (departure) result.departure = departure;
+  return result;
+}
+
+export function parseItineraryFreeText(text: string): VolunteerItinerary | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
+
+  const fromReceipt = parseInteleTravelReceiptText(trimmed);
+  if (fromReceipt) return fromReceipt;
 
   const fromJson = parseItineraryJson(trimmed);
   if (fromJson) return fromJson;
@@ -147,17 +229,61 @@ function readLegColumns(
   timeKey: keyof typeof columnMap,
   airportKey: keyof typeof columnMap,
 ): ItineraryLeg | null {
-  const date = getColumnText(columnValues, dateKey);
-  const time = getColumnText(columnValues, timeKey);
-  const airport = getColumnText(columnValues, airportKey);
+  const date = getMappedColumnDateText(columnValues, dateKey);
+  const time = getMappedColumnText(columnValues, timeKey);
+  const airport = getMappedColumnText(columnValues, airportKey);
   if (!date && !time && !airport) return null;
   return legFromParts(date, time, airport);
+}
+
+function mergeLegFields(
+  ...sources: Array<ItineraryLeg | null | undefined>
+): ItineraryLeg {
+  const result = emptyItineraryLeg();
+  for (const source of sources) {
+    if (!source) continue;
+    if (!result.date.trim() && source.date.trim()) {
+      result.date = source.date.trim();
+    }
+    if (!result.time.trim() && source.time.trim()) {
+      result.time = source.time.trim();
+    }
+    if (!result.airport.trim() && source.airport.trim()) {
+      result.airport = source.airport.trim();
+    }
+  }
+  return result;
+}
+
+export function mergeVolunteerItinerary(
+  ...sources: Array<VolunteerItinerary | null | undefined>
+): VolunteerItinerary {
+  return {
+    arrival: mergeLegFields(...sources.map((source) => source?.arrival)),
+    departure: mergeLegFields(...sources.map((source) => source?.departure)),
+  };
+}
+
+function itineraryFromTimelineColumn(
+  columnValues: MondayColumnValue[],
+): VolunteerItinerary | null {
+  const range = getArrivalDepartureTimelineRange(columnValues);
+  if (!range) return null;
+
+  const preferredAirport = getMappedColumnText(
+    columnValues,
+    'preferredItineraryAirport',
+  );
+
+  const result = emptyItinerary();
+  result.arrival = legFromParts(range.from, '', preferredAirport);
+  result.departure = legFromParts(range.to, '', preferredAirport);
+  return result;
 }
 
 export function parseItineraryFromColumns(
   columnValues: MondayColumnValue[],
 ): VolunteerItinerary {
-  const fromColumns = emptyItinerary();
   const arrivalCols = readLegColumns(
     columnValues,
     'arrivalDate',
@@ -170,31 +296,30 @@ export function parseItineraryFromColumns(
     'departureTime',
     'departureAirport',
   );
-  if (arrivalCols) fromColumns.arrival = arrivalCols;
-  if (departureCols) fromColumns.departure = departureCols;
 
-  if (
-    fromColumns.arrival.date ||
-    fromColumns.arrival.time ||
-    fromColumns.arrival.airport ||
-    fromColumns.departure.date ||
-    fromColumns.departure.time ||
-    fromColumns.departure.airport
-  ) {
-    return fromColumns;
-  }
+  const fromTimeline = itineraryFromTimelineColumn(columnValues);
 
-  const itineraryText = getColumnText(columnValues, 'itinerary');
-  if (itineraryText) {
-    const parsed = parseItineraryFreeText(itineraryText);
-    if (parsed) return parsed;
-  }
+  const itineraryText = getMappedColumnText(columnValues, 'itinerary');
+  const fromItineraryText = itineraryText
+    ? parseItineraryFreeText(itineraryText)
+    : null;
 
-  const legacyArrival = getColumnText(columnValues, 'arrival');
-  if (legacyArrival) {
-    fromColumns.arrival = parseLegLine(legacyArrival);
-    return fromColumns;
-  }
+  const legacyArrival = getMappedColumnText(columnValues, 'arrival');
+  const legacyArrivalLeg = legacyArrival ? parseLegLine(legacyArrival) : null;
 
-  return emptyItinerary();
+  return {
+    arrival: mergeLegFields(
+      arrivalCols,
+      fromTimeline?.arrival,
+      fromItineraryText?.arrival,
+      legacyArrivalLeg,
+    ),
+    departure: mergeLegFields(
+      departureCols,
+      fromTimeline?.departure,
+      fromItineraryText?.departure,
+    ),
+  };
 }
+
+export { mergeLegFields };

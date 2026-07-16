@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatNoteTimestamp } from '../../services/termNotes';
 import { useNoteReview, notifyNoteReviewChanged } from '../../hooks/useNoteReview';
 import { harvestMondayNotes } from '../../services/mondayNoteHarvest';
@@ -7,6 +7,8 @@ import { useMockData } from '../../config/boards';
 import { fetchContactsList } from '../../services/contactsApi';
 import { resolveContactsBoardId } from '../../config/boards';
 import type { ContactListItem } from '../../types/contact';
+import ContactAttachSearch from './ContactAttachSearch';
+import NoteBodyContent from './NoteBodyContent';
 
 interface NoteReviewInboxProps {
   onClose: () => void;
@@ -23,22 +25,32 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
   const [bulkApproving, setBulkApproving] = useState(false);
   const [harvestMessage, setHarvestMessage] = useState<string | null>(null);
   const [selectedContactByNote, setSelectedContactByNote] = useState<
-    Record<string, string>
+    Record<string, ContactListItem | null>
   >({});
 
-  const contactOptions = useMemo(() => contacts, [contacts]);
   const matchedCount = items.filter((item) => item.suggestedContactId).length;
 
-  async function loadContacts() {
-    if (isMock || !contactsBoardId) return;
+  const contactsLoadedRef = useRef(false);
+
+  const loadContacts = useCallback(async () => {
+    if (contactsLoadedRef.current) return;
+    contactsLoadedRef.current = true;
     setLoadingContacts(true);
     try {
-      const list = await fetchContactsList({ contactsBoardId });
+      const list = await fetchContactsList({
+        contactsBoardId: contactsBoardId ?? undefined,
+      });
       setContacts(list);
+    } catch {
+      contactsLoadedRef.current = false;
     } finally {
       setLoadingContacts(false);
     }
-  }
+  }, [contactsBoardId]);
+
+  useEffect(() => {
+    void loadContacts();
+  }, [loadContacts]);
 
   async function runHarvest() {
     setHarvesting(true);
@@ -86,6 +98,14 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
     }
   }
 
+  const contactNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const contact of contacts) {
+      map.set(contact.id, contact.name);
+    }
+    return map;
+  }, [contacts]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-crm-indigo/35 p-4">
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-2xl">
@@ -96,8 +116,8 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
             </h2>
             <p className="mt-1 text-sm text-crm-slate">
               {pendingCount} note{pendingCount === 1 ? '' : 's'} need review.
-              Notes with a strict contact match auto-link on sync; only
-              unmatched notes need manual approval.
+              Notes with a strict contact match auto-link on sync; search for a
+              contact to attach anything unmatched.
             </p>
           </div>
           <button
@@ -145,10 +165,20 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
           ) : (
             <ul className="space-y-4">
               {items.map((item) => {
-                const selectedContactId =
+                const selectedContact =
                   selectedContactByNote[item.id] ??
-                  item.suggestedContactId ??
-                  '';
+                  (item.suggestedContactId
+                    ? contacts.find(
+                        (contact) => contact.id === item.suggestedContactId,
+                      ) ??
+                      ({
+                        id: item.suggestedContactId,
+                        name: item.suggestedContactName ?? 'Suggested contact',
+                        email: '—',
+                        tags: [],
+                      } satisfies ContactListItem)
+                    : null);
+
                 return (
                   <li
                     key={item.id}
@@ -171,59 +201,54 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
                         </span>
                       )}
                     </div>
-                    <p className="mt-3 whitespace-pre-wrap text-sm text-crm-text">
-                      {item.body}
-                    </p>
+
+                    <div className="mt-3 rounded-xl border border-crm-taupe/15 bg-crm-surface px-4 py-3">
+                      <NoteBodyContent body={item.body} bodyHtml={item.bodyHtml} />
+                    </div>
+
                     {item.rejectReason && !item.suggestedContactId && (
                       <p className="mt-2 text-xs text-amber-800">
                         {item.rejectReason}
                       </p>
                     )}
+
                     <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
                       <div className="min-w-0 flex-1">
-                        <label className="text-xs font-medium uppercase tracking-wide text-crm-slate">
+                        <label
+                          htmlFor={`note-contact-${item.id}`}
+                          className="text-xs font-medium uppercase tracking-wide text-crm-slate"
+                        >
                           Link to contact
                         </label>
-                        <select
-                          value={selectedContactId}
-                          onFocus={() => {
-                            if (contacts.length === 0) void loadContacts();
-                          }}
-                          onChange={(e) =>
-                            setSelectedContactByNote((prev) => ({
-                              ...prev,
-                              [item.id]: e.target.value,
-                            }))
-                          }
-                          className="mt-1 w-full rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-2 text-sm"
-                          disabled={loadingContacts}
-                        >
-                          <option value="">Select contact…</option>
-                          {item.suggestedContactId && (
-                            <option value={item.suggestedContactId}>
-                              Suggested: {item.suggestedContactName}
-                            </option>
-                          )}
-                          {contactOptions.map((contact) => (
-                            <option key={contact.id} value={contact.id}>
-                              {contact.name}
-                              {contact.email !== '—' ? ` · ${contact.email}` : ''}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="mt-1">
+                          <ContactAttachSearch
+                            inputId={`note-contact-${item.id}`}
+                            contacts={contacts}
+                            loading={loadingContacts}
+                            value={selectedContact?.id ?? ''}
+                            suggestedContactId={item.suggestedContactId}
+                            suggestedContactName={item.suggestedContactName}
+                            onRequestLoad={() => void loadContacts()}
+                            onChange={(_contactId, contact) =>
+                              setSelectedContactByNote((prev) => ({
+                                ...prev,
+                                [item.id]: contact,
+                              }))
+                            }
+                          />
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          disabled={!selectedContactId}
+                          disabled={!selectedContact?.id}
                           onClick={() => {
-                            const contact = contactOptions.find(
-                              (entry) => entry.id === selectedContactId,
-                            );
+                            if (!selectedContact?.id) return;
                             approve(
                               item.id,
-                              selectedContactId,
-                              contact?.name ??
+                              selectedContact.id,
+                              selectedContact.name ??
+                                contactNameById.get(selectedContact.id) ??
                                 item.suggestedContactName ??
                                 'Contact',
                             );

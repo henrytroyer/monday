@@ -6,6 +6,7 @@ interface VolunteerStatusSelectProps {
   options: readonly string[];
   onChange: (volunteerId: string, newStatus: string) => void | Promise<void>;
   disabled?: boolean;
+  onboardingLabel?: string | null;
 }
 
 export default function VolunteerStatusSelect({
@@ -14,6 +15,7 @@ export default function VolunteerStatusSelect({
   options,
   onChange,
   disabled = false,
+  onboardingLabel,
 }: VolunteerStatusSelectProps) {
   const [saving, setSaving] = useState(false);
 
@@ -36,6 +38,7 @@ export default function VolunteerStatusSelect({
 
   return (
     <div
+      className="flex flex-col items-end gap-0.5"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
@@ -52,6 +55,14 @@ export default function VolunteerStatusSelect({
           </option>
         ))}
       </select>
+      {onboardingLabel && (
+        <span
+          className="max-w-[11rem] truncate rounded-full bg-crm-taupe-50 px-2 py-0.5 text-[10px] font-medium leading-tight text-crm-slate ring-1 ring-crm-taupe/15"
+          title={onboardingLabel}
+        >
+          {onboardingLabel}
+        </span>
+      )}
     </div>
   );
 }

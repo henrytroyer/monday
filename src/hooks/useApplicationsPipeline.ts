@@ -8,11 +8,13 @@ import {
 } from '../config/boards';
 import { APPLICATION_STATUS_OPTIONS } from '../constants/applicationStatuses';
 import {
+  fetchApplicationLocationOptions,
   fetchApplicationStatusOptions,
   fetchApplicationsPipeline,
   updateApplicationStatus,
 } from '../services/crmApi';
 import type { PipelineSection } from '../types/volunteer';
+import { LOCATION_OPTIONS } from '../types/volunteer';
 import { updateVolunteerStatusInPipeline } from '../utils/filterApplications';
 import { useMondayContext } from './useMondayContext';
 
@@ -23,6 +25,7 @@ interface UseApplicationsPipelineReturn {
   isMock: boolean;
   boardId: string | null;
   statusOptions: string[];
+  locationOptions: string[];
   refetch: () => void;
   updateVolunteerStatus: (volunteerId: string, status: string) => Promise<void>;
   applicationsEditable: boolean;
@@ -34,6 +37,7 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
   const [statusOptions, setStatusOptions] = useState<string[]>([
     ...APPLICATION_STATUS_OPTIONS,
   ]);
+  const [locationOptions, setLocationOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
@@ -63,6 +67,7 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
           if (!cancelled) {
             setPipeline(applicationPipeline);
             setStatusOptions([...APPLICATION_STATUS_OPTIONS]);
+            setLocationOptions([...LOCATION_OPTIONS]);
             setLoading(false);
           }
           return;
@@ -75,11 +80,12 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
           );
         }
 
-        const [data, options] = await Promise.all([
+        const [data, options, locations] = await Promise.all([
           fetchApplicationsPipeline(id),
           fetchApplicationStatusOptions(id).catch(() => [
             ...APPLICATION_STATUS_OPTIONS,
           ]),
+          fetchApplicationLocationOptions(id).catch(() => []),
         ]);
 
         if (!cancelled) {
@@ -87,6 +93,7 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
           setStatusOptions(
             options.length > 0 ? options : [...APPLICATION_STATUS_OPTIONS],
           );
+          setLocationOptions(locations);
           setLoading(false);
         }
       } catch (err) {
@@ -132,6 +139,7 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
     isMock,
     boardId,
     statusOptions,
+    locationOptions,
     refetch,
     updateVolunteerStatus,
     applicationsEditable,

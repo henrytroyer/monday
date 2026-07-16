@@ -35,7 +35,7 @@ export default function PipelineSection({
 
   return (
     <div className="overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface shadow-sm">
-      <div className="flex items-center justify-between border-b border-crm-taupe/20 bg-crm-indigo-50 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-crm-taupe/20 bg-crm-taupe-50 px-6 py-4">
         <div>
           <h2 className="text-xl font-semibold text-crm-heading">{section.stage}</h2>
           <p className="mt-1 text-sm text-crm-slate">
@@ -107,11 +107,6 @@ export default function PipelineSection({
                           pipelineStage={section.stage}
                         />
                       </div>
-                      {onboardingLabel && (
-                        <div className="mt-1 text-xs text-crm-indigo">
-                          Onboarding: {onboardingLabel}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </>
@@ -124,6 +119,7 @@ export default function PipelineSection({
                 options={statusOptions}
                 onChange={onStatusChange}
                 disabled={statusSelectDisabled}
+                onboardingLabel={onboardingLabel}
               />
               <span className="text-crm-slate">→</span>
             </div>

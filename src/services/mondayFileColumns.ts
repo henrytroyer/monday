@@ -1,5 +1,10 @@
 import type { VolunteerFile } from '../types/volunteer';
 import { inferVolunteerFileIsImage } from '../utils/inferVolunteerFileIsImage';
+import { assetIdFromVolunteerFileUrl } from '../utils/condenseItineraryPdfFiles';
+import {
+  collectListedVolunteerFileKeys,
+  isDuplicateVolunteerFile,
+} from '../utils/volunteerFileDedup';
 import type { MondayColumnValue } from './mapMondayToCrm';
 
 const viteEnv = (): Record<string, string | undefined> => import.meta.env ?? {};
@@ -13,6 +18,19 @@ export function mondayAssetProxyUrl(
     .replace(/\/$/, '');
   if (!base) return undefined;
   return `${base}/assets/${assetId}`;
+}
+
+/** Combined PDF download/preview when a volunteer has multiple itinerary PDFs. */
+export function mondayMergedAssetsProxyUrl(
+  assetIds: string[],
+  proxyBase?: string,
+): string | undefined {
+  if (assetIds.length < 2) return undefined;
+  const base = (proxyBase ?? viteEnv().VITE_MONDAY_API_PROXY_URL)
+    ?.trim()
+    .replace(/\/$/, '');
+  if (!base) return undefined;
+  return `${base}/assets/merge/${assetIds.join(',')}`;
 }
 
 export function parseAssetIdFromColumn(col: MondayColumnValue): string | undefined {
@@ -228,6 +246,62 @@ export function resolvePassportFile(
   );
 }
 
+export interface MondayGalleryAsset {
+  id: string | number;
+  name?: string | null;
+  file_extension?: string | null;
+  public_url?: string | null;
+}
+
+/** Map monday.com item gallery assets (Files tab) to CRM file entries. */
+export function mapMondayGalleryAssets(
+  assets: MondayGalleryAsset[] | undefined | null,
+  proxyBase?: string,
+): VolunteerFile[] {
+  if (!assets?.length) return [];
+
+  return assets.map((asset) => {
+    const id = String(asset.id);
+    const name = String(asset.name ?? 'File');
+    const url = mondayAssetProxyUrl(id, proxyBase);
+    const isImage = inferVolunteerFileIsImage(
+      url ?? asset.public_url ?? '',
+      name,
+    );
+    return { id, name, url, isImage };
+  });
+}
+
+/** Drop gallery uploads that repeat a file already stored in a monday column. */
+export function excludeGalleryDuplicatesOfColumnFiles(
+  galleryFiles: VolunteerFile[],
+  columnFiles: VolunteerFile[],
+  reservedUrls: string[] = [],
+): VolunteerFile[] {
+  const reservedFiles: VolunteerFile[] = [
+    ...columnFiles,
+    ...reservedUrls.map((url, index) => ({
+      id: `reserved-${index}`,
+      name: 'Column file',
+      url,
+      isImage: inferVolunteerFileIsImage(url, ''),
+    })),
+  ];
+  const reservedKeys = collectListedVolunteerFileKeys(reservedFiles);
+  const columnImageNames = new Set(
+    columnFiles
+      .filter((file) => file.isImage && file.name.trim())
+      .map((file) => file.name.trim().toLowerCase()),
+  );
+
+  return galleryFiles.filter((file) => {
+    if (isDuplicateVolunteerFile(file, reservedKeys)) return false;
+    const normalizedName = file.name.trim().toLowerCase();
+    if (file.isImage && columnImageNames.has(normalizedName)) return false;
+    return true;
+  });
+}
+
 export function mergeVolunteerGalleryFiles(
   sources: VolunteerFile[][],
   options?: {
@@ -235,23 +309,44 @@ export function mergeVolunteerGalleryFiles(
     passportPhotoUrl?: string;
   },
 ): VolunteerFile[] {
+  const reservedKeys = collectListedVolunteerFileKeys([
+    options?.profilePhotoUrl
+      ? {
+          id: 'profile-photo-reserved',
+          name: 'Profile photo',
+          url: options.profilePhotoUrl,
+          isImage: true,
+        }
+      : undefined,
+    options?.passportPhotoUrl
+      ? {
+          id: 'passport-reserved',
+          name: 'Passport',
+          url: options.passportPhotoUrl,
+          isImage: inferVolunteerFileIsImage(
+            options.passportPhotoUrl,
+            'Passport',
+          ),
+        }
+      : undefined,
+  ]);
+
   const merged = sources.flat();
-  const seen = new Set<string>();
+  const seenKeys = new Set<string>();
+  const seenAssetIds = new Set<string>();
 
   return merged.filter((file) => {
-    if (
-      options?.profilePhotoUrl &&
-      file.isImage &&
-      file.url === options.profilePhotoUrl
-    ) {
-      return false;
+    if (isDuplicateVolunteerFile(file, reservedKeys)) return false;
+
+    const assetId = assetIdFromVolunteerFileUrl(file);
+    if (assetId) {
+      if (seenAssetIds.has(assetId)) return false;
+      seenAssetIds.add(assetId);
     }
-    if (options?.passportPhotoUrl && file.url === options.passportPhotoUrl) {
-      return false;
-    }
+
     const key = `${file.id}-${file.name}-${file.url ?? ''}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
     return true;
   });
 }

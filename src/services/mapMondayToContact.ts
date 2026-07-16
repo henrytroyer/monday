@@ -10,6 +10,7 @@ import {
   resolveProfilePhotoUrl,
 } from './mondayFileColumns';
 import { getColumnPhone } from '../utils/phoneFormat';
+import { readMondayDateColumnText } from '../utils/formatDateOfBirth';
 import type { MondayColumnValue } from './mapMondayToCrm';
 import {
   contactTagsUseSimpleColumnValue,
@@ -69,6 +70,15 @@ function findColumn(
     .VITE_CONTACT_COL_DONATIONS_LINK_ID as string | undefined;
   if (fieldKey === 'donationsLink' && donationsLinkColumnId?.trim()) {
     const byId = columnValues.find((col) => col.id === donationsLinkColumnId.trim());
+    if (byId) return byId;
+  }
+
+  const serviceEndedLinkColumnId = import.meta.env
+    .VITE_CONTACT_COL_SERVICE_ENDED_LINK_ID as string | undefined;
+  if (fieldKey === 'serviceEndedLink' && serviceEndedLinkColumnId?.trim()) {
+    const byId = columnValues.find(
+      (col) => col.id === serviceEndedLinkColumnId.trim(),
+    );
     if (byId) return byId;
   }
 
@@ -225,6 +235,13 @@ export function getContactColumnText(
   return getColumnText(columnValues, fieldKey);
 }
 
+export function getContactColumnDateText(
+  columnValues: MondayColumnValue[],
+  fieldKey: keyof typeof contactMap,
+): string {
+  return readMondayDateColumnText(findColumn(columnValues, fieldKey));
+}
+
 export function mapContactPastorReference(
   columnValues: MondayColumnValue[],
 ): ContactPastorReference | undefined {
@@ -266,6 +283,13 @@ export function parseLinkedApplicationIds(
   columnValues: MondayColumnValue[],
 ): string[] {
   const col = findColumn(columnValues, 'applicationsLink');
+  return parseLinkedBoardRelationIds(col);
+}
+
+export function parseLinkedServiceEndedIds(
+  columnValues: MondayColumnValue[],
+): string[] {
+  const col = findColumn(columnValues, 'serviceEndedLink');
   return parseLinkedBoardRelationIds(col);
 }
 

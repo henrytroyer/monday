@@ -111,6 +111,7 @@ export function approveReviewItem(
     itemId: item.itemId,
     itemName: item.itemName,
     body: item.body,
+    bodyHtml: item.bodyHtml,
     createdAt: item.createdAt,
     authorName: item.authorName,
     sourceLabel: item.sourceLabel ?? item.boardName,

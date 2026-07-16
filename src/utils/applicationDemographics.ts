@@ -1,6 +1,7 @@
 import { columnMap } from '../config/columnMap';
 import type { ContactDemographics } from '../types/contact';
-import type { MondayColumnValue } from '../services/mapMondayToCrm';
+import { getColumnDateText, type MondayColumnValue } from '../services/mapMondayToCrm';
+import { normalizeDateOfBirth } from './formatDateOfBirth';
 import { parseFilloutAddress } from './formatContactAddress';
 
 function normalizeTitle(title: string): string {
@@ -35,7 +36,9 @@ function structuredAddressComplete(demographics: ContactDemographics): boolean {
 export function resolveApplicationDemographics(
   columnValues: MondayColumnValue[],
 ): ContactDemographics | undefined {
-  const dateOfBirth = getApplicationColumnText(columnValues, 'dateOfBirth');
+  const dateOfBirth = normalizeDateOfBirth(
+    getColumnDateText(columnValues, 'dateOfBirth'),
+  );
   const filloutText = getApplicationColumnText(columnValues, 'addressFillout');
   const fromFillout = parseFilloutAddress(filloutText);
 

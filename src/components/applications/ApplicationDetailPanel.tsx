@@ -8,6 +8,7 @@ import { savePipeline } from '../../services/onboardingPipelineStorage';
 import type { OnboardingPipeline, Volunteer, VolunteerDetail } from '../../types/volunteer';
 import {
   buildOnboardingMergeContext,
+  getOnboardingStepLabel,
   mergePipelineWithStorage,
 } from '../../utils/onboardingPipeline';
 import {
@@ -21,6 +22,7 @@ import {
   displayTermOfService,
   hasConfirmedTerm,
 } from '../../utils/volunteerTerm';
+import { itineraryHasData } from '../../types/itinerary';
 import FormFieldsPanel, { findFormPdf } from './FormFieldsPanel';
 import ItineraryBubbles from './ItineraryBubbles';
 import LongtermReferencesPanel from './LongtermReferencesPanel';
@@ -137,7 +139,16 @@ export default function ApplicationDetailPanel({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onBack, drillDown, sendEmailOpen, callOpen, selectedReferenceSlot]);
 
-  const display = detail ?? null;
+  const display = useMemo(() => {
+    if (!detail) return null;
+    if (detail.itinerary && itineraryHasData(detail.itinerary)) {
+      return detail;
+    }
+    if (volunteer.itinerary && itineraryHasData(volunteer.itinerary)) {
+      return { ...detail, itinerary: volunteer.itinerary };
+    }
+    return detail;
+  }, [detail, volunteer.itinerary]);
   const emailCorrespondenceRefetch = useRef<(() => void) | null>(null);
   const termNotesState = useTermNotes({
     itemId: volunteer.id,
@@ -265,7 +276,14 @@ export default function ApplicationDetailPanel({
                 />
               )}
 
-              <Panel title="Onboarding Progress">
+              <Panel
+                title="Onboarding Progress"
+                collapsible
+                defaultExpanded={false}
+                collapsedSummary={
+                  pipeline ? getOnboardingStepLabel(pipeline) : undefined
+                }
+              >
                 {pipeline && (
                   <OnboardingProgress
                     pipeline={pipeline}
@@ -312,8 +330,6 @@ export default function ApplicationDetailPanel({
                       />
                     </>
                   )}
-                  <InfoCard label="Coordinator" value={display.coordinator} />
-                  <InfoCard label="Housing" value={display.housing} />
                 </div>
                 <div className="mt-6">
                   <h4 className="text-sm font-semibold text-crm-heading">
@@ -500,12 +516,73 @@ function ApplicationIdentityBar({
   );
 }
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
+function Panel({
+  title,
+  children,
+  collapsible = false,
+  defaultExpanded = true,
+  collapsedSummary,
+}: {
+  title: string;
+  children: ReactNode;
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
+  collapsedSummary?: string;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  if (!collapsible) {
+    return (
+      <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
+        <h3 className="text-lg font-semibold text-crm-heading">{title}</h3>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
-      <h3 className="text-lg font-semibold text-crm-heading">{title}</h3>
-      {children}
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        className="group -mx-1 flex w-full items-center gap-3 rounded-xl px-1 py-1 text-left transition hover:bg-crm-taupe-50"
+        aria-expanded={expanded}
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-crm-taupe/25 bg-crm-surface text-crm-slate shadow-sm transition group-hover:border-crm-taupe/40 group-hover:text-crm-heading">
+          <PanelChevron expanded={expanded} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-semibold text-crm-heading">{title}</h3>
+          {!expanded && collapsedSummary && (
+            <p className="mt-1 truncate text-sm text-crm-slate">
+              {collapsedSummary}
+            </p>
+          )}
+        </div>
+      </button>
+      {expanded && <div className="mt-4">{children}</div>}
     </div>
+  );
+}
+
+function PanelChevron({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      className={`h-5 w-5 transition-transform duration-200 ease-out ${
+        expanded ? 'rotate-90' : ''
+      }`}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 5l7 7-7 7"
+      />
+    </svg>
   );
 }
 

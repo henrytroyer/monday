@@ -26,6 +26,12 @@ export const columnMap = {
     viteEnv.VITE_COL_DEPARTURE_TIME || 'Departure Time',
   departureAirport:
     viteEnv.VITE_COL_DEPARTURE_AIRPORT || 'Departure Airport',
+  /** monday.com timeline column spanning arrival → departure dates */
+  arrivalDepartureTimeline:
+    viteEnv.VITE_COL_ARRIVAL_DEPARTURE_TIMELINE || 'Arrival/Departure Date',
+  preferredItineraryAirport:
+    viteEnv.VITE_COL_PREFERRED_ITINERARY_AIRPORT ||
+    'Preferred nearby airport for international departure/arrival',
   /** Legacy single arrival field; used only if itinerary columns are empty */
   arrival: viteEnv.VITE_COL_ARRIVAL || 'Arrival',
   coordinator: viteEnv.VITE_COL_COORDINATOR || 'Coordinator',

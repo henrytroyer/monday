@@ -114,6 +114,10 @@ export function isRecruitmentServiceTerm(term: VolunteerTerm): boolean {
   );
 }
 
+export function isServiceEndedTerm(term: VolunteerTerm): boolean {
+  return term.recordType === 'service-ended';
+}
+
 export function serviceRecordIdForTerm(term: VolunteerTerm): string | null {
   if (term.recruitmentProspectId) return term.recruitmentProspectId;
   if (isRecruitmentServiceTerm(term)) return term.itemId;

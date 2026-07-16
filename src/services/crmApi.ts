@@ -41,6 +41,23 @@ import {
   fetchSafeguardingCertificateByEmail,
   fetchSafeguardingCertificateFromApplicationItem,
 } from './safeguardingCertificate';
+import { mapServiceEndedItemToVolunteerDetail } from './mapServiceEndedToVolunteerDetail';
+import {
+  mapEndOfServiceReviewItem,
+  type EndOfServiceReviewSummary,
+} from './mapEndOfServiceReview';
+import {
+  mergeVolunteerItinerary,
+} from './itinerary';
+import { parseItineraryFromVolunteerFiles } from './itineraryFromFiles';
+import { itineraryHasData } from '../types/itinerary';
+import {
+  parseColumnLabelsFromSettings,
+  parseLocationOptionsFromColumn,
+  resolveLocationPreferenceColumn,
+} from './applicationLocationOptions';
+
+export { parseColumnLabelsFromSettings } from './applicationLocationOptions';
 
 function assertMondayWritable(action: string): void {
   if (isMondayReadOnly()) {
@@ -195,14 +212,29 @@ export async function fetchApplicationDetail(
   }
 
   const detail = mapItemToVolunteerDetail(item);
-  let childSafeguardingFile: VolunteerDetail['childSafeguardingFile'];
+
+  let itinerary = detail.itinerary;
   try {
-    childSafeguardingFile = await fetchSafeguardingCertificateFromApplicationItem(
+    const fromFiles = await parseItineraryFromVolunteerFiles(detail.files);
+    if (fromFiles && itineraryHasData(fromFiles)) {
+      itinerary = mergeVolunteerItinerary(detail.itinerary, fromFiles);
+    }
+  } catch {
+    // optional — PDF extraction requires monday proxy
+  }
+
+  let childSafeguardingFile: VolunteerDetail['childSafeguardingFile'];
+  let childSafeguardingReceivedDate: VolunteerDetail['childSafeguardingReceivedDate'];
+  try {
+    const safeguarding = await fetchSafeguardingCertificateFromApplicationItem(
       item,
       detail.email !== '—' ? detail.email : undefined,
     );
+    childSafeguardingFile = safeguarding?.file;
+    childSafeguardingReceivedDate = safeguarding?.receivedDate;
   } catch {
     childSafeguardingFile = undefined;
+    childSafeguardingReceivedDate = undefined;
   }
 
   let couple = detail.couple;
@@ -216,7 +248,7 @@ export async function fetchApplicationDetail(
           ...couple,
           partner: {
             ...couple.partner,
-            childSafeguardingFile: partnerSafeguarding,
+            childSafeguardingFile: partnerSafeguarding.file,
           },
         };
       }
@@ -227,8 +259,43 @@ export async function fetchApplicationDetail(
 
   return {
     ...detail,
+    itinerary,
     childSafeguardingFile,
+    childSafeguardingReceivedDate,
     couple,
+  };
+}
+
+export async function fetchServiceEndedDetail(
+  itemId: string,
+): Promise<VolunteerDetail> {
+  const data = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
+    itemId: [itemId],
+  });
+
+  const item = data.items?.[0];
+  if (!item) {
+    throw new Error(`Service ended item ${itemId} not found`);
+  }
+
+  const detail = mapServiceEndedItemToVolunteerDetail(item);
+  let childSafeguardingFile: VolunteerDetail['childSafeguardingFile'];
+  let childSafeguardingReceivedDate: VolunteerDetail['childSafeguardingReceivedDate'];
+  try {
+    const safeguarding = await fetchSafeguardingCertificateByEmail(
+      detail.email !== '—' ? detail.email : undefined,
+    );
+    childSafeguardingFile = safeguarding?.file;
+    childSafeguardingReceivedDate = safeguarding?.receivedDate;
+  } catch {
+    childSafeguardingFile = undefined;
+    childSafeguardingReceivedDate = undefined;
+  }
+
+  return {
+    ...detail,
+    childSafeguardingFile,
+    childSafeguardingReceivedDate,
   };
 }
 
@@ -496,6 +563,57 @@ export async function fetchApplicationsBoardItems(
   return allItems;
 }
 
+export async function fetchServiceEndedBoardItems(
+  boardId: string,
+): Promise<MondayBoardItem[]> {
+  const items = await fetchApplicationsBoardItems(boardId);
+  if (items.length === 0) {
+    const meta = await api<{ boards: Array<{ id: string; name: string }> }>(
+      queries.getBoard,
+      { boardId: [boardId] },
+    );
+    if (!meta.boards?.[0]) {
+      throw new Error(
+        `Service ended board ${boardId} not found or not accessible`,
+      );
+    }
+  }
+  return items;
+}
+
+export async function fetchEndOfServiceReviewBoardItems(
+  boardId: string,
+): Promise<MondayBoardItem[]> {
+  const items = await fetchApplicationsBoardItems(boardId);
+  if (items.length === 0) {
+    const meta = await api<{ boards: Array<{ id: string; name: string }> }>(
+      queries.getBoard,
+      { boardId: [boardId] },
+    );
+    if (!meta.boards?.[0]) {
+      throw new Error(
+        `End of service review board ${boardId} not found or not accessible`,
+      );
+    }
+  }
+  return items;
+}
+
+export async function fetchEndOfServiceReviewDetail(
+  itemId: string,
+): Promise<EndOfServiceReviewSummary> {
+  const data = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
+    itemId: [itemId],
+  });
+
+  const item = data.items?.[0];
+  if (!item) {
+    throw new Error(`End of service review item ${itemId} not found`);
+  }
+
+  return mapEndOfServiceReviewItem(item);
+}
+
 export async function addTermNote(
   itemId: string,
   timelineId: string,
@@ -652,20 +770,8 @@ export async function setQuickBooksInvoiceIdOnItem(
   });
 }
 
-export function parseStatusLabelsFromSettings(settingsStr: string): string[] {
-  if (!settingsStr?.trim()) return [];
-
-  try {
-    const data = JSON.parse(settingsStr) as {
-      labels?: Array<{ name?: string }>;
-    };
-    return (data.labels ?? [])
-      .map((label) => label.name?.trim())
-      .filter((name): name is string => Boolean(name));
-  } catch {
-    return [];
-  }
-}
+/** @deprecated Use parseColumnLabelsFromSettings */
+export const parseStatusLabelsFromSettings = parseColumnLabelsFromSettings;
 
 export async function fetchApplicationStatusOptions(
   boardId: string,
@@ -688,7 +794,28 @@ export async function fetchApplicationStatusOptions(
     );
   }
 
-  return parseStatusLabelsFromSettings(statusColumn.settings_str ?? '');
+  return parseColumnLabelsFromSettings(statusColumn.settings_str ?? '');
+}
+
+export async function fetchApplicationLocationOptions(
+  boardId: string,
+): Promise<string[]> {
+  const data = await api<{
+    boards: Array<{
+      columns: Array<{ id: string; title: string; type: string; settings_str?: string }>;
+    }>;
+  }>(queries.getBoardColumns, { boardId: [boardId] });
+
+  const columns = data.boards?.[0]?.columns ?? [];
+  const locationColumn = resolveLocationPreferenceColumn(columns);
+
+  if (!locationColumn) {
+    throw new Error(
+      `Column "${columnMap.locationPreference}" not found on board. Add it or set VITE_COL_LOCATION_PREFERENCE.`,
+    );
+  }
+
+  return parseLocationOptionsFromColumn(locationColumn);
 }
 
 export async function updateApplicationStatus(

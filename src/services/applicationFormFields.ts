@@ -1,4 +1,6 @@
 import { columnMap } from '../config/columnMap';
+import { endOfServiceReviewColumnMap } from '../config/endOfServiceReviewColumnMap';
+import { serviceEndedColumnMap } from '../config/serviceEndedColumnMap';
 import type { ApplicationFormField } from '../types/volunteer';
 import type { MondayColumnValue } from './mapMondayToCrm';
 
@@ -11,10 +13,21 @@ const SKIP_COLUMN_TYPES = new Set([
   'last_updated',
   'item_id',
   'formula',
+  'button',
 ]);
 
 const CRM_EXCLUDED_TITLES = new Set(
   Object.values(columnMap).map((title) => normalizeTitle(title)),
+);
+
+const SERVICE_ENDED_EXCLUDED_TITLES = new Set(
+  Object.values(serviceEndedColumnMap).map((title) => normalizeTitle(title)),
+);
+
+const EOS_REVIEW_EXCLUDED_TITLES = new Set(
+  Object.values(endOfServiceReviewColumnMap).map((title) =>
+    normalizeTitle(title),
+  ),
 );
 
 /** Onboarding status column — not pastor reference form Q&A */
@@ -29,7 +42,8 @@ function columnTitle(col: MondayColumnValue): string {
 }
 
 function parsePastorWhitelist(): Set<string> {
-  const raw = import.meta.env.VITE_PASTOR_REFERENCE_COLUMNS as string | undefined;
+  const viteEnv = import.meta.env ?? {};
+  const raw = viteEnv.VITE_PASTOR_REFERENCE_COLUMNS as string | undefined;
   if (!raw?.trim()) return new Set();
   return new Set(
     raw.split(',').map((t) => normalizeTitle(t.trim())).filter(Boolean),
@@ -40,6 +54,14 @@ const pastorWhitelist = parsePastorWhitelist();
 
 function isCrmColumn(title: string): boolean {
   return CRM_EXCLUDED_TITLES.has(normalizeTitle(title));
+}
+
+function isServiceEndedCrmColumn(title: string): boolean {
+  return SERVICE_ENDED_EXCLUDED_TITLES.has(normalizeTitle(title));
+}
+
+function isEndOfServiceReviewCrmColumn(title: string): boolean {
+  return EOS_REVIEW_EXCLUDED_TITLES.has(normalizeTitle(title));
 }
 
 function isSkippedType(type: string): boolean {
@@ -153,6 +175,34 @@ export function buildPastorReferenceFormFields(
   columnValues: MondayColumnValue[],
 ): ApplicationFormField[] {
   return buildFields(columnValues, isPastorReferenceColumn);
+}
+
+export function buildServiceEndedApplicationFormFields(
+  columnValues: MondayColumnValue[],
+): ApplicationFormField[] {
+  return buildFields(
+    columnValues,
+    (_col, title) => !isServiceEndedCrmColumn(title),
+  );
+}
+
+export function buildServiceEndedPastorReferenceFormFields(
+  columnValues: MondayColumnValue[],
+): ApplicationFormField[] {
+  return buildFields(columnValues, (_col, title) => {
+    const normalized = normalizeTitle(title);
+    if (isServiceEndedCrmColumn(title)) return false;
+    return normalized.includes('pastor') || normalized.includes('reference');
+  });
+}
+
+export function buildEndOfServiceReviewFormFields(
+  columnValues: MondayColumnValue[],
+): ApplicationFormField[] {
+  return buildFields(
+    columnValues,
+    (_col, title) => !isEndOfServiceReviewCrmColumn(title),
+  );
 }
 
 /**

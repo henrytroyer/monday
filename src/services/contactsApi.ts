@@ -13,6 +13,8 @@ import {
   fetchApplicationsBoardItems,
   fetchContactItem,
   fetchContactsBoard,
+  fetchEndOfServiceReviewBoardItems,
+  fetchServiceEndedBoardItems,
   updateContactFieldsOnMonday,
   updateContactPastorReferenceOnMonday,
   updateContactTagsOnMonday,
@@ -48,11 +50,19 @@ import {
 } from './contactDonationsMonday';
 import { fetchContactFinancials } from './contactFinancials';
 import { useQboIncomeSyncFromMonday } from './mondayDonorSync';
+import {
+  fetchSafeguardingCertificateByEmail,
+  fetchSafeguardingCertificateFromContactLink,
+} from './safeguardingCertificate';
+import { resolveVolunteerFileSlots } from '../utils/volunteerFileSlots';
+import type { VolunteerFile } from '../types/volunteer';
 
 export interface ContactsFetchOptions {
   contactsBoardId?: string | null;
   applicationsBoardId?: string | null;
   donationsBoardId?: string | null;
+  serviceEndedBoardId?: string | null;
+  endOfServiceReviewBoardId?: string | null;
   clearCache?: boolean;
   /** Fetch fresh data even when an in-memory cache exists (keeps showing cached list). */
   refresh?: boolean;
@@ -64,6 +74,8 @@ export interface ContactsFetchOptions {
 let liveContactsCache: ContactListItem[] | null = null;
 let liveContactsCacheBoardId: string | null = null;
 let liveApplicationsCache: MondayBoardItem[] | null = null;
+let liveServiceEndedCache: MondayBoardItem[] | null = null;
+let liveEndOfServiceReviewCache: MondayBoardItem[] | null = null;
 
 const SESSION_CONTACTS_CACHE_KEY = 'crm-contacts-list-cache';
 
@@ -137,6 +149,7 @@ export function clearContactsLiveCache(): void {
   liveContactsCache = null;
   liveContactsCacheBoardId = null;
   liveApplicationsCache = null;
+  liveServiceEndedCache = null;
   clearSessionContactsCache();
 }
 
@@ -159,6 +172,31 @@ async function getLiveApplications(
   return liveApplicationsCache;
 }
 
+async function getLiveServiceEndedItems(
+  serviceEndedBoardId?: string | null,
+): Promise<MondayBoardItem[]> {
+  if (!serviceEndedBoardId) return [];
+  if (liveServiceEndedCache) return liveServiceEndedCache;
+  liveServiceEndedCache =
+    await fetchServiceEndedBoardItems(serviceEndedBoardId);
+  return liveServiceEndedCache;
+}
+
+async function getLiveEndOfServiceReviewItems(
+  endOfServiceReviewBoardId?: string | null,
+): Promise<MondayBoardItem[]> {
+  if (!endOfServiceReviewBoardId) return [];
+  if (liveEndOfServiceReviewCache) return liveEndOfServiceReviewCache;
+  try {
+    liveEndOfServiceReviewCache = await fetchEndOfServiceReviewBoardItems(
+      endOfServiceReviewBoardId,
+    );
+  } catch {
+    liveEndOfServiceReviewCache = [];
+  }
+  return liveEndOfServiceReviewCache;
+}
+
 export async function fetchContactsList(
   options?: ContactsFetchOptions,
 ): Promise<ContactListItem[]> {
@@ -176,6 +214,9 @@ export async function fetchContactsList(
   if (options?.clearCache) {
     liveContactsCache = null;
     liveContactsCacheBoardId = null;
+    liveApplicationsCache = null;
+    liveServiceEndedCache = null;
+    liveEndOfServiceReviewCache = null;
     clearSessionContactsCache();
   }
 
@@ -194,6 +235,34 @@ export async function fetchContactsList(
   liveContactsCacheBoardId = boardId;
   writeSessionContactsCache(boardId, liveContactsCache);
   return liveContactsCache;
+}
+
+function childSafeguardingFromMockFiles(
+  files?: VolunteerFile[],
+): VolunteerFile | undefined {
+  if (!files?.length) return undefined;
+  return resolveVolunteerFileSlots(undefined, files).childSafeguarding;
+}
+
+async function resolveContactChildSafeguardingFile(
+  contactId: string,
+  email: string | undefined,
+): Promise<VolunteerFile | undefined> {
+  try {
+    const fromLink = await fetchSafeguardingCertificateFromContactLink(
+      contactId,
+    );
+    if (fromLink) return fromLink.file;
+  } catch {
+    // optional — fall through to email lookup
+  }
+
+  try {
+    const fromEmail = await fetchSafeguardingCertificateByEmail(email);
+    return fromEmail?.file;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function fetchContactDetail(
@@ -233,6 +302,9 @@ export async function fetchContactDetail(
 
     return {
       ...detail,
+      childSafeguardingFile:
+        detail.childSafeguardingFile ??
+        childSafeguardingFromMockFiles(detail.files),
       emailCorrespondence,
       serviceTerms,
     };
@@ -240,6 +312,12 @@ export async function fetchContactDetail(
 
   const item = await fetchContactItem(contactId);
   const applications = await getLiveApplications(options?.applicationsBoardId);
+  const serviceEndedItems = await getLiveServiceEndedItems(
+    options?.serviceEndedBoardId,
+  );
+  const endOfServiceReviewItems = await getLiveEndOfServiceReviewItems(
+    options?.endOfServiceReviewBoardId,
+  );
 
   let allContacts = liveContactsCache;
   if (!allContacts && options?.contactsBoardId) {
@@ -251,7 +329,13 @@ export async function fetchContactDetail(
   }
 
   const base = mapItemToContactListItem(item);
-  const enriched = enrichContactDetail(item, applications, allContacts);
+  const enriched = enrichContactDetail(
+    item,
+    applications,
+    allContacts,
+    serviceEndedItems,
+    endOfServiceReviewItems,
+  );
 
   const recruitmentRecords = getRecruitmentServiceRecords(contactId);
   const prospect = findProspectByContactId(contactId);
@@ -312,9 +396,15 @@ export async function fetchContactDetail(
     serviceTerms: [...mergedRecruitment, ...applicationTerms],
   });
 
+  const childSafeguardingFile = await resolveContactChildSafeguardingFile(
+    contactId,
+    base.email !== '—' ? base.email : undefined,
+  );
+
   return {
     ...base,
     ...enriched,
+    childSafeguardingFile,
     emailCorrespondence,
     donations,
     serviceTerms: [...mergedRecruitment, ...applicationTerms],

@@ -15,7 +15,11 @@ export const contactMap = {
     import.meta.env.VITE_CONTACT_COL_QBO_CUSTOMER_ID ||
     'QuickBooks Customer ID',
   applicationsLink:
-    import.meta.env.VITE_CONTACT_COL_APPLICATIONS || 'Applications',
+    import.meta.env.VITE_CONTACT_COL_APPLICATIONS ||
+    'Volunteer Service - Short Term',
+  serviceEndedLink:
+    import.meta.env.VITE_CONTACT_COL_SERVICE_ENDED_LINK ||
+    'link to Current Service Ended',
   safeguardingLink:
     import.meta.env.VITE_CONTACT_COL_SAFEGUARDING_LINK ||
     'link to Safeguarding Certificates (2.0)',

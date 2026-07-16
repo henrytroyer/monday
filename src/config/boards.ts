@@ -102,6 +102,28 @@ export function resolveDonationsBoardId(
   return null;
 }
 
+export function resolveServiceEndedBoardId(
+  _context: MondayContext | null = null,
+): string | null {
+  if (useMockData()) return null;
+
+  const envBoardId = import.meta.env.VITE_SERVICE_ENDED_BOARD_ID;
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+
+  return null;
+}
+
+export function resolveEndOfServiceReviewBoardId(
+  _context: MondayContext | null = null,
+): string | null {
+  if (useMockData()) return null;
+
+  const envBoardId = import.meta.env.VITE_EOS_REVIEW_BOARD_ID;
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+
+  return null;
+}
+
 export function contactsBoardName(): string {
   return import.meta.env.VITE_CONTACTS_BOARD_NAME || 'Contacts Test';
 }
@@ -122,9 +144,13 @@ export function resolveMonitoredBoardIds(): string[] {
   const contactsId = import.meta.env.VITE_CONTACTS_BOARD_ID;
   const applicationsId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
   const donationsId = import.meta.env.VITE_DONATIONS_BOARD_ID;
+  const serviceEndedId = import.meta.env.VITE_SERVICE_ENDED_BOARD_ID;
+  const eosReviewId = import.meta.env.VITE_EOS_REVIEW_BOARD_ID;
   if (contactsId) ids.push(String(contactsId));
   if (applicationsId) ids.push(String(applicationsId));
   if (donationsId) ids.push(String(donationsId));
+  if (serviceEndedId) ids.push(String(serviceEndedId));
+  if (eosReviewId) ids.push(String(eosReviewId));
   return [...new Set(ids)];
 }
 

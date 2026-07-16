@@ -7,6 +7,7 @@ export interface NoteReviewItem {
   itemId: string;
   itemName: string;
   body: string;
+  bodyHtml?: string;
   createdAt: string;
   authorName?: string;
   status: NoteReviewStatus;
@@ -25,6 +26,7 @@ export interface ApprovedNoteLink {
   itemId: string;
   itemName: string;
   body: string;
+  bodyHtml?: string;
   createdAt: string;
   authorName?: string;
   sourceLabel: string;

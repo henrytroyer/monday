@@ -3,9 +3,12 @@ export interface EmailTemplate {
   name: string;
   subject: string;
   body: string;
+  source?: 'crm' | 'supermail';
+  minedAt?: string;
+  sendCount?: number;
 }
 
-export const EMAIL_TEMPLATES: EmailTemplate[] = [
+const CRM_EMAIL_TEMPLATES: EmailTemplate[] = [
   {
     id: 'onboarding-progress-update',
     name: 'Onboarding progress update',
@@ -22,6 +25,7 @@ If you have questions, reply to this email.
 
 {{coordinator}}
 Volunteer Coordination Team`,
+    source: 'crm',
   },
   {
     id: 'onboarding-welcome',
@@ -35,6 +39,7 @@ Your coordinator {{coordinator}} will be in touch soon with next steps.
 
 Blessings,
 Volunteer Coordination Team`,
+    source: 'crm',
   },
   {
     id: 'pastor-reference-request',
@@ -48,6 +53,7 @@ If you have questions, please reply to this email.
 
 Thank you,
 Volunteer Coordination Team`,
+    source: 'crm',
   },
   {
     id: 'missing-documents',
@@ -62,6 +68,7 @@ Term: {{timelineLabel}}
 
 Thank you,
 {{coordinator}}`,
+    source: 'crm',
   },
   {
     id: 'pre-arrival-reminder',
@@ -76,6 +83,7 @@ Location: {{locationPreference}}
 
 Safe travels,
 Volunteer Coordination Team`,
+    source: 'crm',
   },
   {
     id: 'invoice-reminder',
@@ -89,6 +97,7 @@ Please let us know if you have any questions.
 
 Thank you,
 Volunteer Coordination Team`,
+    source: 'crm',
   },
   {
     id: 'reference-reminder',
@@ -100,6 +109,7 @@ We're still waiting for your {{referenceTypeLabel}} reference for your long-term
 
 Thank you,
 Volunteer Coordination Team`,
+    source: 'crm',
   },
   {
     id: 'parent-update',
@@ -114,6 +124,7 @@ Current status: {{status}}
 If you have questions, please reply to this email.
 
 Volunteer Coordination Team`,
+    source: 'crm',
   },
   {
     id: 'year-end-tax-receipt',
@@ -138,11 +149,34 @@ Please retain this statement for your tax records. If you have questions, reply 
 
 Blessings,
 Development Team`,
+    source: 'crm',
   },
+];
+
+import {
+  SUPERMAIL_MINED_AT,
+  SUPERMAIL_MINED_TEMPLATES,
+} from './supermailTemplates.mined';
+
+export const EMAIL_TEMPLATES: EmailTemplate[] = [
+  ...CRM_EMAIL_TEMPLATES,
+  ...SUPERMAIL_MINED_TEMPLATES,
 ];
 
 export function getEmailTemplateById(id: string): EmailTemplate | undefined {
   return EMAIL_TEMPLATES.find((t) => t.id === id);
+}
+
+export function getCrmEmailTemplates(): EmailTemplate[] {
+  return CRM_EMAIL_TEMPLATES;
+}
+
+export function getSupermailMinedTemplates(): EmailTemplate[] {
+  return SUPERMAIL_MINED_TEMPLATES;
+}
+
+export function getSupermailMinedAt(): string | null {
+  return SUPERMAIL_MINED_AT;
 }
 
 export function getYearEndTaxReceiptTemplate(): EmailTemplate {
@@ -152,6 +186,7 @@ export function getYearEndTaxReceiptTemplate(): EmailTemplate {
       name: 'Year-end tax receipt (USA)',
       subject: 'Your {{taxYear}} year-end charitable contribution statement',
       body: '',
+      source: 'crm',
     }
   );
 }

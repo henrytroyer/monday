@@ -19,6 +19,7 @@ Create or use a board (default name in sync script: `Contacts Test`). Required c
 | Files | file | Optional gallery; passport matched by filename |
 | QuickBooks Customer ID | text | Optional; speeds financial lookup |
 | Applications | board_relation | Links to Applications board items (one per term) |
+| link to Current Service Ended | board_relation | Links to completed/past volunteer terms on the Current Service Ended board |
 | Address, City, State, Zip, Country, Date of birth | text | Optional demographics |
 | Pastor Name, Pastor Email, Pastor Phone, Church Name | text / email / phone | Optional; shown on volunteer contact detail |
 | Pastor Reference | board_relation | Links to one or more pastor reference items on separate board (`link_to_pastors_reference7`); drill-down shows a picker when multiple are linked |
@@ -44,6 +45,10 @@ VITE_CONTACTS_BOARD_ID=your_contacts_board_id
 # VITE_CONTACT_COL_PASTOR_REFERENCE_LINK=Pastor Reference
 # VITE_CONTACT_COL_PASTOR_REFERENCE_LINK_ID=link_to_pastors_reference7
 # VITE_APPLICATIONS_BOARD_ID=...  # required for relationship graph
+# VITE_SERVICE_ENDED_BOARD_ID=5882671161
+# VITE_CONTACT_COL_SERVICE_ENDED_LINK_ID=board_relation0
+# VITE_CONTACT_COL_SERVICE_ENDED_LINK=link to Current Service Ended
+# VITE_CONTACT_COL_APPLICATIONS=Volunteer Service - Short Term
 ```
 
 Use `VITE_USE_MOCK_DATA=true` for offline UI development.
@@ -56,11 +61,28 @@ Use `VITE_USE_MOCK_DATA=true` for offline UI development.
 
 ## Service terms (volunteers)
 
-Each linked application item is one **term**. Click a term to open:
+Each linked application item is one **term**. Completed terms from the **Current Service Ended** board are merged into the same list (matched by contact link column, reverse Contact link, or email). When an ended item links to a Short Term application, the ended record replaces the duplicate application entry.
+
+Click a term to open:
 
 - Internal notes (term-scoped updates)
-- QuickBooks invoice (if linked on that application)
+- QuickBooks invoice (if linked on that application — active applications only)
 - Pastor reference and full application Q&A
+- For ended terms: term dates, files, and end-of-service form fields from the Current Service Ended board
+- **End of service review** from the Volunteer Feedback Form board, matched to the closest term by review completion date (item `created_at` unless `VITE_EOS_REVIEW_COL_COMPLETED_DATE` is set)
+
+### End of Service Review board
+
+Volunteer feedback / exit reviews live on a separate monday board (default: **Volunteer Feedback Form**). The CRM reads items linked to the contact (Contacts column) or matched by email, then attaches each review to the service term whose end date is closest to when the review was completed.
+
+```bash
+# VITE_EOS_REVIEW_BOARD_ID=4399458542
+# VITE_EOS_REVIEW_COL_CONTACT_LINK=Contacts
+# VITE_EOS_REVIEW_COL_CONTACT_LINK_ID=connect_boards4
+# VITE_EOS_REVIEW_COL_EMAIL=Email
+# Optional — e.g. VS Exit Survey board uses Date Volunteer left
+# VITE_EOS_REVIEW_COL_COMPLETED_DATE=Date Volunteer left
+```
 
 ## Donations & payments
 

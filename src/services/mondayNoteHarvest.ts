@@ -28,6 +28,7 @@ import {
   autoApproveContactItemNote,
   upsertReviewItems,
 } from './noteReviewStorage';
+import { mondayUpdateToNoteBody } from '../utils/formatMondayNoteBody';
 import { isTermNoteUpdate, stripHtml } from './termNotes';
 
 const BATCH_SIZE = 25;
@@ -128,13 +129,13 @@ export async function harvestMondayNotes(
           continue;
         }
 
-        const body = update.text_body ?? '';
-        if (!stripHtml(body)) {
+        const rawBody = update.text_body ?? '';
+        if (!stripHtml(rawBody)) {
           skipped += 1;
           continue;
         }
 
-        if (isSkippableCrmNote(body)) {
+        if (isSkippableCrmNote(rawBody)) {
           skipped += 1;
           continue;
         }
@@ -144,13 +145,15 @@ export async function harvestMondayNotes(
           continue;
         }
 
+        const noteBody = mondayUpdateToNoteBody(rawBody);
+
         const raw: RawMondayNote = {
           boardId,
           boardName,
           itemId: item.id,
           itemName: item.name,
           updateId: update.id,
-          body,
+          body: rawBody,
           createdAt: update.created_at,
           authorName: update.creator?.name ?? undefined,
         };
@@ -166,7 +169,8 @@ export async function harvestMondayNotes(
             boardName: raw.boardName,
             itemId: raw.itemId,
             itemName: raw.itemName,
-            body: stripHtml(body),
+            body: noteBody.body,
+            bodyHtml: noteBody.bodyHtml,
             createdAt: raw.createdAt,
             authorName: raw.authorName,
             sourceLabel: match.sourceLabel ?? raw.boardName,
@@ -183,7 +187,8 @@ export async function harvestMondayNotes(
           boardName,
           itemId: item.id,
           itemName: item.name,
-          body: stripHtml(body),
+          body: noteBody.body,
+          bodyHtml: noteBody.bodyHtml,
           createdAt: update.created_at,
           authorName: update.creator?.name ?? undefined,
           status: 'pending',

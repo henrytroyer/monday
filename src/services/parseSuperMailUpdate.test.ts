@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  extractSuperMailPayload,
   isSuperMailUpdate,
   mapSuperMailUpdateToEmailMessage,
 } from './parseSuperMailUpdate.ts';
@@ -11,6 +12,21 @@ describe('parseSuperMailUpdate', () => {
   it('detects SuperMail update logs', () => {
     assert.equal(isSuperMailUpdate(SAMPLE_SUPERMAIL), true);
     assert.equal(isSuperMailUpdate('Regular CRM note'), false);
+  });
+
+  it('extracts SuperMail payload from update html', () => {
+    const payload = extractSuperMailPayload(SAMPLE_SUPERMAIL, {
+      fallbackSentAt: '2026-02-16T11:01:41.000Z',
+      contactEmails: ['terrelseibel02@gmail.com'],
+      creatorEmail: 'info@i58global.org',
+    });
+
+    assert.ok(payload);
+    assert.equal(payload?.subject, 'i58Global Child Safeguarding');
+    assert.equal(payload?.direction, 'outbound');
+    assert.equal(payload?.senderEmail, 'info@i58global.org');
+    assert.equal(payload?.recipientEmail, 'terrelseibel02@gmail.com');
+    assert.match(payload?.body ?? '', /Hello Terrel/);
   });
 
   it('maps SuperMail update to email message', () => {

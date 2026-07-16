@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { VolunteerDetail } from '../../types/volunteer';
+import { formatDateOfBirth } from '../../utils/formatDateOfBirth';
 import {
   buildGoogleMapsUrl,
   formatContactAddress,
@@ -173,11 +174,13 @@ function SharedTab({
           {besideFiles}
         </div>
       ) : (
-        <VolunteerFilesSection
-          volunteerName={detail.name}
-          files={detail.files}
-          showOtherFiles
-        />
+        <div className="md:w-1/2">
+          <VolunteerFilesSection
+            volunteerName={detail.name}
+            files={detail.files}
+            showOtherFiles
+          />
+        </div>
       )}
     </div>
   );
@@ -260,8 +263,10 @@ function PersonTab({
           )}
         </Field>
         <Field label="Date of birth">
-          {dateOfBirth?.trim() ? (
-            <span className="font-medium text-crm-heading">{dateOfBirth}</span>
+          {formatDateOfBirth(dateOfBirth) ? (
+            <span className="font-medium text-crm-heading">
+              {formatDateOfBirth(dateOfBirth)}
+            </span>
           ) : (
             <span className="text-crm-slate">Not provided</span>
           )}
@@ -282,14 +287,16 @@ function PersonTab({
         </Field>
       </dl>
 
-      <VolunteerFilesSection
-        volunteerName={name}
-        profilePhotoUrl={profilePhotoUrl}
-        passportFile={passportFile}
-        childSafeguardingFile={childSafeguardingFile}
-        files={[]}
-        showOtherFiles={false}
-      />
+      <div className="md:w-1/2">
+        <VolunteerFilesSection
+          volunteerName={name}
+          profilePhotoUrl={profilePhotoUrl}
+          passportFile={passportFile}
+          childSafeguardingFile={childSafeguardingFile}
+          files={[]}
+          showOtherFiles={false}
+        />
+      </div>
     </div>
   );
 }

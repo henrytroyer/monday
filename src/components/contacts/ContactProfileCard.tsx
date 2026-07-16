@@ -3,6 +3,11 @@ import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { CONTACT_TAG_LABELS, CONTACT_TAGS, type ContactDetail } from '../../types/contact';
 import type { ContactCoreFields } from '../../services/contactStorage';
 import {
+  dateOfBirthToInputValue,
+  formatDateOfBirth,
+  normalizeDateOfBirth,
+} from '../../utils/formatDateOfBirth';
+import {
   buildGoogleMapsUrl,
   formatContactAddress,
 } from '../../utils/formatContactAddress';
@@ -48,7 +53,7 @@ export default function ContactProfileCard({
   );
   const [phone, setPhone] = useState(detail.phone ?? '');
   const [dateOfBirth, setDateOfBirth] = useState(
-    detail.demographics?.dateOfBirth ?? '',
+    dateOfBirthToInputValue(detail.demographics?.dateOfBirth),
   );
   const [addressStreet, setAddressStreet] = useState(
     detail.demographics?.address ?? '',
@@ -96,7 +101,7 @@ export default function ContactProfileCard({
     setName(detail.name);
     setEmail(detail.email === '—' ? '' : detail.email);
     setPhone(detail.phone ?? '');
-    setDateOfBirth(detail.demographics?.dateOfBirth ?? '');
+    setDateOfBirth(dateOfBirthToInputValue(detail.demographics?.dateOfBirth));
     setAddressStreet(detail.demographics?.address ?? '');
     setAddressCity(detail.demographics?.city ?? '');
     setAddressState(detail.demographics?.state ?? '');
@@ -123,7 +128,7 @@ export default function ContactProfileCard({
 
   const displayEmail = detail.email;
   const displayPhone = detail.phone;
-  const displayDateOfBirth = detail.demographics?.dateOfBirth?.trim() || null;
+  const displayDateOfBirth = formatDateOfBirth(detail.demographics?.dateOfBirth);
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -137,7 +142,9 @@ export default function ContactProfileCard({
         phone: phone.trim() || undefined,
         tags: [...tags],
         demographics: {
-          dateOfBirth: dateOfBirth.trim() || undefined,
+          dateOfBirth: dateOfBirth.trim()
+            ? normalizeDateOfBirth(dateOfBirth.trim())
+            : undefined,
           address: addressStreet.trim() || undefined,
           city: addressCity.trim() || undefined,
           state: addressState.trim() || undefined,
@@ -262,10 +269,9 @@ export default function ContactProfileCard({
             <Field label="Date of birth">
               {editing ? (
                 <input
-                  type="text"
+                  type="date"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  placeholder="e.g. March 15, 1998"
                   className={inputClass}
                 />
               ) : displayDateOfBirth ? (

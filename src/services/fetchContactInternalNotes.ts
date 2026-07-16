@@ -130,6 +130,7 @@ function approvedNotesToContactInternal(
   return getApprovedNotesForContact(contactId).map((link) => ({
     id: `approved-${link.noteKey}`,
     body: link.body,
+    bodyHtml: link.bodyHtml,
     createdAt: link.createdAt,
     authorName: link.authorName,
     source: link.sourceLabel.toLowerCase().includes('recruitment')

@@ -1,4 +1,5 @@
 import type { Volunteer } from '../types/volunteer';
+import { formatDisplayDateFromDate } from './formatDateOfBirth';
 import { resolveVolunteerTermDateRange } from './volunteerTerm';
 
 export type TermProgressPhase = 'upcoming' | 'active' | 'complete';
@@ -16,11 +17,7 @@ export interface TermProgressSnapshot {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function formatShortDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return formatDisplayDateFromDate(date);
 }
 
 function daysBetween(from: Date, to: Date): number {

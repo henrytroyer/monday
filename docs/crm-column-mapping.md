@@ -21,6 +21,8 @@ Edit [`src/config/columnMap.ts`](../src/config/columnMap.ts):
 | departureDate | Departure Date |
 | departureTime | Departure Time |
 | departureAirport | Departure Airport |
+| arrivalDepartureTimeline | Arrival/Departure Date (monday timeline column) |
+| preferredItineraryAirport | Preferred nearby airport for international departure/arrival |
 | arrival | Arrival (legacy fallback if itinerary empty) |
 | coordinator | Coordinator |
 | notes | Internal Notes |
@@ -132,6 +134,6 @@ Upload files to the **Files** column (and profile image to **Profile Photo**). T
 
 Examples: `Passport.pdf`, `Background-check.pdf`, `Child-safeguarding-certificate.pdf`.
 
-Other files in the column (itinerary, application form, pastor reference) appear under **Other documents** on the Applications detail and term drill-down views.
+Other files in the column (application form, pastor reference) appear under **Other documents** on the Applications detail and term drill-down views. Itinerary file attachments appear as a dedicated **Itinerary** row in the Files list.
 
 Background check uses a client-side coordinator password for prototype convenience; production deployments should use proper access control.
