@@ -1,0 +1,22 @@
+# After CRM changes land on main, rebuild Admin → Monday Project on i58finance.
+# Requires repo secret I58FINANCE_DISPATCH_TOKEN (PAT with access to henrytroyer/i58finance).
+
+name: Trigger i58finance Monday deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify i58finance to rebuild Monday CRM hosting
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.I58FINANCE_DISPATCH_TOKEN }}
+          repository: henrytroyer/i58finance
+          event-type: monday-crm-updated
+          client-payload: '{"monday_sha": "${{ github.sha }}", "monday_ref": "${{ github.ref }}"}'

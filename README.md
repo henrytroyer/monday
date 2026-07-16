@@ -7,6 +7,12 @@ React + TypeScript volunteer operations dashboard connected to live monday.com b
 `mondayApiProxy` (admin Firebase Auth + Secret Manager `MONDAY_API_TOKEN`). CRM source is
 mounted from this repo into `i58-receipts-v2` via the Vite `@monday` alias.
 
+**Auto-deploy:** pushing (or merging) to this repo’s `main` triggers
+`repository_dispatch` → i58finance workflow **Deploy Monday CRM (Hosting)**, which rebuilds
+Admin with the new CRM. One-time setup: add GitHub secret `I58FINANCE_DISPATCH_TOKEN` on
+**henrytroyer/monday** — a classic PAT (or fine-grained token) with access to
+`henrytroyer/i58finance` that can create `repository_dispatch` events (classic: `repo` scope).
+
 **New collaborator (local)?** Start here: **[COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md)**
 
 ## Quick start
