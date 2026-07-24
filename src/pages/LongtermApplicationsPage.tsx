@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ApplicationDetailPanel from '../components/applications/ApplicationDetailPanel';
 import PipelineSection from '../components/applications/PipelineSection';
-import { LONGTERM_STATUS_OPTIONS } from '../constants/longtermApplicationStatuses';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
-import {
-  initialLongtermVolunteers,
-  isLongtermStatus,
-} from '../data/mockLongtermApplications';
-import type { LongtermStatus } from '../constants/longtermApplicationStatuses';
+import { useLongtermApplicationsPipeline } from '../hooks/useLongtermApplicationsPipeline';
+import { isLongtermStatus } from '../data/mockLongtermApplications';
 import type { LongtermViewMode } from '../types/longtermVolunteer';
 import type { Volunteer } from '../types/volunteer';
 import {
@@ -19,15 +15,23 @@ import {
   countOnFieldVolunteers,
   countPipelineVolunteers,
   findLongtermVolunteer,
-  updateVolunteerStatus,
 } from '../utils/longtermApplications';
 
 export default function LongtermApplicationsPage() {
   const [viewMode, setViewMode] = useState<LongtermViewMode>('pipeline');
-  const [volunteers, setVolunteers] =
-    useState(initialLongtermVolunteers);
   const [selectedApplication, setSelectedApplication] =
     useState<Volunteer | null>(null);
+
+  const {
+    volunteers,
+    loading,
+    error,
+    isMock,
+    boardId,
+    statusOptions,
+    updateVolunteerStatus,
+    applicationsEditable,
+  } = useLongtermApplicationsPipeline();
 
   const { requestClose: requestCloseApplication } = useNavLayer(
     selectedApplication !== null,
@@ -51,17 +55,19 @@ export default function LongtermApplicationsPage() {
   const { setDetailMode } = useLayout();
 
   const handleStatusChange = useCallback(
-    (volunteerId: string, status: string) => {
+    async (volunteerId: string, status: string) => {
       if (!isLongtermStatus(status)) return;
 
-      setVolunteers((current) =>
-        updateVolunteerStatus(current, volunteerId, status as LongtermStatus),
-      );
-      setSelectedApplication((current) =>
-        current?.id === volunteerId ? { ...current, status } : current,
-      );
+      try {
+        await updateVolunteerStatus(volunteerId, status);
+        setSelectedApplication((current) =>
+          current?.id === volunteerId ? { ...current, status } : current,
+        );
+      } catch {
+        // hook restores previous list; keep UI quiet unless we add toast later
+      }
     },
-    [],
+    [updateVolunteerStatus],
   );
 
   useEffect(() => {
@@ -87,8 +93,12 @@ export default function LongtermApplicationsPage() {
                 : 'Volunteers currently on the field, grouped by deployment location.'}
             </p>
           )}
-          {!showingDetail && (
+          {!showingDetail && !loading && !error && (
             <p className="mt-2 text-xs text-crm-slate">
+              {isMock
+                ? 'Mock data mode'
+                : 'Live Volunteer Service - Long Term board'}
+              {' · '}
               {viewMode === 'pipeline'
                 ? `${pipelineCount} in pipeline · ${onFieldCount} on field · ${totalCount} total`
                 : `${onFieldCount} on field · ${totalCount} total`}
@@ -115,13 +125,25 @@ export default function LongtermApplicationsPage() {
         )}
       </div>
 
+      {loading && !showingDetail && (
+        <p className="text-sm text-crm-slate">Loading long-term applications…</p>
+      )}
+
+      {error && !showingDetail && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
       {showingDetail && selectedApplication && (
         <ApplicationDetailPanel
           volunteer={selectedApplication}
-          boardId={null}
+          boardId={boardId}
+          applicationBoard="long"
           onBack={requestCloseApplication}
           backLabel="← Back to long-term applications"
           quickActionsBeforeFiles
+          applicationsEditable={applicationsEditable}
         />
       )}
 
@@ -130,6 +152,7 @@ export default function LongtermApplicationsPage() {
           showingDetail ? ' hidden' : ''
         }`}
       >
+        {!loading && !error && (
           <div className="space-y-8 pb-4">
             {sections.map((section) => (
               <PipelineSection
@@ -139,12 +162,14 @@ export default function LongtermApplicationsPage() {
                   const match = findLongtermVolunteer(volunteers, volunteer.id);
                   setSelectedApplication(match ?? volunteer);
                 }}
-                statusOptions={LONGTERM_STATUS_OPTIONS}
+                statusOptions={statusOptions}
                 onStatusChange={handleStatusChange}
+                statusSelectDisabled={!applicationsEditable}
               />
             ))}
           </div>
-        </div>
+        )}
+      </div>
     </div>
   );
 }

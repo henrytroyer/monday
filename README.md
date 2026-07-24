@@ -42,7 +42,7 @@ Open **http://localhost:4040**
 
 - **Contacts** — master list with tags, donations, email threads, internal notes
 - **Short-term applications** — pipeline, filters, volunteer detail, onboarding progress
-- **Long-term applications** — pipeline and references (mock data until board wired)
+- **Long-term applications** — pipeline, on-field view, and references from Volunteer Service - Long Term board
 - **Recruitment** — prospect tracking with notes
 - **Email templates** — read-only catalog
 

@@ -1,5 +1,6 @@
 import type { ContactDemographics } from './contact';
-import type { VolunteerItinerary } from "./itinerary";
+import type { VolunteerItinerary } from './itinerary';
+import type { LongtermReferenceSlot } from './longtermReference';
 import type { MondayItemUpdateRaw } from '../services/termNotes';
 
 export interface SignupTimeline {
@@ -195,6 +196,8 @@ export interface VolunteerDetail extends Volunteer {
   itemCreatedAt?: string;
   applicationFormFields: ApplicationFormField[];
   pastorReferenceFormFields: ApplicationFormField[];
+  /** Populated for long-term application detail from Monday reference columns */
+  longtermReferenceSlots?: LongtermReferenceSlot[];
 }
 
 export interface PipelineSection {

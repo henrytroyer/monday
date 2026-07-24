@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { LONGTERM_REFERENCE_TYPE_LABELS } from '../../constants/longtermReferenceSlots';
 import { buildLongtermReferenceSlots } from '../../data/mockLongtermReferences';
-import { useApplicationDetail } from '../../hooks/useApplicationDetail';
+import { useApplicationDetail, type ApplicationBoardKind } from '../../hooks/useApplicationDetail';
 import { openItem } from '../../utils/mondayHelpers';
 import { savePipeline } from '../../services/onboardingPipelineStorage';
 import type { OnboardingPipeline, Volunteer, VolunteerDetail } from '../../types/volunteer';
@@ -45,6 +45,7 @@ type DrillDownView = 'application' | 'pastor' | null;
 interface ApplicationDetailPanelProps {
   volunteer: Volunteer;
   boardId: string | null;
+  applicationBoard?: ApplicationBoardKind;
   onBack: () => void;
   backLabel?: string;
   quickActionsBeforeFiles?: boolean;
@@ -54,19 +55,23 @@ interface ApplicationDetailPanelProps {
 export default function ApplicationDetailPanel({
   volunteer,
   boardId,
+  applicationBoard = 'short',
   onBack,
   backLabel = '← Back to short-term applications',
   quickActionsBeforeFiles = false,
   applicationsEditable = false,
 }: ApplicationDetailPanelProps) {
-  const { detail, loading, error, refetch } = useApplicationDetail(volunteer);
-  const referenceSlots = useMemo(
-    () =>
-      quickActionsBeforeFiles
-        ? buildLongtermReferenceSlots(volunteer.id)
-        : [],
-    [quickActionsBeforeFiles, volunteer.id],
+  const { detail, loading, error, refetch } = useApplicationDetail(
+    volunteer,
+    applicationBoard,
   );
+  const referenceSlots = useMemo(() => {
+    if (!quickActionsBeforeFiles) return [];
+    if (detail?.longtermReferenceSlots?.length) {
+      return detail.longtermReferenceSlots;
+    }
+    return buildLongtermReferenceSlots(volunteer.id);
+  }, [quickActionsBeforeFiles, detail?.longtermReferenceSlots, volunteer.id]);
   const [sendEmailOpen, setSendEmailOpen] = useState(false);
   const [referenceReminderSlot, setReferenceReminderSlot] = useState<
     number | null

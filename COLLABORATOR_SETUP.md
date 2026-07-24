@@ -33,6 +33,7 @@ VITE_CONTACTS_WRITABLE=true
 VITE_APPLICATION_NOTES_WRITABLE=true
 VITE_CONTACTS_BOARD_ID=2463183745
 VITE_APPLICATIONS_BOARD_ID=2473000031
+VITE_LONGTERM_APPLICATIONS_BOARD_ID=2927925742
 VITE_DONATIONS_BOARD_ID=2473175689
 VITE_MONDAY_API_PROXY_URL=/api/monday
 MONDAY_API_TOKEN=your_token_here
@@ -66,7 +67,7 @@ Each developer should use **their own token**. Do not share tokens in GitHub, Sl
 |--------------|-------------|
 | **Contacts** | Live Contacts board (`2463183745`) |
 | **Short-term applications** | Live Applications board (`2473000031`) |
-| **Long-term applications** | Mock data (until wired to a board) |
+| **Long-term applications** | Live Volunteer Service - Long Term board (`2927925742`) |
 | **Recruitment** | Local storage + demo seed |
 | **Email templates** | Read-only catalog |
 

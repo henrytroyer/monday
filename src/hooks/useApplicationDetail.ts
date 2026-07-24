@@ -7,7 +7,7 @@ import {
   MOCK_PASTOR_REFERENCE_FORM_FIELDS_RACHEL,
 } from '../data/mockApplicationForm';
 import { buildMockVolunteerDemographics } from '../data/mockVolunteerContactProfile';
-import { fetchApplicationDetail } from '../services/crmApi';
+import { fetchApplicationDetail, fetchLongtermApplicationDetail } from '../services/crmApi';
 import type { VolunteerItinerary } from '../types/itinerary';
 import { emptyItinerary, itineraryHasData } from '../types/itinerary';
 import type { Volunteer, VolunteerDetail, VolunteerFile } from '../types/volunteer';
@@ -313,6 +313,12 @@ export function buildMockVolunteerDetail(volunteer: Volunteer): VolunteerDetail 
   });
 }
 
+export type ApplicationBoardKind = 'short' | 'long';
+
+function isMockApplicationId(id: string): boolean {
+  return id.startsWith('mock-') || id.startsWith('longterm-mock-');
+}
+
 interface UseApplicationDetailReturn {
   detail: VolunteerDetail | null;
   loading: boolean;
@@ -322,6 +328,7 @@ interface UseApplicationDetailReturn {
 
 export function useApplicationDetail(
   volunteer: Volunteer | null,
+  applicationBoard: ApplicationBoardKind = 'short',
 ): UseApplicationDetailReturn {
   const [detail, setDetail] = useState<VolunteerDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -340,7 +347,7 @@ export function useApplicationDetail(
       return;
     }
 
-    if (isMock || selected.id.startsWith('mock-')) {
+    if (isMock || isMockApplicationId(selected.id)) {
       setDetail(buildMockVolunteerDetail(selected));
       setLoading(false);
       setError(null);
@@ -349,13 +356,17 @@ export function useApplicationDetail(
 
     const itemId = selected.id;
     const fallback = selected;
+    const fetchDetail =
+      applicationBoard === 'long'
+        ? fetchLongtermApplicationDetail
+        : fetchApplicationDetail;
     let cancelled = false;
 
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchApplicationDetail(itemId);
+        const data = await fetchDetail(itemId);
         if (!cancelled) {
           setDetail(data);
           setLoading(false);
@@ -376,7 +387,7 @@ export function useApplicationDetail(
     return () => {
       cancelled = true;
     };
-  }, [volunteer, isMock, reloadKey]);
+  }, [volunteer, isMock, applicationBoard, reloadKey]);
 
   return { detail, loading, error, refetch };
 }

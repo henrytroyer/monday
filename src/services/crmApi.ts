@@ -9,6 +9,7 @@ import {
 } from './contactInternalNotes';
 import type { ContactInternalNoteTarget } from '../types/contact';
 import { columnMap } from '../config/columnMap';
+import { longtermColumnMap } from '../config/longtermColumnMap';
 import { contactMap } from '../config/contactMap';
 import { donationMap } from '../config/donationMap';
 import type { ContactListItem, ContactTag } from '../types/contact';
@@ -56,6 +57,12 @@ import {
   parseLocationOptionsFromColumn,
   resolveLocationPreferenceColumn,
 } from './applicationLocationOptions';
+import {
+  mapBoardToLongtermVolunteers,
+  mapItemToLongtermVolunteerDetail,
+  buildLongtermStatusOptionsFromGroups,
+} from './mapMondayToLongterm';
+import type { LongtermVolunteer } from '../types/longtermVolunteer';
 
 export { parseColumnLabelsFromSettings } from './applicationLocationOptions';
 
@@ -612,6 +619,98 @@ export async function fetchEndOfServiceReviewDetail(
   }
 
   return mapEndOfServiceReviewItem(item);
+}
+
+export async function fetchLongtermApplicationsBoardItems(
+  boardId: string,
+): Promise<MondayBoardItem[]> {
+  return fetchApplicationsBoardItems(boardId);
+}
+
+export async function fetchLongtermApplications(
+  boardId: string,
+): Promise<LongtermVolunteer[]> {
+  const items = await fetchLongtermApplicationsBoardItems(boardId);
+  if (items.length === 0) {
+    const meta = await api<{ boards: Array<{ id: string; name: string }> }>(
+      queries.getBoard,
+      { boardId: [boardId] },
+    );
+    if (!meta.boards?.[0]) {
+      throw new Error(
+        `Long-term applications board ${boardId} not found or not accessible`,
+      );
+    }
+  }
+  return mapBoardToLongtermVolunteers(items);
+}
+
+export async function fetchLongtermApplicationDetail(
+  itemId: string,
+): Promise<VolunteerDetail> {
+  const data = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
+    itemId: [itemId],
+  });
+
+  const item = data.items?.[0];
+  if (!item) {
+    throw new Error(`Long-term application item ${itemId} not found`);
+  }
+
+  return mapItemToLongtermVolunteerDetail(item);
+}
+
+export async function fetchLongtermStatusOptions(
+  boardId: string,
+): Promise<string[]> {
+  try {
+    const data = await api<{
+      boards: Array<{
+        columns: Array<{ id: string; title: string; type: string; settings_str?: string }>;
+      }>;
+    }>(queries.getBoardColumns, { boardId: [boardId] });
+
+    const columns = data.boards?.[0]?.columns ?? [];
+    const target = normalizeColumnTitle(longtermColumnMap.status);
+    const statusColumn = columns.find(
+      (column) => normalizeColumnTitle(column.title) === target,
+    );
+
+    if (statusColumn?.settings_str) {
+      const labels = parseColumnLabelsFromSettings(statusColumn.settings_str);
+      if (labels.length > 0) return labels;
+    }
+  } catch {
+    // fall through to group-derived defaults
+  }
+
+  return buildLongtermStatusOptionsFromGroups();
+}
+
+export async function updateLongtermApplicationStatus(
+  boardId: string,
+  itemId: string,
+  statusLabel: string,
+): Promise<void> {
+  assertApplicationsWritable('update long-term application status');
+  const columns = await fetchBoardColumns(boardId);
+  const target = normalizeColumnTitle(longtermColumnMap.status);
+  const column = columns.find(
+    (c) => normalizeColumnTitle(c.title) === target,
+  );
+
+  if (!column) {
+    throw new Error(
+      `Column "${longtermColumnMap.status}" not found on long-term board. Add it or set VITE_LONGTERM_COL_STATUS.`,
+    );
+  }
+
+  await api(mutations.updateColumnValue, {
+    boardId,
+    itemId,
+    columnId: column.id,
+    value: formatColumnValue(statusLabel.trim(), column.type),
+  });
 }
 
 export async function addTermNote(

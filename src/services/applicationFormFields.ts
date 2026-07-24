@@ -1,5 +1,6 @@
 import { columnMap } from '../config/columnMap';
 import { endOfServiceReviewColumnMap } from '../config/endOfServiceReviewColumnMap';
+import { longtermColumnMap } from '../config/longtermColumnMap';
 import { serviceEndedColumnMap } from '../config/serviceEndedColumnMap';
 import type { ApplicationFormField } from '../types/volunteer';
 import type { MondayColumnValue } from './mapMondayToCrm';
@@ -28,6 +29,10 @@ const EOS_REVIEW_EXCLUDED_TITLES = new Set(
   Object.values(endOfServiceReviewColumnMap).map((title) =>
     normalizeTitle(title),
   ),
+);
+
+const LONGTERM_EXCLUDED_TITLES = new Set(
+  Object.values(longtermColumnMap).map((title) => normalizeTitle(title)),
 );
 
 /** Onboarding status column — not pastor reference form Q&A */
@@ -62,6 +67,10 @@ function isServiceEndedCrmColumn(title: string): boolean {
 
 function isEndOfServiceReviewCrmColumn(title: string): boolean {
   return EOS_REVIEW_EXCLUDED_TITLES.has(normalizeTitle(title));
+}
+
+function isLongtermCrmColumn(title: string): boolean {
+  return LONGTERM_EXCLUDED_TITLES.has(normalizeTitle(title));
 }
 
 function isSkippedType(type: string): boolean {
@@ -203,6 +212,25 @@ export function buildEndOfServiceReviewFormFields(
     columnValues,
     (_col, title) => !isEndOfServiceReviewCrmColumn(title),
   );
+}
+
+export function buildLongtermApplicationFormFields(
+  columnValues: MondayColumnValue[],
+): ApplicationFormField[] {
+  return buildFields(
+    columnValues,
+    (_col, title) => !isLongtermCrmColumn(title),
+  );
+}
+
+export function buildLongtermPastorReferenceFormFields(
+  columnValues: MondayColumnValue[],
+): ApplicationFormField[] {
+  return buildFields(columnValues, (_col, title) => {
+    const normalized = normalizeTitle(title);
+    if (isLongtermCrmColumn(title)) return false;
+    return normalized.includes('pastor') || normalized.includes('reference');
+  });
 }
 
 /**
