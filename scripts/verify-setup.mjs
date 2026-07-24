@@ -95,6 +95,17 @@ if (!env.VITE_APPLICATIONS_BOARD_ID?.trim()) {
   warn('VITE_APPLICATIONS_BOARD_ID not set — Applications page may be empty');
 }
 
+if (!env.VITE_LONGTERM_APPLICATIONS_BOARD_ID?.trim()) {
+  warn(
+    'VITE_LONGTERM_APPLICATIONS_BOARD_ID not set — Long-term applications page may be empty',
+  );
+}
+
+console.log('');
+console.log(
+  'Production (i58-finance.web.app): board ids must also be set in henrytroyer/i58finance deploy workflows.',
+);
+
 const proxyUp = await checkProxy(4042);
 if (proxyUp) {
   pass('Monday proxy reachable on port 4042');

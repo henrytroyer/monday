@@ -13,6 +13,14 @@ Admin with the new CRM. One-time setup: add GitHub secret `I58FINANCE_DISPATCH_T
 **henrytroyer/monday** — a classic PAT (or fine-grained token) with access to
 `henrytroyer/i58finance` that can create `repository_dispatch` events (classic: `repo` scope).
 
+**Production env vars:** Vite bakes `VITE_*` values at build time. Local `.env` is not used on
+`i58-finance.web.app`. When you add a new board id or column override here, also add it to
+**henrytroyer/i58finance** workflows
+[`.github/workflows/deploy-monday-crm.yml`](https://github.com/henrytroyer/i58finance/blob/main/.github/workflows/deploy-monday-crm.yml)
+and
+[`.github/workflows/deploy-prod.yml`](https://github.com/henrytroyer/i58finance/blob/main/.github/workflows/deploy-prod.yml)
+under the **Create environment file** step, then redeploy hosting.
+
 **New collaborator (local)?** Start here: **[COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md)**
 
 ## Quick start
