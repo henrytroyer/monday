@@ -7,6 +7,7 @@ import {
   resolvePassportFile,
 } from './mondayFileColumns';
 import type { MondayColumnValue } from './mapMondayToCrm';
+import { readMondayDateColumnText, normalizeDateOfBirth } from '../utils/formatDateOfBirth';
 
 function normalizeTitle(title: string): string {
   return title.trim().toLowerCase();
@@ -80,7 +81,10 @@ export function buildCoupleApplication(
     name: spouseName,
     email: getColumnText(columnValues, 'spouseEmail') || undefined,
     phone: getColumnText(columnValues, 'spousePhone') || undefined,
-    dateOfBirth: getColumnText(columnValues, 'spouseBirthday') || undefined,
+    dateOfBirth:
+      normalizeDateOfBirth(
+        readMondayDateColumnText(findColumn(columnValues, 'spouseBirthday')),
+      ) || undefined,
     gender: getColumnText(columnValues, 'spouseGender') || undefined,
     profilePhotoUrl: getSpouseProfilePhotoUrl(columnValues),
     passportFile: getSpousePassportFile(columnValues),

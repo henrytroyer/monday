@@ -2,8 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { applicationPipeline } from '../../data/mockApplications';
 import { useApplicationDetail } from '../../hooks/useApplicationDetail';
-import { isRecruitmentServiceTerm } from '../../services/contactServiceRecordStorage';
+import { useServiceEndedDetail } from '../../hooks/useServiceEndedDetail';
+import {
+  isRecruitmentServiceTerm,
+  isServiceEndedTerm,
+} from '../../services/contactServiceRecordStorage';
 import type { VolunteerTerm } from '../../types/volunteer';
+import { formatDisplayDate } from '../../utils/formatDateOfBirth';
 import FormFieldsPanel from '../applications/FormFieldsPanel';
 import InvoiceDetailModal from '../applications/InvoiceDetailModal';
 import TermNotesChat from '../applications/TermNotesChat';
@@ -12,6 +17,7 @@ import VolunteerFilesSection from '../applications/VolunteerFilesSection';
 import OverlayBackButton from '../layout/OverlayBackButton';
 import RecruitmentServiceRecordPanel from './RecruitmentServiceRecordPanel';
 import ServiceRecordEmailCorrespondence from './ServiceRecordEmailCorrespondence';
+import EndOfServiceReviewSection from './EndOfServiceReviewSection';
 
 interface TermDetailPanelProps {
   term: VolunteerTerm;
@@ -27,8 +33,9 @@ export default function TermDetailPanel({
   onGoToRecruitment,
 }: TermDetailPanelProps) {
   const isRecruitmentRecord = isRecruitmentServiceTerm(term);
+  const isEndedRecord = isServiceEndedTerm(term);
   const volunteer = useMemo(() => {
-    if (isRecruitmentRecord) return null;
+    if (isRecruitmentRecord || isEndedRecord) return null;
     return (
       applicationPipeline
         .flatMap((stage) => stage.volunteers)
@@ -41,13 +48,21 @@ export default function TermDetailPanel({
         timelineId: term.timelineId,
       }
     );
-  }, [isRecruitmentRecord, term, volunteerName]);
+  }, [isRecruitmentRecord, isEndedRecord, term, volunteerName]);
   const { detail: application, loading: appLoading } =
     useApplicationDetail(volunteer);
-  const loading = isRecruitmentRecord ? false : appLoading;
-  const [formOpen, setFormOpen] = useState<'application' | 'pastor' | null>(
-    null,
+  const { detail: endedDetail, loading: endedLoading } = useServiceEndedDetail(
+    isEndedRecord ? term.itemId : null,
   );
+  const recordDetail = isEndedRecord ? endedDetail : application;
+  const loading = isRecruitmentRecord
+    ? false
+    : isEndedRecord
+      ? endedLoading
+      : appLoading;
+  const [formOpen, setFormOpen] = useState<
+    'application' | 'pastor' | 'review' | null
+  >(null);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
 
   const { requestClose: requestCloseForm } = useNavLayer(
@@ -90,7 +105,9 @@ export default function TermDetailPanel({
               {volunteerName} ·{' '}
               {isRecruitmentRecord
                 ? 'Service record'
-                : (term.pipelineStage ?? 'Application')}
+                : isEndedRecord
+                  ? 'Service ended'
+                  : (term.pipelineStage ?? 'Application')}
             </p>
           </div>
         </div>
@@ -114,7 +131,7 @@ export default function TermDetailPanel({
             </div>
           )}
 
-          {!loading && !isRecruitmentRecord && application && (
+          {!loading && !isRecruitmentRecord && recordDetail && (
             <div className="space-y-6">
               <section className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-4">
                 <h3 className="text-sm font-semibold text-crm-heading">Summary</h3>
@@ -127,21 +144,51 @@ export default function TermDetailPanel({
                     <dt className="text-crm-slate">Pipeline</dt>
                     <dd className="font-medium">{term.pipelineStage ?? '—'}</dd>
                   </div>
-                  <div>
-                    <dt className="text-crm-slate">Pastor reference</dt>
-                    <dd className="font-medium">
-                      {term.pastorReferenceStatus ?? '—'}
-                    </dd>
-                  </div>
+                  {term.termStart && (
+                    <div>
+                      <dt className="text-crm-slate">Term start</dt>
+                      <dd className="font-medium">
+                        {formatDisplayDate(term.termStart) ?? term.termStart}
+                      </dd>
+                    </div>
+                  )}
+                  {term.termEnd && (
+                    <div>
+                      <dt className="text-crm-slate">Term end</dt>
+                      <dd className="font-medium">
+                        {formatDisplayDate(term.termEnd) ?? term.termEnd}
+                      </dd>
+                    </div>
+                  )}
+                  {!isEndedRecord && (
+                    <div>
+                      <dt className="text-crm-slate">Pastor reference</dt>
+                      <dd className="font-medium">
+                        {term.pastorReferenceStatus ?? '—'}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               </section>
 
               <VolunteerFilesSection
                 volunteerName={volunteerName}
-                profilePhotoUrl={application.profilePhotoUrl}
-                files={application.files}
+                profilePhotoUrl={recordDetail.profilePhotoUrl}
+                passportFile={recordDetail.passportFile}
+                childSafeguardingFile={recordDetail.childSafeguardingFile}
+                files={recordDetail.files}
                 showOtherFiles
                 variant="panel"
+              />
+
+              <EndOfServiceReviewSection
+                completedAt={term.endOfServiceReview?.completedAt}
+                fields={term.endOfServiceReview?.fields}
+                onViewAll={
+                  term.endOfServiceReview?.fields?.length
+                    ? () => setFormOpen('review')
+                    : undefined
+                }
               />
 
               <section>
@@ -152,7 +199,7 @@ export default function TermDetailPanel({
                   <TermNotesChat
                     itemId={term.itemId}
                     timelineId={term.timelineId}
-                    initialNotes={application.termNotes}
+                    initialNotes={recordDetail.termNotes}
                   />
                 </div>
               </section>
@@ -164,30 +211,32 @@ export default function TermDetailPanel({
                     timelineId={term.timelineId}
                     timelineLabel={term.timelineLabel}
                     contactName={volunteerName}
-                    contactEmail={application.email}
-                    contactEmails={application.emails.map((e) => e.address)}
+                    contactEmail={recordDetail.email}
+                    contactEmails={recordDetail.emails.map((e) => e.address)}
                   />
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-crm-taupe/20 p-4">
-                <h3 className="text-sm font-semibold text-crm-heading">
-                  QuickBooks invoice
-                </h3>
-                {term.quickbooksInvoiceId ? (
-                  <button
-                    type="button"
-                    onClick={() => setInvoiceOpen(true)}
-                    className="mt-3 rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
-                  >
-                    View invoice
-                  </button>
-                ) : (
-                  <p className="mt-2 text-sm text-crm-slate">
-                    No invoice linked for this service record.
-                  </p>
-                )}
-              </section>
+              {!isEndedRecord && (
+                <section className="rounded-2xl border border-crm-taupe/20 p-4">
+                  <h3 className="text-sm font-semibold text-crm-heading">
+                    QuickBooks invoice
+                  </h3>
+                  {term.quickbooksInvoiceId ? (
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceOpen(true)}
+                      className="mt-3 rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
+                    >
+                      View invoice
+                    </button>
+                  ) : (
+                    <p className="mt-2 text-sm text-crm-slate">
+                      No invoice linked for this service record.
+                    </p>
+                  )}
+                </section>
+              )}
 
               <section className="rounded-2xl border border-crm-taupe/20 p-4">
                 <h3 className="text-sm font-semibold text-crm-heading">
@@ -215,18 +264,22 @@ export default function TermDetailPanel({
         </div>
       </div>
 
-      {formOpen && application && (
+      {formOpen && (recordDetail || formOpen === 'review') && (
         <FormFieldsPanel
           title={
             formOpen === 'pastor'
               ? `Pastor reference — ${volunteerName}`
-              : `Full application — ${volunteerName}`
+              : formOpen === 'review'
+                ? `End of service review — ${volunteerName}`
+                : `Full application — ${volunteerName}`
           }
           backLabel={term.timelineLabel}
           fields={
             formOpen === 'pastor'
-              ? application.pastorReferenceFormFields
-              : application.applicationFormFields
+              ? recordDetail?.pastorReferenceFormFields ?? []
+              : formOpen === 'review'
+                ? term.endOfServiceReview?.fields ?? []
+                : recordDetail?.applicationFormFields ?? []
           }
           emptyMessage="No fields available."
           onClose={requestCloseForm}

@@ -1,4 +1,5 @@
 import type { MondayContext } from '../types/monday';
+import { getMondayProxyBaseOverride } from '../services/mondayProxyAuth';
 
 export function useMockData(): boolean {
   return import.meta.env.VITE_USE_MOCK_DATA === 'true';
@@ -30,7 +31,10 @@ export function canAddApplicationNotes(): boolean {
 }
 
 export function useMondayApiProxy(): boolean {
-  return Boolean(import.meta.env.VITE_MONDAY_API_PROXY_URL?.trim());
+  return Boolean(
+    getMondayProxyBaseOverride() ||
+      import.meta.env.VITE_MONDAY_API_PROXY_URL?.trim(),
+  );
 }
 
 export function hasStandaloneBoardConfig(): boolean {
@@ -102,6 +106,28 @@ export function resolveDonationsBoardId(
   return null;
 }
 
+export function resolveServiceEndedBoardId(
+  _context: MondayContext | null = null,
+): string | null {
+  if (useMockData()) return null;
+
+  const envBoardId = import.meta.env.VITE_SERVICE_ENDED_BOARD_ID;
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+
+  return null;
+}
+
+export function resolveEndOfServiceReviewBoardId(
+  _context: MondayContext | null = null,
+): string | null {
+  if (useMockData()) return null;
+
+  const envBoardId = import.meta.env.VITE_EOS_REVIEW_BOARD_ID;
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+
+  return null;
+}
+
 export function resolveLongtermApplicationsBoardId(
   _context: MondayContext | null = null,
 ): string | null {
@@ -138,7 +164,7 @@ export function canEditEmailTemplates(): boolean {
   return !isMondayReadOnly();
 }
 
-/** Reference sent/review writes while applications board stays read-only. */
+/** Reference sent/review writes while applications board stay read-only. */
 export function canEditLongtermReferences(): boolean {
   if (useMockData()) return true;
   if (import.meta.env.VITE_LONGTERM_REFERENCES_WRITABLE === 'true') return true;
@@ -165,11 +191,15 @@ export function resolveMonitoredBoardIds(): string[] {
   const contactsId = import.meta.env.VITE_CONTACTS_BOARD_ID;
   const applicationsId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
   const donationsId = import.meta.env.VITE_DONATIONS_BOARD_ID;
+  const serviceEndedId = import.meta.env.VITE_SERVICE_ENDED_BOARD_ID;
+  const eosReviewId = import.meta.env.VITE_EOS_REVIEW_BOARD_ID;
   const longtermAppsId = import.meta.env.VITE_LONGTERM_APPLICATIONS_BOARD_ID;
   const longtermRefsId = import.meta.env.VITE_LONGTERM_REFERENCES_BOARD_ID;
   if (contactsId) ids.push(String(contactsId));
   if (applicationsId) ids.push(String(applicationsId));
   if (donationsId) ids.push(String(donationsId));
+  if (serviceEndedId) ids.push(String(serviceEndedId));
+  if (eosReviewId) ids.push(String(eosReviewId));
   if (longtermAppsId) ids.push(String(longtermAppsId));
   if (longtermRefsId) ids.push(String(longtermRefsId));
   return [...new Set(ids)];

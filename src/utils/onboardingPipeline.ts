@@ -123,9 +123,11 @@ export function deriveStepHints(
         break;
       case 'child_safeguarding':
         if (slots.childSafeguarding || detail.childSafeguardingFile) {
+          const receivedDate =
+            detail.childSafeguardingReceivedDate ?? addDays(appDate, 14);
           step.status = 'received';
-          step.waitingDate = addDays(appDate, 10);
-          step.receivedDate = addDays(appDate, 14);
+          step.waitingDate = step.waitingDate ?? addDays(appDate, 10);
+          step.receivedDate = receivedDate;
         }
         break;
       case 'invoice':
@@ -160,17 +162,54 @@ export function deriveStepHints(
   return pipeline;
 }
 
+function syncSafeguardingStepFromDetail(
+  pipeline: OnboardingPipeline,
+  detail: VolunteerDetail,
+): OnboardingPipeline {
+  const slots = resolveVolunteerFileSlots(detail.profilePhotoUrl, detail.files);
+  const hasCertificate = Boolean(
+    slots.childSafeguarding || detail.childSafeguardingFile,
+  );
+  if (!hasCertificate) return pipeline;
+
+  const receivedDate = detail.childSafeguardingReceivedDate ?? todayIso();
+  let changed = false;
+
+  const steps = pipeline.steps.map((step) => {
+    if (step.stepId !== 'child_safeguarding') return step;
+    if (step.status === 'received' && step.receivedDate === receivedDate) {
+      return step;
+    }
+    changed = true;
+    return {
+      ...step,
+      status: 'received' as OnboardingStepStatus,
+      receivedDate,
+      waitingDate: step.waitingDate ?? receivedDate,
+    };
+  });
+
+  return changed ? { ...pipeline, steps } : pipeline;
+}
+
 export function mergePipelineWithStorage(
   volunteer: Volunteer,
   detail: VolunteerDetail,
 ): OnboardingPipeline {
   const stored = loadPipeline(volunteer.id);
-  if (stored && stored.steps.length === ONBOARDING_PIPELINE_STEPS.length) {
-    return stored;
+  const base =
+    stored && stored.steps.length === ONBOARDING_PIPELINE_STEPS.length
+      ? stored
+      : deriveStepHints(volunteer, detail);
+
+  const synced = syncSafeguardingStepFromDetail(base, detail);
+  if (synced !== base) {
+    savePipeline(synced);
+  } else if (!stored || stored.steps.length !== ONBOARDING_PIPELINE_STEPS.length) {
+    savePipeline(synced);
   }
-  const hinted = deriveStepHints(volunteer, detail);
-  savePipeline(hinted);
-  return hinted;
+
+  return synced;
 }
 
 export function isStepDone(

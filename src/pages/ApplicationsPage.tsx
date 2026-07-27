@@ -13,7 +13,6 @@ import type { ApplicationFilterState, Volunteer } from '../types/volunteer';
 import {
   collectPipelineItemIds,
   countMatchingVolunteers,
-  deriveLocationOptions,
   deriveTimelineOptions,
   emptyFilters,
   filterPipeline,
@@ -61,6 +60,7 @@ export default function ApplicationsPage({
     isMock,
     boardId,
     statusOptions,
+    locationOptions,
     refetch,
     updateVolunteerStatus,
     applicationsEditable,
@@ -102,11 +102,6 @@ export default function ApplicationsPage({
 
   const timelineOptions = useMemo(
     () => deriveTimelineOptions(pipeline),
-    [pipeline],
-  );
-
-  const locationOptions = useMemo(
-    () => deriveLocationOptions(pipeline),
     [pipeline],
   );
 

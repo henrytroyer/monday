@@ -1,5 +1,13 @@
 import type { PipelineSection, Volunteer, CouplePreview } from '../types/volunteer';
+import type { VolunteerItinerary } from '../types/itinerary';
 import { mockProfilePhotoUrl } from '../utils/mockProfilePhoto';
+
+function mockItinerary(
+  arrival: VolunteerItinerary['arrival'],
+  departure: VolunteerItinerary['departure'],
+): VolunteerItinerary {
+  return { arrival, departure };
+}
 
 function v(seed: VolunteerSeed): Volunteer {
   const { photoSeed, couplePreview, ...rest } = seed;
@@ -217,6 +225,10 @@ const STAGE_VOLUNTEERS: Record<string, VolunteerSeed[]> = {
       status: 'Awaiting Arrival',
       timelineId: 'summer-2026-a',
       photoSeed: 'aiden',
+      itinerary: mockItinerary(
+        { date: 'June 8, 2026', time: '2:30 PM', airport: 'ATH' },
+        { date: 'July 19, 2026', time: '10:15 AM', airport: 'ATH' },
+      ),
     },
     {
       id: 'mock-22',
@@ -245,6 +257,10 @@ const STAGE_VOLUNTEERS: Record<string, VolunteerSeed[]> = {
       location: 'Germany',
       status: 'Active',
       timelineId: 'summer-2026-b',
+      itinerary: mockItinerary(
+        { date: 'July 20, 2026', time: '4:05 PM', airport: 'MUC' },
+        { date: 'August 30, 2026', time: '11:40 AM', airport: 'MUC' },
+      ),
     },
     {
       id: 'mock-24',
@@ -254,6 +270,10 @@ const STAGE_VOLUNTEERS: Record<string, VolunteerSeed[]> = {
       status: 'Active',
       timelineId: 'summer-2026-a',
       photoSeed: 'lily',
+      itinerary: mockItinerary(
+        { date: 'June 8, 2026', time: '1:10 PM', airport: 'ATH' },
+        { date: 'July 19, 2026', time: '9:20 AM', airport: 'ATH' },
+      ),
     },
     {
       id: 'mock-25',

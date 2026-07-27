@@ -1,0 +1,27 @@
+---
+description: Canonical repo — all CRM git and dev work happens here
+alwaysApply: true
+---
+
+# Volunteer CRM — canonical repository
+
+This folder is the **only** maintained Volunteer CRM codebase.
+
+- **Git remote:** https://github.com/henrytroyer/monday.git
+- **Local path:** `/Users/lesvoscoordinator/Documents/Monday/monday`
+- **Local dev:** `npm run dev:live` → http://localhost:4040
+- **Production:** https://i58-finance.web.app/admin?tab=monday-project (deploys from this repo via i58finance)
+
+## Git workflow
+
+Always run `git pull`, `git commit`, and `git push` **in this repo** (`henrytroyer/monday`).
+
+Do **not** use `henrytroyer/crm-prototype` — it is archived.
+
+## Production env vars
+
+Code changes land here; production `VITE_*` board ids are baked in **henrytroyer/i58finance** deploy workflows. When adding a new env var, update both this repo's `.env.example` and i58finance `.github/workflows/deploy-monday-crm.yml` + `deploy-prod.yml`.
+
+## Setup reference
+
+See [COLLABORATOR_SETUP.md](../../COLLABORATOR_SETUP.md).

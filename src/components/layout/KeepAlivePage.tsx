@@ -20,7 +20,14 @@ export default function KeepAlivePage({
     <div
       hidden={!active}
       aria-hidden={!active}
-      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      // Prefer the `hidden` utility over the HTML attribute alone: with
+      // Tailwind `important`, `flex!important` would otherwise override the
+      // UA `[hidden] { display: none }` rule and stack every page.
+      className={
+        active
+          ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+          : 'hidden'
+      }
     >
       {children}
     </div>

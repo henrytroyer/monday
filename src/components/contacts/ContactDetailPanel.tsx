@@ -7,6 +7,11 @@ import { usePastorReferenceLinkOptions } from '../../hooks/usePastorReferenceLin
 import type { ReactNode } from 'react';
 import type { ContactDetail, ContactEmailMessage, ContactListItem } from '../../types/contact';
 import type { VolunteerTerm } from '../../types/volunteer';
+import { isServiceEndedTerm } from '../../services/contactServiceRecordStorage';
+import {
+  formatEndOfServiceReviewLabel,
+  formatTermDateRangeLabel,
+} from '../../utils/formatTermDateRange';
 import FormFieldsPanel from '../applications/FormFieldsPanel';
 import ContactInternalNotesSection from './ContactInternalNotesSection';
 import ChurchInfoCard from './ChurchInfoCard';
@@ -264,6 +269,7 @@ export default function ContactDetailPanel({
                     volunteerName={detail.name}
                     profilePhotoUrl={detail.profilePhotoUrl}
                     passportFile={detail.passportFile}
+                    childSafeguardingFile={detail.childSafeguardingFile}
                     files={detail.files}
                   />
                 </div>
@@ -310,33 +316,49 @@ export default function ContactDetailPanel({
                 </Panel>
               )}
 
-              <Panel title="Service records">
+              <Panel title="Terms of service">
                 {detail.serviceTerms.length === 0 ? (
                   <p className="mt-4 text-sm text-crm-slate">
-                    No service records yet. Send this contact to Recruitment to
-                    create one.
+                    No terms of service yet. Linked applications and completed
+                    terms from Current Service Ended will appear here.
                   </p>
                 ) : (
                   <ul className="mt-4 space-y-3">
-                    {detail.serviceTerms.map((term) => (
-                      <li key={`${term.itemId}-${term.timelineId}`}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTerm(term)}
-                          className="flex w-full items-center justify-between rounded-2xl bg-crm-surface p-4 text-left ring-1 ring-crm-taupe/20 transition hover:ring-crm-taupe/50"
-                        >
-                          <div>
-                            <p className="font-semibold text-crm-heading">
-                              {term.timelineLabel}
-                            </p>
-                            <p className="mt-1 text-sm text-crm-slate">
-                              {term.pipelineStage} · {term.status}
-                            </p>
-                          </div>
-                          <span className="text-crm-slate">→</span>
-                        </button>
-                      </li>
-                    ))}
+                    {detail.serviceTerms.map((term) => {
+                      const dateRange = formatTermDateRangeLabel(term);
+                      const reviewLabel = formatEndOfServiceReviewLabel(
+                        term.endOfServiceReview?.completedAt,
+                      );
+
+                      return (
+                        <li key={`${term.itemId}-${term.timelineId}`}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTerm(term)}
+                            className="flex w-full items-center justify-between rounded-2xl bg-crm-surface p-4 text-left ring-1 ring-crm-taupe/20 transition hover:ring-crm-taupe/50"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-crm-heading">
+                                {term.timelineLabel}
+                              </p>
+                              {dateRange && (
+                                <p className="mt-1 text-sm text-crm-slate">
+                                  {dateRange}
+                                </p>
+                              )}
+                              <p className="mt-1 text-sm text-crm-slate">
+                                {term.pipelineStage} · {term.status}
+                                {isServiceEndedTerm(term) ? ' · Service ended' : ''}
+                              </p>
+                              <p className="mt-1 text-sm text-crm-slate">
+                                {reviewLabel}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-crm-slate">→</span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </Panel>

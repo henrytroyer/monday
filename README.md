@@ -2,7 +2,26 @@
 
 React + TypeScript volunteer operations dashboard connected to live monday.com boards (Contacts, Applications, Donations).
 
-**New collaborator?** Start here: **[COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md)**
+**Production (i58 finance Admin):** open **Admin → Monday Project** at
+`https://i58-finance.web.app/admin?tab=monday-project`. Live API calls use Cloud Function
+`mondayApiProxy` (admin Firebase Auth + Secret Manager `MONDAY_API_TOKEN`). CRM source is
+mounted from this repo into `i58-receipts-v2` via the Vite `@monday` alias.
+
+**Auto-deploy:** pushing (or merging) to this repo’s `main` triggers
+`repository_dispatch` → i58finance workflow **Deploy Monday CRM (Hosting)**, which rebuilds
+Admin with the new CRM. One-time setup: add GitHub secret `I58FINANCE_DISPATCH_TOKEN` on
+**henrytroyer/monday** — a classic PAT (or fine-grained token) with access to
+`henrytroyer/i58finance` that can create `repository_dispatch` events (classic: `repo` scope).
+
+**Production env vars:** Vite bakes `VITE_*` values at build time. Local `.env` is not used on
+`i58-finance.web.app`. When you add a new board id or column override here, also add it to
+**henrytroyer/i58finance** workflows
+[`.github/workflows/deploy-monday-crm.yml`](https://github.com/henrytroyer/i58finance/blob/main/.github/workflows/deploy-monday-crm.yml)
+and
+[`.github/workflows/deploy-prod.yml`](https://github.com/henrytroyer/i58finance/blob/main/.github/workflows/deploy-prod.yml)
+under the **Create environment file** step, then redeploy hosting.
+
+**New collaborator (local)?** Start here: **[COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md)**
 
 ## Quick start
 
@@ -31,7 +50,7 @@ Open **http://localhost:4040**
 
 - **Contacts** — master list with tags, donations, email threads, internal notes
 - **Short-term applications** — pipeline, filters, volunteer detail, onboarding progress
-- **Long-term applications** — pipeline and references (mock data until board wired)
+- **Long-term applications** — pipeline, on-field view, and references from Volunteer Service - Long Term board
 - **Recruitment** — prospect tracking with notes
 - **Email templates** — read-only catalog
 

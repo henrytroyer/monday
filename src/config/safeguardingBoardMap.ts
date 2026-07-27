@@ -6,6 +6,7 @@ export const safeguardingBoardMap = {
   certificate:
     import.meta.env.VITE_SAFEGUARDING_COL_CERTIFICATE ||
     'Upload Certificate Here',
+  date: import.meta.env.VITE_SAFEGUARDING_COL_DATE || 'Date',
 } as const;
 
 export function safeguardingBoardId(): string | null {

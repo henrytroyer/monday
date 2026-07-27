@@ -21,9 +21,16 @@ import type { MondayContactItem } from './mapMondayToContact';
 
 const SAFEGUARDING_CERTIFICATE_NAME = 'Child safeguarding certificate';
 
+export interface SafeguardingCertificate {
+  file: VolunteerFile;
+  /** ISO date YYYY-MM-DD from Safeguarding board Date column or item created_at */
+  receivedDate?: string;
+}
+
 type SafeguardingBoardMeta = {
   emailColumnId: string;
   certificateColumnId: string;
+  dateColumnId?: string;
 };
 
 type SafeguardingItemsPageResponse = {
@@ -36,7 +43,7 @@ type SafeguardingItemsPageResponse = {
 };
 
 type SafeguardingItemResponse = {
-  items: MondayBoardItem[];
+  items: Array<MondayBoardItem & { created_at?: string }>;
 };
 
 let cachedBoardMeta: SafeguardingBoardMeta | null = null;
@@ -145,11 +152,68 @@ async function fetchSafeguardingBoardMeta(
     columns,
     safeguardingBoardMap.certificate,
   );
+  const dateColumnId = findColumnIdByTitle(columns, safeguardingBoardMap.date);
 
   if (!emailColumnId || !certificateColumnId) return null;
 
-  cachedBoardMeta = { emailColumnId, certificateColumnId };
+  cachedBoardMeta = { emailColumnId, certificateColumnId, dateColumnId };
   return cachedBoardMeta;
+}
+
+function parseIsoDateFromColumn(col: MondayColumnValue | undefined): string | undefined {
+  const text = col?.text?.trim();
+  if (text && /^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+  if (col?.value) {
+    try {
+      const parsed = JSON.parse(col.value) as { date?: string };
+      if (parsed.date?.trim()) return parsed.date.trim().slice(0, 10);
+    } catch {
+      // fall through
+    }
+  }
+
+  return undefined;
+}
+
+function isoDateFromCreatedAt(createdAt?: string): string | undefined {
+  if (!createdAt?.trim()) return undefined;
+  const match = createdAt.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1];
+}
+
+function receivedDateFromSafeguardingItem(
+  item: MondayBoardItem & { created_at?: string },
+  meta: SafeguardingBoardMeta,
+): string | undefined {
+  if (meta.dateColumnId) {
+    const dateCol = item.column_values?.find((col) => col.id === meta.dateColumnId);
+    const fromColumn = parseIsoDateFromColumn(dateCol);
+    if (fromColumn) return fromColumn;
+  }
+
+  const dateColByTitle = findColumnByTitle(
+    item.column_values,
+    safeguardingBoardMap.date,
+  );
+  const fromTitle = parseIsoDateFromColumn(dateColByTitle);
+  if (fromTitle) return fromTitle;
+
+  return isoDateFromCreatedAt(item.created_at);
+}
+
+function certificateResultFromItem(
+  item: MondayBoardItem & { created_at?: string },
+  meta: SafeguardingBoardMeta,
+  proxyBase?: string,
+): SafeguardingCertificate | undefined {
+  const file = certificateFromItem(item, meta.certificateColumnId, proxyBase);
+  if (!file) return undefined;
+
+  return {
+    file,
+    receivedDate: receivedDateFromSafeguardingItem(item, meta),
+  };
 }
 
 function certificateFromItem(
@@ -169,13 +233,14 @@ function certificateFromItem(
 
 async function fetchSafeguardingItemById(
   itemId: string,
-  certificateColumnId: string,
+  meta: SafeguardingBoardMeta,
   proxyBase?: string,
-): Promise<VolunteerFile | undefined> {
+): Promise<SafeguardingCertificate | undefined> {
   const query = `
     query SafeguardingItem($itemId: [ID!]!) {
       items(ids: $itemId) {
         id
+        created_at
         column_values {
           id
           type
@@ -196,7 +261,7 @@ async function fetchSafeguardingItemById(
   const item = data.items?.[0];
   if (!item) return undefined;
 
-  return certificateFromItem(item, certificateColumnId, proxyBase);
+  return certificateResultFromItem(item, meta, proxyBase);
 }
 
 async function fetchContactItemById(
@@ -212,7 +277,7 @@ async function fetchContactItemById(
 export async function fetchSafeguardingCertificateByEmail(
   email: string | undefined,
   proxyBase?: string,
-): Promise<VolunteerFile | undefined> {
+): Promise<SafeguardingCertificate | undefined> {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return undefined;
 
@@ -222,62 +287,31 @@ export async function fetchSafeguardingCertificateByEmail(
   const meta = await fetchSafeguardingBoardMeta(boardId);
   if (!meta) return undefined;
 
-  const query = `
-    query SafeguardingByEmail(
-      $boardId: [ID!]!
-      $columnId: String!
-      $compareValue: CompareValue!
-    ) {
-      boards(ids: $boardId) {
-        columns {
-          id
-          title
-        }
-        items_page(
-          limit: 1
-          query_params: {
-            rules: [
-              {
-                column_id: $columnId
-                compare_value: $compareValue
-                operator: any_of
-              }
-            ]
-          }
-        ) {
-          items {
-            id
-            column_values {
-              id
-              type
-              text
-              value
-              column {
-                title
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
-
-  const data = await mondayGraphQL<SafeguardingItemsPageResponse>(query, {
-    boardId: [boardId],
-    columnId: meta.emailColumnId,
-    compareValue: [normalizedEmail],
-  });
+  const data = await mondayGraphQL<SafeguardingItemsPageResponse>(
+    queries.getDonationItemsByEmail,
+    {
+      boardId: [boardId],
+      rules: [
+        {
+          column_id: meta.emailColumnId,
+          compare_value: [normalizedEmail],
+          operator: 'contains_text',
+        },
+      ],
+      limit: 1,
+    },
+  );
 
   const item = data.boards?.[0]?.items_page?.items?.[0];
   if (!item) return undefined;
 
-  return certificateFromItem(item, meta.certificateColumnId, proxyBase);
+  return certificateResultFromItem(item, meta, proxyBase);
 }
 
 export async function fetchSafeguardingCertificateFromContactLink(
   contactItemId: string | undefined,
   proxyBase?: string,
-): Promise<VolunteerFile | undefined> {
+): Promise<SafeguardingCertificate | undefined> {
   if (!contactItemId?.trim()) return undefined;
 
   const boardId = safeguardingBoardId();
@@ -297,18 +331,14 @@ export async function fetchSafeguardingCertificateFromContactLink(
   const linkedItemId = parseLinkedBoardRelationIds(safeguardingCol)[0];
   if (!linkedItemId) return undefined;
 
-  return fetchSafeguardingItemById(
-    linkedItemId,
-    meta.certificateColumnId,
-    proxyBase,
-  );
+  return fetchSafeguardingItemById(linkedItemId, meta, proxyBase);
 }
 
 export async function fetchSafeguardingCertificateFromApplicationItem(
   item: MondayBoardItem,
   email: string | undefined,
   proxyBase?: string,
-): Promise<VolunteerFile | undefined> {
+): Promise<SafeguardingCertificate | undefined> {
   const resolvedEmail = email ?? emailFromApplicationItem(item);
   const byEmail = await fetchSafeguardingCertificateByEmail(
     resolvedEmail,
@@ -320,7 +350,9 @@ export async function fetchSafeguardingCertificateFromApplicationItem(
     item.column_values,
     proxyBase,
   );
-  if (fromMirror) return fromMirror;
+  if (fromMirror) {
+    return { file: fromMirror };
+  }
 
   const contactsCol = findColumnByTitle(
     item.column_values,

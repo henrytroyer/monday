@@ -131,6 +131,16 @@ export default function Dashboard() {
         </KeepAlivePage>
 
         <KeepAlivePage
+          active={activePage === 'history'}
+          mounted={mountedPages.has('history')}
+        >
+          <PlaceholderPage
+            title="History"
+            description="Audit log and activity history"
+          />
+        </KeepAlivePage>
+
+        <KeepAlivePage
           active={activePage === 'forms'}
           mounted={mountedPages.has('forms')}
         >

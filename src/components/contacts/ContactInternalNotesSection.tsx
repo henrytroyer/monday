@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useContactInternalNotes } from '../../hooks/useContactInternalNotes';
 import { useNoteReview, openNoteReviewInbox } from '../../hooks/useNoteReview';
 import { formatNoteTimestamp } from '../../services/termNotes';
+import NoteBodyContent from '../shared/NoteBodyContent';
 import type {
   ContactInternalNote,
   CurrentApplicationSummary,
@@ -152,7 +153,9 @@ export default function ContactInternalNotesSection({
                 {formatNoteTimestamp(note.createdAt)}
               </time>
             </div>
-            <p className="mt-2 whitespace-pre-wrap">{note.body}</p>
+            <div className="mt-2">
+              <NoteBodyContent body={note.body} bodyHtml={note.bodyHtml} />
+            </div>
           </div>
         ))}
       </div>

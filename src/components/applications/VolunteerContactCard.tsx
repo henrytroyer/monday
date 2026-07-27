@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { VolunteerDetail } from '../../types/volunteer';
+import { formatDateOfBirth } from '../../utils/formatDateOfBirth';
 import {
   buildGoogleMapsUrl,
   formatContactAddress,
@@ -35,7 +36,7 @@ export default function VolunteerContactCard({
   const formattedAddress = detail.demographics
     ? formatContactAddress(detail.demographics)
     : null;
-  const displayDateOfBirth = detail.demographics?.dateOfBirth?.trim() || null;
+  const displayDateOfBirth = formatDateOfBirth(detail.demographics?.dateOfBirth);
   const [profilePreviewOpen, setProfilePreviewOpen] = useState(false);
 
   const profilePreviewFile =
@@ -168,7 +169,7 @@ export default function VolunteerContactCard({
           {besideFiles}
         </div>
       ) : (
-        <div className="mt-5">
+        <div className="mt-5 md:w-1/2">
           <VolunteerFilesSection
             volunteerName={detail.name}
             profilePhotoUrl={detail.profilePhotoUrl}

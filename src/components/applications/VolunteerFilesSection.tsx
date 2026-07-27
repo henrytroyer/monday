@@ -144,6 +144,24 @@ export default function VolunteerFilesSection({
             runFileAction(file, 'download', 'childsafeguarding')
           }
         />
+        {slots.itineraryFiles.length === 0 ? (
+          <FileRow
+            label="Itinerary"
+            file={undefined}
+            onOpen={() => undefined}
+            onDownload={() => undefined}
+          />
+        ) : (
+          slots.itineraryFiles.map((file, index) => (
+            <FileRow
+              key={file.id}
+              label={index === 0 ? 'Itinerary' : `Itinerary (${index + 1})`}
+              file={file}
+              onOpen={(f) => runFileAction(f, 'preview', 'itinerary')}
+              onDownload={(f) => runFileAction(f, 'download', 'itinerary')}
+            />
+          ))
+        )}
       </ul>
 
       {showOtherFiles && slots.otherFiles.length > 0 && (
@@ -174,11 +192,6 @@ export default function VolunteerFilesSection({
                     </button>
                   ) : (
                     <span className="text-sm text-crm-slate">{file.name}</span>
-                  )}
-                  {/itinerary/i.test(file.name) && (
-                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800">
-                      Itinerary
-                    </span>
                   )}
                 </div>
                 {file.url && (

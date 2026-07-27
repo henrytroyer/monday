@@ -4,16 +4,22 @@ import { resolveTimelineId } from '../config/timelineMap';
 import { buildApplicationEmailsFromColumns } from '../utils/applicationEmails';
 import { getColumnPhone } from '../utils/phoneFormat';
 import {
+  excludeGalleryDuplicatesOfColumnFiles,
+  getAllFilesFromColumnValues,
+  mapMondayGalleryAssets,
   mergeVolunteerGalleryFiles,
   parseMondayFileColumn,
   resolvePassportFile,
   resolveProfilePhotoUrl,
+  type MondayGalleryAsset,
 } from './mondayFileColumns';
+import { promoteItineraryFileNames } from './itineraryFromFiles';
 import {
   buildCoupleApplication,
   buildCouplePreview,
 } from './coupleApplication';
 import { parseItineraryFromColumns } from './itinerary';
+import { getArrivalDepartureTimelineRange } from './mondayTimelineColumn';
 import {
   buildApplicationFormFields,
   buildPastorReferenceFormFields,
@@ -71,6 +77,7 @@ export interface MondayBoardPipeline {
 
 export interface MondayItemDetail extends MondayBoardItem {
   updates?: MondayItemUpdateRaw[];
+  assets?: MondayGalleryAsset[] | null;
 }
 
 function normalizeTitle(title: string): string {
@@ -149,16 +156,41 @@ export function getApplicationFilesFromColumns(
 
 function getFileGallery(
   columnValues: MondayColumnValue[],
+  galleryAssets?: MondayGalleryAsset[] | null,
 ): VolunteerFile[] {
   const profilePhotoUrl = getProfilePhotoUrl(columnValues);
   const passportFile = getApplicationPassportFile(columnValues);
   const passportPhotoUrl = passportFile?.url;
 
+  const columnFiles = getAllFilesFromColumnValues(columnValues);
+
+  const dedicatedItineraryCol = findColumn(columnValues, 'itineraryFiles');
+  const dedicatedItineraryFiles = promoteItineraryFileNames(
+    parseMondayFileColumn(dedicatedItineraryCol),
+  );
+
+  const generalFilesCol = findColumn(columnValues, 'files');
+  const generalFiles =
+    dedicatedItineraryFiles.length > 0
+      ? parseMondayFileColumn(generalFilesCol)
+      : promoteItineraryFileNames(parseMondayFileColumn(generalFilesCol));
+
+  const itemGalleryFiles = promoteItineraryFileNames(
+    excludeGalleryDuplicatesOfColumnFiles(
+      mapMondayGalleryAssets(galleryAssets),
+      columnFiles,
+      [profilePhotoUrl, passportPhotoUrl].filter(
+        (url): url is string => Boolean(url),
+      ),
+    ),
+  );
+
   return mergeVolunteerGalleryFiles(
     [
-      parseMondayFileColumn(findColumn(columnValues, 'itineraryFiles')),
+      dedicatedItineraryFiles,
       parseMondayFileColumn(findColumn(columnValues, 'releaseForms')),
-      parseMondayFileColumn(findColumn(columnValues, 'files')),
+      generalFiles,
+      itemGalleryFiles,
       parseMondayFileColumn(findColumn(columnValues, 'profilePhoto')),
     ],
     { profilePhotoUrl, passportPhotoUrl },
@@ -194,6 +226,8 @@ export function mapItemToVolunteer(item: MondayBoardItem): Volunteer {
   const timelineLabel = getColumnText(item.column_values, 'signupTimeline');
   const timelineId = resolveTimelineId(timelineLabel);
   const couplePreview = buildCouplePreview(item.name, item.column_values);
+  const itinerary = parseItineraryFromColumns(item.column_values);
+  const termRange = getArrivalDepartureTimelineRange(item.column_values);
 
   return {
     id: item.id,
@@ -203,11 +237,18 @@ export function mapItemToVolunteer(item: MondayBoardItem): Volunteer {
     status,
     timelineId,
     preferredDates: timelineLabel || undefined,
-    termStart: getColumnDateText(item.column_values, 'arrivalDate') || undefined,
-    termEnd: getColumnDateText(item.column_values, 'departureDate') || undefined,
+    termStart:
+      getColumnDateText(item.column_values, 'arrivalDate') ||
+      termRange?.from ||
+      undefined,
+    termEnd:
+      getColumnDateText(item.column_values, 'departureDate') ||
+      termRange?.to ||
+      undefined,
     pipelineStage: item.group?.title || undefined,
     profilePhotoUrl: getProfilePhotoUrl(item.column_values),
     couplePreview,
+    itinerary,
   };
 }
 
@@ -281,7 +322,7 @@ export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetai
   const phone = phoneRaw || '—';
   const profilePhotoUrl = getProfilePhotoUrl(item.column_values);
   const passportFile = getApplicationPassportFile(item.column_values);
-  const files = getFileGallery(item.column_values);
+  const files = getFileGallery(item.column_values, item.assets);
   const demographics = buildApplicationDemographics(item.column_values);
   const couple = buildCoupleApplication(item.name, item.column_values);
 

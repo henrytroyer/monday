@@ -4,8 +4,11 @@ import type { VolunteerFile } from '../types/volunteer';
 import type { MondayColumnValue } from './mapMondayToCrm';
 import {
   assetIdFromProtectedUrl,
+  excludeGalleryDuplicatesOfColumnFiles,
   mergeVolunteerGalleryFiles,
+  mapMondayGalleryAssets,
   mondayAssetProxyUrl,
+  mondayMergedAssetsProxyUrl,
   parseAssetIdFromColumn,
   parseMondayFileColumn,
   resolveColumnFileUrl,
@@ -44,6 +47,15 @@ describe('mondayAssetProxyUrl', () => {
     assert.equal(
       mondayAssetProxyUrl('2932688738', PROXY),
       '/api/monday/assets/2932688738',
+    );
+  });
+});
+
+describe('mondayMergedAssetsProxyUrl', () => {
+  it('builds merge URL for multiple asset ids', () => {
+    assert.equal(
+      mondayMergedAssetsProxyUrl(['111', '222'], PROXY),
+      '/api/monday/assets/merge/111,222',
     );
   });
 });
@@ -119,6 +131,60 @@ describe('resolvePassportFile', () => {
   });
 });
 
+describe('mapMondayGalleryAssets', () => {
+  it('maps item gallery assets to proxy-backed volunteer files', () => {
+    const files = mapMondayGalleryAssets(
+      [
+        {
+          id: '2986887415',
+          name: 'Traveler Receipt (AC7ZK9).pdf',
+          file_extension: '.pdf',
+        },
+      ],
+      PROXY,
+    );
+    assert.equal(files.length, 1);
+    assert.equal(files[0]?.name, 'Traveler Receipt (AC7ZK9).pdf');
+    assert.equal(files[0]?.url, '/api/monday/assets/2986887415');
+    assert.equal(files[0]?.isImage, false);
+  });
+});
+
+describe('excludeGalleryDuplicatesOfColumnFiles', () => {
+  it('drops gallery uploads that repeat column profile or passport files', () => {
+    const columnFiles: VolunteerFile[] = [
+      {
+        id: '2872738376',
+        name: 'IMG_3889.heic',
+        url: '/api/monday/assets/2872738376',
+        isImage: true,
+      },
+      {
+        id: '2872738348',
+        name: 'IMG_3889.heic',
+        url: '/api/monday/assets/2872738348',
+        isImage: true,
+      },
+    ];
+    const galleryFiles = mapMondayGalleryAssets(
+      [
+        { id: '2872738376', name: 'IMG_3889.heic' },
+        { id: '2872738348', name: 'IMG_3889.heic' },
+        { id: '2872738450', name: 'IMG_4463.jpeg' },
+      ],
+      PROXY,
+    );
+
+    const filtered = excludeGalleryDuplicatesOfColumnFiles(
+      galleryFiles,
+      columnFiles,
+    );
+
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0]?.name, 'IMG_4463.jpeg');
+  });
+});
+
 describe('mergeVolunteerGalleryFiles', () => {
   it('dedupes profile and passport URLs from gallery', () => {
     const profileUrl = '/api/monday/assets/111';
@@ -126,13 +192,13 @@ describe('mergeVolunteerGalleryFiles', () => {
     const sources: VolunteerFile[][] = [
       [
         {
-          id: '1',
+          id: '999',
           name: 'Profile photo duplicate',
           url: profileUrl,
           isImage: true,
         },
         {
-          id: '2',
+          id: '888',
           name: 'Passport duplicate',
           url: passportUrl,
           isImage: true,
@@ -155,6 +221,39 @@ describe('mergeVolunteerGalleryFiles', () => {
 
     assert.equal(merged.length, 1);
     assert.equal(merged[0]?.name, 'Release.pdf');
+  });
+
+  it('dedupes repeated monday asset ids across sources', () => {
+    const merged = mergeVolunteerGalleryFiles([
+      [
+        {
+          id: '111',
+          name: 'IMG_3889.heic',
+          url: '/api/monday/assets/111',
+          isImage: true,
+        },
+      ],
+      [
+        {
+          id: '111',
+          name: 'Gallery copy',
+          url: '/api/monday/assets/111',
+          isImage: true,
+        },
+        {
+          id: '222',
+          name: 'Other.pdf',
+          url: '/api/monday/assets/222',
+          isImage: false,
+        },
+      ],
+    ]);
+
+    assert.equal(merged.length, 2);
+    assert.deepEqual(
+      merged.map((file) => file.id),
+      ['111', '222'],
+    );
   });
 });
 

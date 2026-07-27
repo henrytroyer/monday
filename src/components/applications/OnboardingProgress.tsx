@@ -37,6 +37,21 @@ function formatShortDate(iso?: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function doneDateLabel(
+  stepId: string,
+  kind: 'simple' | 'async',
+): string {
+  if (kind === 'simple') return 'Completed';
+  return getPipelineStepDefinition(stepId)?.receivedLabel ?? 'Received';
+}
+
+function doneDateValue(
+  step: { completedDate?: string; receivedDate?: string },
+  kind: 'simple' | 'async',
+): string | undefined {
+  return kind === 'simple' ? step.completedDate : step.receivedDate;
+}
+
 export default function OnboardingProgress({
   pipeline,
   volunteer,
@@ -185,21 +200,10 @@ export default function OnboardingProgress({
                   )}
 
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-crm-slate">
-                    {def.kind === 'simple' ? (
+                    {def.kind === 'async' && step.status === 'waiting' && (
                       <span>
-                        Completed: {formatShortDate(step.completedDate)}
+                        Waiting since: {formatShortDate(step.waitingDate)}
                       </span>
-                    ) : (
-                      <>
-                        <span>
-                          Waiting since: {formatShortDate(step.waitingDate)}
-                        </span>
-                        <span>
-                          {getPipelineStepDefinition(def.id)?.receivedLabel ??
-                            'Received'}
-                          : {formatShortDate(step.receivedDate)}
-                        </span>
-                      </>
                     )}
                   </div>
 
@@ -221,17 +225,24 @@ export default function OnboardingProgress({
                     {statusLabel}
                   </span>
 
-                  <label className="flex items-center gap-2 text-xs text-crm-slate">
-                    Projected
-                    <input
-                      type="date"
-                      value={step.projectedDate ?? ''}
-                      onChange={(e) =>
-                        handleProjectedDateChange(def.id, e.target.value)
-                      }
-                      className="rounded-lg border border-crm-taupe/20 bg-crm-white px-2 py-1 text-sm text-crm-text"
-                    />
-                  </label>
+                  {done ? (
+                    <span className="text-xs text-crm-slate">
+                      {doneDateLabel(def.id, def.kind)}{' '}
+                      {formatShortDate(doneDateValue(step, def.kind))}
+                    </span>
+                  ) : (
+                    <label className="flex items-center gap-2 text-xs text-crm-slate">
+                      Projected
+                      <input
+                        type="date"
+                        value={step.projectedDate ?? ''}
+                        onChange={(e) =>
+                          handleProjectedDateChange(def.id, e.target.value)
+                        }
+                        className="rounded-lg border border-crm-taupe/20 bg-crm-white px-2 py-1 text-sm text-crm-text"
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 

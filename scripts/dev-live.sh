@@ -13,6 +13,10 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
+if command -v lsof >/dev/null 2>&1; then
+  lsof -ti:4042 | xargs kill -9 2>/dev/null || true
+fi
+
 echo "Starting Monday API proxy (port 4042)..."
 npm run monday:proxy &
 PROXY_PID=$!

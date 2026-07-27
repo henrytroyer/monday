@@ -8,13 +8,13 @@ import type {
 } from '../types/contact';
 import type { VolunteerTerm, VolunteerFile } from '../types/volunteer';
 import { getColumnText, getColumnDateText, getApplicationFilesFromColumns, type MondayBoardItem } from './mapMondayToCrm';
-import {
-  mergeContactAndApplicationDemographics,
-} from '../utils/formatContactAddress';
+import { normalizeDateOfBirth } from '../utils/formatDateOfBirth';
+import { mergeContactAndApplicationDemographics } from '../utils/formatContactAddress';
 import {
   resolveApplicationDemographics,
 } from '../utils/applicationDemographics';
 import {
+  getContactColumnDateText,
   getContactColumnText,
   getContactFilesFromColumns,
   getContactPassportFile,
@@ -22,8 +22,21 @@ import {
   mapItemToContactListItem,
   parseLinkedApplicationIds,
   parseLinkedDonationItemIds,
+  parseLinkedServiceEndedIds,
   type MondayContactItem,
 } from './mapMondayToContact';
+import {
+  getServiceEndedColumnText,
+  mapServiceEndedItemToTerm,
+  parseLinkedContactIdsFromServiceEnded,
+} from './mapServiceEndedToTerm';
+import { isServiceEndedTerm } from './contactServiceRecordStorage';
+import { matchEndOfServiceReviewsForContact } from './matchEndOfServiceReviews';
+import {
+  parseFlexibleDate,
+  resolveVolunteerTermDateRange,
+  type VolunteerTermDateRange,
+} from '../utils/volunteerTerm';
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -86,10 +99,116 @@ export function buildContactByEmailIndex(
   return map;
 }
 
+function parseTermEndSortKey(termEnd?: string): number {
+  if (!termEnd?.trim()) return 0;
+  const parsed = Date.parse(termEnd);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function termToVolunteerAdapter(term: VolunteerTerm) {
+  return {
+    id: term.itemId,
+    name: '',
+    locationPreference: term.locationPreference ?? '',
+    location: '',
+    status: term.status ?? '',
+    timelineId: term.timelineId,
+    preferredDates: term.timelineLabel,
+    termStart: term.termStart,
+    termEnd: term.termEnd,
+    pipelineStage: term.pipelineStage,
+  };
+}
+
+function resolveTermDateRange(term: VolunteerTerm): VolunteerTermDateRange | null {
+  return resolveVolunteerTermDateRange(termToVolunteerAdapter(term));
+}
+
+function dateRangesOverlap(
+  a: VolunteerTermDateRange,
+  b: VolunteerTermDateRange,
+): boolean {
+  return a.start.getTime() <= b.end.getTime() && b.start.getTime() <= a.end.getTime();
+}
+
+function endedTermOverlapsApplication(
+  endedTerm: VolunteerTerm,
+  applicationTerm: VolunteerTerm,
+): boolean {
+  const endedRange = resolveTermDateRange(endedTerm);
+  const appRange = resolveTermDateRange(applicationTerm);
+  if (endedRange && appRange) {
+    return dateRangesOverlap(endedRange, appRange);
+  }
+
+  const endedEnd = parseFlexibleDate(endedTerm.termEnd);
+  const appEnd = parseFlexibleDate(applicationTerm.termEnd);
+  if (endedEnd && appEnd) {
+    return Math.abs(endedEnd.getTime() - appEnd.getTime()) <= 14 * 86_400_000;
+  }
+
+  return (
+    endedTerm.timelineId === applicationTerm.timelineId &&
+    endedTerm.timelineId !== 'recruitment'
+  );
+}
+
+function mergeServiceEndedTerms(
+  applicationTerms: VolunteerTerm[],
+  serviceEndedItems: MondayBoardItem[],
+  contactItem: MondayContactItem,
+  emailNorm: string,
+): VolunteerTerm[] {
+  const linkedEndedIds = parseLinkedServiceEndedIds(contactItem.column_values);
+  const contactId = contactItem.id;
+  const endedTerms: VolunteerTerm[] = [];
+  const seenEndedIds = new Set<string>();
+
+  for (const endedItem of serviceEndedItems) {
+    const endedEmail = normalizeEmail(
+      getServiceEndedColumnText(endedItem.column_values, 'email'),
+    );
+    const linkedContactIds = parseLinkedContactIdsFromServiceEnded(
+      endedItem.column_values,
+    );
+
+    const belongsToContact =
+      linkedEndedIds.includes(endedItem.id) ||
+      linkedContactIds.includes(contactId) ||
+      (endedEmail !== '' && endedEmail === emailNorm);
+
+    if (!belongsToContact || seenEndedIds.has(endedItem.id)) continue;
+
+    seenEndedIds.add(endedItem.id);
+    endedTerms.push(mapServiceEndedItemToTerm(endedItem));
+  }
+
+  const replacedAppIds = new Set(
+    endedTerms
+      .map((term) => term.linkedApplicationItemId)
+      .filter((id): id is string => Boolean(id)),
+  );
+
+  const remainingApps = applicationTerms.filter((term) => {
+    if (replacedAppIds.has(term.itemId)) return false;
+    return !endedTerms.some((ended) =>
+      endedTermOverlapsApplication(ended, term),
+    );
+  });
+
+  const sortedEnded = [...endedTerms].sort(
+    (a, b) => parseTermEndSortKey(b.termEnd) - parseTermEndSortKey(a.termEnd),
+  );
+
+  return [...remainingApps, ...sortedEnded];
+}
+
 export function enrichContactDetail(
   contactItem: MondayContactItem,
   applications: MondayBoardItem[],
   allContacts: ContactListItem[],
+  serviceEndedItems: MondayBoardItem[] = [],
+  endOfServiceReviewItems: MondayBoardItem[] = [],
 ): Omit<
   ContactDetail,
   keyof ContactListItem | 'donations' | 'emailCorrespondence'
@@ -158,15 +277,56 @@ export function enrichContactDetail(
     }
   }
 
+  const mergedServiceTerms = mergeServiceEndedTerms(
+    serviceTerms,
+    serviceEndedItems,
+    contactItem,
+    emailNorm,
+  );
+
+  const serviceTermsWithReviews = matchEndOfServiceReviewsForContact(
+    mergedServiceTerms,
+    endOfServiceReviewItems,
+    contactItem.id,
+    base.email,
+  );
+
+  const replacedAppIds = new Set(
+    serviceTermsWithReviews
+      .filter((term) => isServiceEndedTerm(term))
+      .map((term) => term.linkedApplicationItemId)
+      .filter((id): id is string => Boolean(id)),
+  );
+
+  let resolvedCurrentApplication = currentApplication;
+  if (
+    resolvedCurrentApplication &&
+    replacedAppIds.has(resolvedCurrentApplication.itemId)
+  ) {
+    const activeTerm = serviceTermsWithReviews.find(
+      (term) =>
+        !isServiceEndedTerm(term) &&
+        term.recordType !== 'recruitment' &&
+        term.timelineId !== 'recruitment',
+    );
+    resolvedCurrentApplication = activeTerm
+      ? {
+          itemId: activeTerm.itemId,
+          stage: activeTerm.pipelineStage ?? '—',
+          status: activeTerm.status ?? '—',
+          timelineLabel: activeTerm.timelineLabel,
+        }
+      : null;
+  }
+
   const contactDemographics = {
     address: getContactColumnText(contactItem.column_values, 'address'),
     city: getContactColumnText(contactItem.column_values, 'city'),
     state: getContactColumnText(contactItem.column_values, 'state'),
     zip: getContactColumnText(contactItem.column_values, 'zip'),
     country: getContactColumnText(contactItem.column_values, 'country'),
-    dateOfBirth: getContactColumnText(
-      contactItem.column_values,
-      'dateOfBirth',
+    dateOfBirth: normalizeDateOfBirth(
+      getContactColumnDateText(contactItem.column_values, 'dateOfBirth'),
     ),
   };
 
@@ -220,8 +380,8 @@ export function enrichContactDetail(
     passportFile,
     demographics,
     files,
-    currentApplication,
-    serviceTerms,
+    currentApplication: resolvedCurrentApplication,
+    serviceTerms: serviceTermsWithReviews,
     linkedVolunteers,
     pastorReference,
     ...(linkedDonationItemIds.length > 0 ? { linkedDonationItemIds } : {}),

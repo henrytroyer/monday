@@ -3,6 +3,15 @@
  * Reusable query strings for common operations
  */
 
+/** Item-level file gallery (Files tab uploads), not just file-column assets. */
+export const itemGalleryAssetsFragment = `
+  assets(assets_source: all) {
+    id
+    name
+    file_extension
+    public_url
+  }`;
+
 /** File column fragment — FileValue.files is a union; asset fields need inline types. */
 export const fileValueFieldsFragment = `
   ... on FileValue {
@@ -231,6 +240,7 @@ export const queries = {
           name
         }
       }
+      ${itemGalleryAssetsFragment}
     }
   }`,
 

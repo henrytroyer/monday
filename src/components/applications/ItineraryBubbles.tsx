@@ -1,6 +1,7 @@
 import type { ItineraryLeg } from '../../types/itinerary';
 import { itineraryLegHasData } from '../../types/itinerary';
 import type { VolunteerItinerary } from '../../types/itinerary';
+import { formatDisplayDate } from '../../utils/formatDateOfBirth';
 
 interface ItineraryBubblesProps {
   itinerary: VolunteerItinerary;
@@ -13,8 +14,8 @@ export default function ItineraryBubbles({ itinerary }: ItineraryBubblesProps) {
   if (!hasArrival && !hasDeparture) {
     return (
       <p className="text-sm text-crm-slate">
-        Itinerary not added yet. Add arrival and departure in the Itinerary
-        column on monday.com.
+        Itinerary not added yet. Add dates in the Arrival/Departure Date column
+        on monday.com (or separate arrival and departure fields).
       </p>
     );
   }
@@ -67,7 +68,7 @@ function ItineraryBubble({
       </h4>
       {filled ? (
         <dl className="mt-3 space-y-2 text-sm">
-          <LegRow label="Date" value={leg.date} />
+          <LegRow label="Date" value={leg.date} formatAsDate />
           <LegRow label="Time" value={leg.time} />
           <LegRow label="Airport" value={leg.airport} />
         </dl>
@@ -78,8 +79,28 @@ function ItineraryBubble({
   );
 }
 
-function LegRow({ label, value }: { label: string; value: string }) {
-  const display = value.trim() || '—';
+function LegRow({
+  label,
+  value,
+  formatAsDate = false,
+}: {
+  label: string;
+  value: string;
+  formatAsDate?: boolean;
+}) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return (
+      <div className="flex gap-3">
+        <dt className="w-16 shrink-0 text-crm-slate">{label}</dt>
+        <dd className="font-medium text-crm-heading">—</dd>
+      </div>
+    );
+  }
+
+  const display = formatAsDate
+    ? formatDisplayDate(trimmed) ?? trimmed
+    : trimmed;
   return (
     <div className="flex gap-3">
       <dt className="w-16 shrink-0 text-crm-slate">{label}</dt>

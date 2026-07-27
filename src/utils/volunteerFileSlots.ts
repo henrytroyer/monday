@@ -1,11 +1,31 @@
 import type { VolunteerFile } from '../types/volunteer';
+import { condenseItineraryPdfFiles } from './condenseItineraryPdfFiles';
 import { inferVolunteerFileIsImage } from './inferVolunteerFileIsImage';
+import {
+  collectListedVolunteerFileKeys,
+  excludeListedVolunteerFileDuplicates,
+} from './volunteerFileDedup';
+
+const viteEnv = (): Record<string, string | undefined> => import.meta.env ?? {};
+
+function normalizedFileName(name: string): string {
+  return name.replace(/^Itinerary - /i, '').trim().toLowerCase();
+}
+
+function isCopyOfSlottedFileName(
+  file: VolunteerFile,
+  slotted?: VolunteerFile,
+): boolean {
+  if (!slotted?.name?.trim()) return false;
+  return normalizedFileName(file.name) === normalizedFileName(slotted.name);
+}
 
 export interface VolunteerFileSlots {
   profilePhoto?: VolunteerFile;
   passport?: VolunteerFile;
   backgroundCheck?: VolunteerFile;
   childSafeguarding?: VolunteerFile;
+  itineraryFiles: VolunteerFile[];
   otherFiles: VolunteerFile[];
 }
 
@@ -28,6 +48,7 @@ export function resolveVolunteerFileSlots(
   let backgroundCheck: VolunteerFile | undefined;
   let childSafeguardingFromFiles: VolunteerFile | undefined;
   let profileFromFiles: VolunteerFile | undefined;
+  const itineraryFromFiles: VolunteerFile[] = [];
 
   for (const file of files) {
     if (matchesSlot(file, /passport/i)) {
@@ -38,6 +59,9 @@ export function resolveVolunteerFileSlots(
       consumed.add(file.id);
     } else if (matchesSlot(file, /safeguard/i)) {
       childSafeguardingFromFiles = file;
+      consumed.add(file.id);
+    } else if (matchesSlot(file, /itinerary/i)) {
+      itineraryFromFiles.push(file);
       consumed.add(file.id);
     } else if (
       file.isImage &&
@@ -81,8 +105,6 @@ export function resolveVolunteerFileSlots(
     consumed.add(passportFromFiles.id);
   }
 
-  const otherFiles = files.filter((file) => !consumed.has(file.id));
-
   const childSafeguarding =
     childSafeguardingFile?.url != null && childSafeguardingFile.url !== ''
       ? {
@@ -94,11 +116,40 @@ export function resolveVolunteerFileSlots(
         }
       : childSafeguardingFromFiles;
 
+  if (childSafeguardingFromFiles) {
+    consumed.add(childSafeguardingFromFiles.id);
+  }
+
+  const itineraryFiles = condenseItineraryPdfFiles(
+    itineraryFromFiles,
+    viteEnv().VITE_MONDAY_API_PROXY_URL,
+  );
+
+  const listedFileKeys = collectListedVolunteerFileKeys([
+    profilePhoto,
+    passport,
+    backgroundCheck,
+    childSafeguarding,
+    ...itineraryFiles,
+    ...itineraryFromFiles,
+  ]);
+
+  const otherFiles = excludeListedVolunteerFileDuplicates(
+    files.filter((file) => !consumed.has(file.id)),
+    listedFileKeys,
+  ).filter(
+    (file) =>
+      !isCopyOfSlottedFileName(file, profilePhoto) &&
+      !isCopyOfSlottedFileName(file, passport) &&
+      !isCopyOfSlottedFileName(file, childSafeguarding),
+  );
+
   return {
     profilePhoto,
     passport,
     backgroundCheck,
     childSafeguarding,
+    itineraryFiles,
     otherFiles,
   };
 }

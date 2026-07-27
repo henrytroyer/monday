@@ -118,6 +118,7 @@ export type ContactInternalNoteSource = 'term' | 'recruitment' | 'contact';
 export interface ContactInternalNote {
   id: string;
   body: string;
+  bodyHtml?: string;
   createdAt: string;
   authorName?: string;
   source: ContactInternalNoteSource;
@@ -148,6 +149,7 @@ export type ContactInternalNoteTarget =
 export interface ContactDetail extends ContactListItem {
   passportPhotoUrl?: string;
   passportFile?: VolunteerFile;
+  childSafeguardingFile?: VolunteerFile;
   quickbooksCustomerId?: string;
   demographics?: ContactDemographics;
   files?: VolunteerFile[];
