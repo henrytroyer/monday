@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import AppSidebar, { type PageId } from '../components/layout/AppSidebar';
+import AppSidebar from '../components/layout/AppSidebar';
+import { type PageId } from '../constants/navItems';
 import KeepAlivePage from '../components/layout/KeepAlivePage';
 import { useLayout } from '../context/LayoutContext';
 import { useMondayBoardWatcher } from '../hooks/useMondayBoardWatcher';
@@ -94,6 +95,16 @@ export default function Dashboard() {
           mounted={mountedPages.has('longterm-applications')}
         >
           <LongtermApplicationsPage />
+        </KeepAlivePage>
+
+        <KeepAlivePage
+          active={activePage === 'history'}
+          mounted={mountedPages.has('history')}
+        >
+          <PlaceholderPage
+            title="History"
+            description="Audit log and activity history"
+          />
         </KeepAlivePage>
 
         <KeepAlivePage

@@ -1,17 +1,18 @@
+/**
+ * AppSidebar.tsx — Monday Project sidebar with Settings dropdown (CRM-only nav).
+ */
+
+import { useEffect, useState } from 'react';
+import {
+  PRIMARY_NAV_ITEMS,
+  SETTINGS_NAV_ITEMS,
+  isSettingsPage,
+  type PageId,
+} from '../../constants/navItems';
 import { useLayout } from '../../context/LayoutContext';
 import ReviewNotificationBell from './ReviewNotificationBell';
 
-const NAV_ITEMS = [
-  ['contacts', 'Contacts'],
-  ['applications', 'Short-term applications'],
-  ['recruitment', 'Recruitment'],
-  ['longterm-applications', 'Long-term applications'],
-  ['email-templates', 'Email templates'],
-  ['forms', 'Forms'],
-  ['automations', 'Automations'],
-] as const;
-
-export type PageId = (typeof NAV_ITEMS)[number][0];
+export type { PageId };
 
 interface AppSidebarProps {
   activePage: PageId;
@@ -48,8 +49,41 @@ function ChevronLeftIcon() {
   );
 }
 
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className ?? 'h-4 w-4'}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function navButtonClass(active: boolean, compact = false): string {
+  const base = compact
+    ? 'w-full rounded-xl px-3 py-2 text-left text-sm transition'
+    : 'w-full rounded-2xl px-4 py-3 text-left transition';
+
+  return active
+    ? `${base} bg-crm-indigo-50 text-crm-heading font-medium ring-1 ring-crm-indigo/10`
+    : `${base} text-crm-text hover:bg-crm-taupe-50`;
+}
+
 export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
   const { detailMode, sidebarOpen, openSidebar, closeSidebar } = useLayout();
+  const settingsChildActive = isSettingsPage(activePage);
+  const [settingsOpen, setSettingsOpen] = useState(settingsChildActive);
+
+  useEffect(() => {
+    if (settingsChildActive) {
+      setSettingsOpen(true);
+    }
+  }, [settingsChildActive]);
 
   const showFullSidebar = !detailMode || sidebarOpen;
   const showCollapsedRail = detailMode && !sidebarOpen;
@@ -111,20 +145,51 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
           </div>
 
           <nav className="mt-10 space-y-2">
-            {NAV_ITEMS.map(([id, label]) => (
+            {PRIMARY_NAV_ITEMS.map(([id, label]) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => onNavigate(id)}
-                className={`w-full rounded-2xl px-4 py-3 text-left transition ${
-                  activePage === id
-                    ? 'bg-crm-indigo-50 text-crm-heading font-medium ring-1 ring-crm-indigo/10'
-                    : 'text-crm-text hover:bg-crm-taupe-50'
-                }`}
+                className={navButtonClass(activePage === id)}
               >
                 {label}
               </button>
             ))}
+
+            <div>
+              <button
+                type="button"
+                aria-expanded={settingsOpen}
+                aria-controls="settings-nav-items"
+                onClick={() => setSettingsOpen((open) => !open)}
+                className={`${navButtonClass(settingsChildActive)} flex items-center justify-between`}
+              >
+                <span>Settings</span>
+                <ChevronDownIcon
+                  className={`h-4 w-4 shrink-0 transition-transform ${
+                    settingsOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {settingsOpen && (
+                <div
+                  id="settings-nav-items"
+                  className="ml-3 mt-1 space-y-1 border-l border-crm-taupe/20 pl-3"
+                >
+                  {SETTINGS_NAV_ITEMS.map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => onNavigate(id)}
+                      className={navButtonClass(activePage === id, true)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </nav>
 
           <ReviewNotificationBell />
@@ -133,5 +198,3 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
     </>
   );
 }
-
-export { NAV_ITEMS };
