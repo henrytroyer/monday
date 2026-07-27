@@ -103,11 +103,11 @@ export function getInitialActivePage(): PageId {
 }
 
 export function getInitialMountedPages(): Set<PageId> {
-  const initial = new Set<PageId>(['applications', 'contacts']);
+  const activePage = getInitialActivePage();
+  const initial = new Set<PageId>([activePage]);
   const saved = readCrmNavigationState();
   if (!saved) return initial;
 
-  initial.add(saved.activePage);
   for (const [page, workspace] of Object.entries(saved.workspaces)) {
     const normalized = page === 'email-templates' ? 'email' : page;
     if (isPageId(normalized) && workspace?.detailOpen) {

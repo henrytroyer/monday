@@ -137,10 +137,13 @@ export interface OnboardingPipelineStep {
   stepId: string;
   status: OnboardingStepStatus;
   waitingDate?: string;
+  /** Outbound email sent date (short-term UI label). Mirrors waitingDate when auto-detected. */
+  sentDate?: string;
   receivedDate?: string;
   completedDate?: string;
   projectedDate?: string;
   quickbooksInvoiceId?: string;
+  paymentStatus?: 'open' | 'paid';
   note?: string;
 }
 

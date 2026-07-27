@@ -6,6 +6,7 @@ import type { NoteHarvestResult, NoteReviewItem } from '../types/noteReview';
 import {
   buildContactMatchIndex,
   defaultHarvestBoardIds,
+  type ContactMatchIndex,
 } from './contactNoteIndex';
 import {
   fetchBoardItemsFull,
@@ -26,6 +27,7 @@ import {
   isNoteDismissed,
   noteReviewKey,
   autoApproveContactItemNote,
+  getPendingReviewItems,
   upsertReviewItems,
 } from './noteReviewStorage';
 import { mondayUpdateToNoteBody } from '../utils/formatMondayNoteBody';
@@ -52,6 +54,113 @@ function shouldAutoApproveMatch(match: NoteMatchResult): boolean {
   return match.matched === true && Boolean(match.contactId) && Boolean(match.matchReason);
 }
 
+function parseUpdateIdFromNoteKey(noteKey: string): string {
+  const parts = noteKey.split(':');
+  return parts.slice(2).join(':');
+}
+
+export function rematchPendingReviewItems(index: ContactMatchIndex): {
+  rematched: number;
+  rematchAutoApproved: number;
+  affectedContactIds: string[];
+} {
+  const pending = getPendingReviewItems();
+  let rematched = 0;
+  let rematchAutoApproved = 0;
+  const affectedContactIds = new Set<string>();
+  const updatedItems: NoteReviewItem[] = [];
+
+  for (const item of pending) {
+    rematched += 1;
+    const raw: RawMondayNote = {
+      boardId: item.boardId,
+      boardName: item.boardName,
+      itemId: item.itemId,
+      itemName: item.itemName,
+      updateId: parseUpdateIdFromNoteKey(item.id),
+      body: item.bodyHtml ?? item.body,
+      createdAt: item.createdAt,
+      authorName: item.authorName,
+    };
+
+    const itemEmail = index.applicationEmails.get(item.itemId);
+    let match = resolveContactForHarvest(raw, index, itemEmail);
+
+    // Pending notes live on application items named after the volunteer.
+    // When Contacts board has no row yet, link to the application item itself.
+    if (!match.matched && item.itemId && item.itemName.trim()) {
+      const byRelation = index.applicationToContact.get(item.itemId);
+      const byName = index.contactsById.get(item.itemId);
+      const contactId = byRelation ?? byName?.id ?? item.itemId;
+      const contact = index.contactsById.get(contactId);
+      match = {
+        matched: true,
+        contactId,
+        contactName: contact?.name ?? item.itemName,
+        matchReason: byRelation ? 'board_relation' : 'name_item',
+        sourceLabel: `${item.boardName} · ${item.itemName}`,
+      };
+    }
+
+    if (shouldAutoApproveMatch(match) && match.contactId) {
+      autoApproveContactItemNote({
+        noteKey: item.id,
+        contactId: match.contactId,
+        boardId: item.boardId,
+        boardName: item.boardName,
+        itemId: item.itemId,
+        itemName: item.itemName,
+        body: item.body,
+        bodyHtml: item.bodyHtml,
+        createdAt: item.createdAt,
+        authorName: item.authorName,
+        sourceLabel: match.sourceLabel ?? item.boardName,
+        matchReason: match.matchReason!,
+      });
+      rematchAutoApproved += 1;
+      affectedContactIds.add(match.contactId);
+      continue;
+    }
+
+    updatedItems.push({
+      ...item,
+      suggestedContactId: match.contactId,
+      suggestedContactName: match.contactName,
+      matchReason: match.matchReason,
+      rejectReason: match.matched ? undefined : match.rejectReason,
+      sourceLabel: match.sourceLabel,
+    });
+  }
+
+  if (updatedItems.length > 0) {
+    upsertReviewItems(updatedItems);
+  }
+
+  return {
+    rematched,
+    rematchAutoApproved,
+    affectedContactIds: [...affectedContactIds],
+  };
+}
+
+/** Re-run matchers on pending inbox items without a full monday harvest. */
+export async function rematchPendingNotesFromMonday(): Promise<{
+  rematched: number;
+  rematchAutoApproved: number;
+  affectedContactIds: string[];
+}> {
+  if (useMockData()) {
+    return { rematched: 0, rematchAutoApproved: 0, affectedContactIds: [] };
+  }
+
+  const { contactsBoardId, applicationsBoardId } = defaultHarvestBoardIds();
+  const index = await buildContactMatchIndex(
+    contactsBoardId,
+    applicationsBoardId,
+  );
+  return rematchPendingReviewItems(index);
+}
+
 async function mapInBatches<T, R>(
   items: T[],
   batchSize: number,
@@ -76,6 +185,8 @@ export async function harvestMondayNotes(
       skipped: 0,
       matchedSuggestions: 0,
       autoApproved: 0,
+      rematched: 0,
+      rematchAutoApproved: 0,
       affectedContactIds: [],
     };
   }
@@ -210,12 +321,20 @@ export async function harvestMondayNotes(
     }
   }
 
+  const rematchResult = rematchPendingReviewItems(index);
+  autoApproved += rematchResult.rematchAutoApproved;
+  for (const contactId of rematchResult.affectedContactIds) {
+    affectedContactIds.add(contactId);
+  }
+
   return {
     scanned,
     queued,
     skipped,
     matchedSuggestions,
     autoApproved,
+    rematched: rematchResult.rematched,
+    rematchAutoApproved: rematchResult.rematchAutoApproved,
     affectedContactIds: [...affectedContactIds],
   };
 }

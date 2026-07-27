@@ -39,5 +39,7 @@ export interface NoteHarvestResult {
   skipped: number;
   matchedSuggestions: number;
   autoApproved: number;
+  rematched: number;
+  rematchAutoApproved: number;
   affectedContactIds: string[];
 }

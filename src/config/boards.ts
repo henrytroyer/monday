@@ -206,8 +206,9 @@ export function resolveMonitoredBoardIds(): string[] {
 }
 
 export function resolveBoardRole(boardId: string): MondayBoardRole {
-  const contactsId = import.meta.env.VITE_CONTACTS_BOARD_ID;
-  const applicationsId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
+  const env = import.meta.env;
+  const contactsId = env?.VITE_CONTACTS_BOARD_ID;
+  const applicationsId = env?.VITE_APPLICATIONS_BOARD_ID;
   if (contactsId && String(boardId) === String(contactsId)) return 'contacts';
   if (applicationsId && String(boardId) === String(applicationsId)) {
     return 'applications';

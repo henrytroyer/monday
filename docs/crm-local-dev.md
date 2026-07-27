@@ -40,6 +40,19 @@ Vite sets `host: true`, so the terminal prints **Local** and **Network** URLs.
 - **Contacts** — contacts with tag filters
 - **Detail panel** — Quick Actions, onboarding progress, email modal, term notes
 
+### Short-term onboarding auto-sync (live mode)
+
+When `VITE_MONDAY_WATCH_ENABLED=true`, the short-term onboarding panel updates from:
+
+- **Application received** — monday item `created_at`
+- **Pastor reference** — outbound pastor-reference emails; received when linked pastor reference board item (Contacts → Pastor Reference) has answers
+- **In review** — completes when pastor reference is received
+- **Background check / safeguarding** — outbound email dates; safeguarding received from Safeguarding board
+- **Flight info** — projected date 6 weeks before term start; note from itinerary columns/files
+- **Invoice** — QuickBooks invoice link + Open/Paid from live balance
+
+Optional: `VITE_PASTOR_REFERENCE_BOARD_ID` if you want an explicit board id (otherwise discovered from Contact link).
+
 ## Live monday boards
 
 Turn mock mode off in `.env` and configure board IDs. See [COLLABORATOR_SETUP.md](../COLLABORATOR_SETUP.md).

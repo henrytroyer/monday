@@ -1,12 +1,27 @@
 import { resolveBoardRole } from '../config/boards';
 import { getTimelineLabel } from '../data/timelines';
 import {
+  extractVolunteerNamesFromNoteBody,
+  resolveUniqueContactByName,
+  volunteerNameFromItemTitle,
+} from '../utils/personNameMatch';
+import {
   isRecruitmentNoteUpdate,
   parseRecruitmentTaggedBody,
 } from './contactInternalNotes';
 import type { ContactMatchIndex } from './contactNoteIndex';
-import { boardRoleLabel } from './contactNoteIndex';
+import {
+  extractSuperMailPayload,
+  isSuperMailUpdate,
+} from './parseSuperMailUpdate';
 import { stripHtml, TERM_NOTE_PREFIX } from './termNotes';
+
+function boardRoleLabel(boardId: string): string {
+  const role = resolveBoardRole(boardId);
+  if (role === 'contacts') return 'Contacts';
+  if (role === 'applications') return 'Applications';
+  return 'Board';
+}
 
 const TERM_TAG_PATTERN =
   /^\[CRM_TERM_NOTE\s+timeline=([^\]]+)\]\s*([\s\S]*)?$/;
@@ -26,6 +41,9 @@ export type NoteMatchReason =
   | 'contacts_item'
   | 'board_relation'
   | 'email_exact'
+  | 'email_recipient'
+  | 'name_item'
+  | 'name_body'
   | 'crm_tag_recruitment'
   | 'crm_tag_term';
 
@@ -158,6 +176,82 @@ export function matchApplicationNoteByEmail(
   };
 }
 
+export function matchNoteByRecipientEmail(
+  note: RawMondayNote,
+  index: ContactMatchIndex,
+): NoteMatchResult | null {
+  let recipientEmail: string | null = null;
+
+  if (isSuperMailUpdate(note.body)) {
+    const payload = extractSuperMailPayload(note.body, {
+      fallbackSentAt: note.createdAt,
+    });
+    recipientEmail = payload?.recipientEmail ?? null;
+  } else {
+    const plain = stripHtml(note.body);
+    const toMatch =
+      plain.match(/\bTo:\s*([^\s\n<]+@[^\s\n<]+)/i) ??
+      plain.match(/\bto:\s*([^\s\n<]+@[^\s\n<]+)/i);
+    recipientEmail = toMatch?.[1]?.trim() ?? null;
+  }
+
+  if (!recipientEmail || recipientEmail === '—') return null;
+
+  const normalized = recipientEmail.trim().toLowerCase();
+  if (normalized.endsWith('@i58global.org')) return null;
+
+  const contact = index.contactByEmail.get(normalized);
+  if (!contact) return null;
+
+  return {
+    matched: true,
+    contactId: contact.id,
+    contactName: contact.name,
+    matchReason: 'email_recipient',
+    sourceLabel: `${boardRoleLabel(note.boardId)} · ${note.itemName}`,
+  };
+}
+
+export function matchNoteByItemName(
+  note: RawMondayNote,
+  index: ContactMatchIndex,
+): NoteMatchResult | null {
+  const volunteerName = volunteerNameFromItemTitle(note.itemName);
+  const contact = resolveUniqueContactByName(volunteerName, index);
+  if (!contact) return null;
+
+  return {
+    matched: true,
+    contactId: contact.id,
+    contactName: contact.name,
+    matchReason: 'name_item',
+    sourceLabel: `${boardRoleLabel(note.boardId)} · ${note.itemName}`,
+  };
+}
+
+export function matchNoteByBodyName(
+  note: RawMondayNote,
+  index: ContactMatchIndex,
+): NoteMatchResult | null {
+  const plain = stripHtml(note.body);
+  const candidates = extractVolunteerNamesFromNoteBody(plain);
+
+  for (const name of candidates) {
+    const contact = resolveUniqueContactByName(name, index);
+    if (contact) {
+      return {
+        matched: true,
+        contactId: contact.id,
+        contactName: contact.name,
+        matchReason: 'name_body',
+        sourceLabel: `${boardRoleLabel(note.boardId)} · ${note.itemName}`,
+      };
+    }
+  }
+
+  return null;
+}
+
 export function resolveContactForHarvest(
   note: RawMondayNote,
   index: ContactMatchIndex,
@@ -170,6 +264,15 @@ export function resolveContactForHarvest(
     const emailMatch = matchApplicationNoteByEmail(note, itemEmail, index);
     if (emailMatch?.matched) return emailMatch;
   }
+
+  const recipientMatch = matchNoteByRecipientEmail(note, index);
+  if (recipientMatch?.matched) return recipientMatch;
+
+  const itemNameMatch = matchNoteByItemName(note, index);
+  if (itemNameMatch?.matched) return itemNameMatch;
+
+  const bodyNameMatch = matchNoteByBodyName(note, index);
+  if (bodyNameMatch?.matched) return bodyNameMatch;
 
   return primary;
 }

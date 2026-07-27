@@ -3,7 +3,7 @@
  * Column titles — override via VITE_LT_COL_* in .env.
  */
 
-const viteEnv = import.meta.env;
+const viteEnv = import.meta.env ?? {};
 
 export const longtermColumnMap = {
   status: viteEnv.VITE_LT_COL_STATUS || 'Status',

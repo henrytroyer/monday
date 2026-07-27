@@ -19,7 +19,7 @@ import {
   getServiceRecordNotes,
 } from './serviceRecordNoteStorage';
 import type { ServiceRecordNote } from '../types/internalNote';
-import { getApprovedNotesForContact } from './noteReviewStorage';
+import { getApprovedNotesForApplicationItem, getApprovedNotesForContact } from './noteReviewStorage';
 import { getLocalContactHubNotes } from './contactHubNoteStorage';
 
 const FETCH_CONCURRENCY = 3;
@@ -126,8 +126,19 @@ function localContactHubNotesToContactInternal(
 
 function approvedNotesToContactInternal(
   contactId: string,
+  applicationItemIds: string[] = [],
 ): ContactInternalNote[] {
-  return getApprovedNotesForContact(contactId).map((link) => ({
+  const byKey = new Map<string, ReturnType<typeof getApprovedNotesForContact>[number]>();
+  for (const link of getApprovedNotesForContact(contactId)) {
+    byKey.set(link.noteKey, link);
+  }
+  for (const itemId of applicationItemIds) {
+    for (const link of getApprovedNotesForApplicationItem(itemId)) {
+      byKey.set(link.noteKey, link);
+    }
+  }
+
+  return [...byKey.values()].map((link) => ({
     id: `approved-${link.noteKey}`,
     body: link.body,
     bodyHtml: link.bodyHtml,
@@ -183,11 +194,12 @@ export async function fetchContactInternalNotes(
   serviceTerms: VolunteerTerm[],
 ): Promise<ContactInternalNote[]> {
   if (useMockData()) {
+    const applicationItemIds = serviceTerms.map((term) => term.itemId);
     return mergeContactInternalNotes(
       localContactHubNotesToContactInternal(contactId),
       localRecruitmentNotesToContactInternal(contactId, serviceTerms),
       localTermNotesToContactInternal(serviceTerms),
-      approvedNotesToContactInternal(contactId),
+      approvedNotesToContactInternal(contactId, applicationItemIds),
     );
   }
 
@@ -230,7 +242,7 @@ export async function fetchContactInternalNotes(
     hubNotes,
     recruitmentNotes,
     localRecruitmentWithAttachments,
-    approvedNotesToContactInternal(contactId),
+    approvedNotesToContactInternal(contactId, applicationItemIds),
     ...applicationNoteGroups,
   );
 }

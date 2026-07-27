@@ -164,7 +164,7 @@ function SharedTab({
     <div className="space-y-5">
       {sharedContent}
       {splitFilesRow ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-stretch">
           <VolunteerFilesSection
             volunteerName={detail.name}
             files={detail.files}

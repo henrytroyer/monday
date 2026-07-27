@@ -1,7 +1,9 @@
 import {
+  getOnboardingStepsForApplication,
   getPipelineStepDefinition,
   getPipelineStepKind,
-  ONBOARDING_PIPELINE_STEPS,
+  LONG_TERM_ONBOARDING_STEPS,
+  type OnboardingPipelineStepDefinition,
   type OnboardingStepKind,
 } from '../constants/onboardingPipelineSteps';
 import { getTimelineById } from '../data/timelines';
@@ -59,19 +61,24 @@ export function createEmptyStep(stepId: string): OnboardingPipelineStep {
   return { stepId, status: 'not_started' };
 }
 
-export function createDefaultPipeline(volunteer: Volunteer): OnboardingPipeline {
+export function createDefaultPipeline(
+  volunteer: Volunteer,
+  isLongterm = true,
+): OnboardingPipeline {
+  const stepDefs = getOnboardingStepsForApplication(isLongterm);
   return {
     volunteerId: volunteer.id,
     timelineId: volunteer.timelineId,
-    steps: ONBOARDING_PIPELINE_STEPS.map((def) => createEmptyStep(def.id)),
+    steps: stepDefs.map((def) => createEmptyStep(def.id)),
   };
 }
 
 export function deriveStepHints(
   volunteer: Volunteer,
   detail: VolunteerDetail,
+  isLongterm = true,
 ): OnboardingPipeline {
-  const pipeline = createDefaultPipeline(volunteer);
+  const pipeline = createDefaultPipeline(volunteer, isLongterm);
   const slots = resolveVolunteerFileSlots(detail.profilePhotoUrl, detail.files);
   const hasPastorRef =
     detail.pastorReferenceFormFields.some((f) => f.answer.trim() !== '') ||
@@ -195,17 +202,19 @@ function syncSafeguardingStepFromDetail(
 export function mergePipelineWithStorage(
   volunteer: Volunteer,
   detail: VolunteerDetail,
+  isLongterm = true,
 ): OnboardingPipeline {
+  const stepDefs = getOnboardingStepsForApplication(isLongterm);
   const stored = loadPipeline(volunteer.id);
   const base =
-    stored && stored.steps.length === ONBOARDING_PIPELINE_STEPS.length
+    stored && stored.steps.length === stepDefs.length
       ? stored
-      : deriveStepHints(volunteer, detail);
+      : deriveStepHints(volunteer, detail, isLongterm);
 
   const synced = syncSafeguardingStepFromDetail(base, detail);
   if (synced !== base) {
     savePipeline(synced);
-  } else if (!stored || stored.steps.length !== ONBOARDING_PIPELINE_STEPS.length) {
+  } else if (!stored || stored.steps.length !== stepDefs.length) {
     savePipeline(synced);
   }
 
@@ -226,14 +235,18 @@ export function isStepDone(
 export function getStatusLabel(
   step: OnboardingPipelineStep,
   kind?: OnboardingStepKind,
+  isLongterm = true,
 ): string {
-  const def = getPipelineStepDefinition(step.stepId);
+  const def = getPipelineStepDefinition(step.stepId, isLongterm);
   const stepKind = kind ?? def?.kind ?? 'simple';
 
   if (step.status === 'not_started') return 'Not started';
   if (stepKind === 'simple') return 'Complete';
   if (step.status === 'waiting') return 'Waiting';
   if (step.status === 'received') {
+    if (step.stepId === 'invoice' && step.paymentStatus === 'open') {
+      return 'Open';
+    }
     return def?.receivedLabel ?? 'Received';
   }
   return 'Not started';
@@ -248,10 +261,27 @@ export function isEmailDue(
   return step.projectedDate <= todayIso();
 }
 
+const SHORT_TERM_STEP_COUNT = getOnboardingStepsForApplication(false).length;
+
+function resolveStepDefinitions(
+  pipeline: OnboardingPipeline,
+  stepDefs?: readonly OnboardingPipelineStepDefinition[],
+): readonly OnboardingPipelineStepDefinition[] {
+  if (stepDefs) return stepDefs;
+  return pipeline.steps.length === SHORT_TERM_STEP_COUNT
+    ? getOnboardingStepsForApplication(false)
+    : LONG_TERM_ONBOARDING_STEPS;
+}
+
 export function getCurrentStep(
   pipeline: OnboardingPipeline,
-): { step: OnboardingPipelineStep; definition: (typeof ONBOARDING_PIPELINE_STEPS)[number] } | null {
-  for (const def of ONBOARDING_PIPELINE_STEPS) {
+  stepDefs?: readonly OnboardingPipelineStepDefinition[],
+): {
+  step: OnboardingPipelineStep;
+  definition: OnboardingPipelineStepDefinition;
+} | null {
+  const defs = resolveStepDefinitions(pipeline, stepDefs);
+  for (const def of defs) {
     const step = pipeline.steps.find((s) => s.stepId === def.id);
     if (step && !isStepDone(step, def.kind)) {
       return { step, definition: def };
@@ -262,27 +292,33 @@ export function getCurrentStep(
 
 export function getNextProjectedStep(
   pipeline: OnboardingPipeline,
-): { step: OnboardingPipelineStep; definition: (typeof ONBOARDING_PIPELINE_STEPS)[number] } | null {
-  for (const def of ONBOARDING_PIPELINE_STEPS) {
+  stepDefs?: readonly OnboardingPipelineStepDefinition[],
+): {
+  step: OnboardingPipelineStep;
+  definition: OnboardingPipelineStepDefinition;
+} | null {
+  const defs = resolveStepDefinitions(pipeline, stepDefs);
+  for (const def of defs) {
     const step = pipeline.steps.find((s) => s.stepId === def.id);
     if (step && !isStepDone(step, def.kind) && step.projectedDate) {
       return { step, definition: def };
     }
   }
-  return getCurrentStep(pipeline);
+  return getCurrentStep(pipeline, stepDefs);
 }
 
 export function suggestProjectedDates(
   pipeline: OnboardingPipeline,
   timelineId: string,
   termStart?: string,
+  stepDefs: readonly OnboardingPipelineStepDefinition[] = LONG_TERM_ONBOARDING_STEPS,
 ): OnboardingPipeline {
   const timeline = getTimelineById(timelineId);
   const startAnchor = pipeline.applicationReceivedAt ?? todayIso();
   const endAnchor =
     termStart?.trim() || timeline?.startDate || addDays(startAnchor, 60);
 
-  const incompleteSteps = ONBOARDING_PIPELINE_STEPS.filter((def) => {
+  const incompleteSteps = stepDefs.filter((def) => {
     const step = pipeline.steps.find((s) => s.stepId === def.id);
     return step && !isStepDone(step, def.kind);
   });
@@ -312,15 +348,23 @@ export function suggestProjectedDates(
   return { ...pipeline, steps: updatedSteps };
 }
 
-export function buildProgressSummary(pipeline: OnboardingPipeline): string {
-  const current = getCurrentStep(pipeline);
+export function buildProgressSummary(
+  pipeline: OnboardingPipeline,
+  stepDefs?: readonly OnboardingPipelineStepDefinition[],
+): string {
+  const defs = resolveStepDefinitions(pipeline, stepDefs);
+  const current = getCurrentStep(pipeline, defs);
   const lines: string[] = [];
 
-  for (const def of ONBOARDING_PIPELINE_STEPS) {
+  for (const def of defs) {
     const step = pipeline.steps.find((s) => s.stepId === def.id);
     if (!step) continue;
 
-    const label = getStatusLabel(step, def.kind);
+    const label = getStatusLabel(
+      step,
+      def.kind,
+      defs === getOnboardingStepsForApplication(false),
+    );
     const isDone = isStepDone(step, def.kind);
     const isCurrent = current?.step.stepId === step.stepId;
     const prefix = isDone ? '✓' : isCurrent ? '→' : ' ';
@@ -347,23 +391,25 @@ export function buildProgressSummary(pipeline: OnboardingPipeline): string {
 
 export function buildOnboardingMergeContext(
   pipeline: OnboardingPipeline,
+  isLongterm = true,
 ): Record<string, string> {
-  const current = getCurrentStep(pipeline);
-  const next = getNextProjectedStep(pipeline);
-  const doneCount = ONBOARDING_PIPELINE_STEPS.filter((def) => {
+  const stepDefs = getOnboardingStepsForApplication(isLongterm);
+  const current = getCurrentStep(pipeline, stepDefs);
+  const next = getNextProjectedStep(pipeline, stepDefs);
+  const doneCount = stepDefs.filter((def) => {
     const step = pipeline.steps.find((s) => s.stepId === def.id);
     return step && isStepDone(step, def.kind);
   }).length;
 
   return {
-    onboardingProgressSummary: buildProgressSummary(pipeline),
+    onboardingProgressSummary: buildProgressSummary(pipeline, stepDefs),
     currentStepTitle: current?.definition.title ?? 'All steps complete',
     nextStepTitle: next?.definition.title ?? '',
     nextStepProjectedDate: next?.step.projectedDate
       ? formatDisplayDate(next.step.projectedDate)
       : '—',
     completedStepCount: String(doneCount),
-    totalStepCount: String(ONBOARDING_PIPELINE_STEPS.length),
+    totalStepCount: String(stepDefs.length),
   };
 }
 
@@ -388,7 +434,12 @@ export function updateStepStatus(
       return { ...step, status: 'complete' as OnboardingStepStatus, completedDate: today };
     }
     if (action === 'mark_waiting' && kind === 'async') {
-      return { ...step, status: 'waiting' as OnboardingStepStatus, waitingDate: today };
+      return {
+        ...step,
+        status: 'waiting' as OnboardingStepStatus,
+        waitingDate: today,
+        sentDate: today,
+      };
     }
     if (action === 'mark_received' && kind === 'async') {
       return { ...step, status: 'received' as OnboardingStepStatus, receivedDate: today };

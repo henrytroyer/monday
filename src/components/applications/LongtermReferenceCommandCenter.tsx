@@ -34,7 +34,7 @@ export default function LongtermReferenceCommandCenter({
   ).length;
 
   return (
-    <div className="rounded-xl border border-crm-taupe/20 bg-crm-white px-4 py-3">
+    <div className="flex h-full flex-col rounded-xl border border-crm-taupe/20 bg-crm-white px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-crm-heading">References</h3>
         <p className="text-xs text-crm-slate">
@@ -44,7 +44,7 @@ export default function LongtermReferenceCommandCenter({
         </p>
       </div>
 
-      <ul className="mt-2 space-y-1.5">
+      <ul className="mt-2 flex-1 space-y-1.5">
         {slots.map((slot) => (
           <ReferenceRow
             key={slot.slotIndex}

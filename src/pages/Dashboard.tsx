@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import AppSidebar from '../components/layout/AppSidebar';
 import { type PageId } from '../constants/navItems';
 import KeepAlivePage from '../components/layout/KeepAlivePage';
@@ -9,12 +9,13 @@ import {
   getInitialMountedPages,
   patchCrmNavigationState,
 } from '../services/crmNavigationStorage';
-import ApplicationsPage from './ApplicationsPage';
-import ContactsPage from './ContactsPage';
-import EmailAdminPage from './EmailAdminPage';
-import LongtermApplicationsPage from './LongtermApplicationsPage';
-import HistoryPage from './HistoryPage';
-import RecruitmentPage from './RecruitmentPage';
+
+const ApplicationsPage = lazy(() => import('./ApplicationsPage'));
+const ContactsPage = lazy(() => import('./ContactsPage'));
+const EmailAdminPage = lazy(() => import('./EmailAdminPage'));
+const HistoryPage = lazy(() => import('./HistoryPage'));
+const RecruitmentPage = lazy(() => import('./RecruitmentPage'));
+const LongtermApplicationsPage = lazy(() => import('./LongtermApplicationsPage'));
 
 export default function Dashboard() {
   const [activePage, setActivePage] = useState<PageId>(getInitialActivePage);
@@ -73,71 +74,73 @@ export default function Dashboard() {
           active={activePage === 'applications'}
           mounted={mountedPages.has('applications')}
         >
-          <ApplicationsPage
-            focusApplicationId={applicationFocusId}
-            onClearFocus={() => setApplicationFocusId(null)}
-          />
+          <Suspense fallback={<PageLoadFallback label="Applications" />}>
+            <ApplicationsPage
+              focusApplicationId={applicationFocusId}
+              onClearFocus={() => setApplicationFocusId(null)}
+            />
+          </Suspense>
         </KeepAlivePage>
 
         <KeepAlivePage
           active={activePage === 'contacts'}
           mounted={mountedPages.has('contacts')}
         >
-          <ContactsPage
-            focusContactId={contactFocusId}
-            onClearFocus={() => setContactFocusId(null)}
-            onGoToRecruitment={handleGoToRecruitment}
-            onGoToApplication={handleGoToApplication}
-          />
+          <Suspense fallback={<PageLoadFallback label="Contacts" />}>
+            <ContactsPage
+              focusContactId={contactFocusId}
+              onClearFocus={() => setContactFocusId(null)}
+              onGoToRecruitment={handleGoToRecruitment}
+              onGoToApplication={handleGoToApplication}
+            />
+          </Suspense>
         </KeepAlivePage>
 
         <KeepAlivePage
           active={activePage === 'history'}
           mounted={mountedPages.has('history')}
         >
-          <HistoryPage
-            onNavigate={handleNavigate}
-            onFocusApplication={handleGoToApplication}
-            onFocusRecruitment={handleGoToRecruitment}
-            onFocusContact={handleGoToContact}
-          />
+          <Suspense fallback={<PageLoadFallback label="History" />}>
+            <HistoryPage
+              onNavigate={handleNavigate}
+              onFocusApplication={handleGoToApplication}
+              onFocusRecruitment={handleGoToRecruitment}
+              onFocusContact={handleGoToContact}
+            />
+          </Suspense>
         </KeepAlivePage>
 
         <KeepAlivePage
           active={activePage === 'email'}
           mounted={mountedPages.has('email')}
         >
-          <EmailAdminPage
-            onOpenApplication={handleGoToApplication}
-            onOpenContact={handleGoToContact}
-          />
+          <Suspense fallback={<PageLoadFallback label="Email control" />}>
+            <EmailAdminPage
+              onOpenApplication={handleGoToApplication}
+              onOpenContact={handleGoToContact}
+            />
+          </Suspense>
         </KeepAlivePage>
 
         <KeepAlivePage
           active={activePage === 'recruitment'}
           mounted={mountedPages.has('recruitment')}
         >
-          <RecruitmentPage
-            focusProspectId={recruitmentFocusId}
-            onClearFocus={() => setRecruitmentFocusId(null)}
-          />
+          <Suspense fallback={<PageLoadFallback label="Recruitment" />}>
+            <RecruitmentPage
+              focusProspectId={recruitmentFocusId}
+              onClearFocus={() => setRecruitmentFocusId(null)}
+            />
+          </Suspense>
         </KeepAlivePage>
 
         <KeepAlivePage
           active={activePage === 'longterm-applications'}
           mounted={mountedPages.has('longterm-applications')}
         >
-          <LongtermApplicationsPage />
-        </KeepAlivePage>
-
-        <KeepAlivePage
-          active={activePage === 'history'}
-          mounted={mountedPages.has('history')}
-        >
-          <PlaceholderPage
-            title="History"
-            description="Audit log and activity history"
-          />
+          <Suspense fallback={<PageLoadFallback label="Long-term applications" />}>
+            <LongtermApplicationsPage />
+          </Suspense>
         </KeepAlivePage>
 
         <KeepAlivePage
@@ -160,6 +163,18 @@ export default function Dashboard() {
           />
         </KeepAlivePage>
       </main>
+    </div>
+  );
+}
+
+function PageLoadFallback({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-crm-slate">
+      <div
+        className="h-8 w-8 animate-spin rounded-full border-2 border-crm-taupe/30 border-t-crm-heading"
+        aria-hidden
+      />
+      <p className="text-sm">Loading {label}…</p>
     </div>
   );
 }

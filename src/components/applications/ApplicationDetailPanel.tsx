@@ -3,6 +3,7 @@ import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { slotLabelForIndex } from '../../constants/longtermReferenceSlots';
 import { useApplicationDetail } from '../../hooks/useApplicationDetail';
 import { useLongtermReferences } from '../../hooks/useLongtermReferences';
+import { useShortTermOnboardingPipeline } from '../../hooks/useShortTermOnboardingPipeline';
 import { openItem } from '../../utils/mondayHelpers';
 import { savePipeline } from '../../services/onboardingPipelineStorage';
 import type { OnboardingPipeline, Volunteer, VolunteerDetail } from '../../types/volunteer';
@@ -26,6 +27,7 @@ import ItineraryBubbles from './ItineraryBubbles';
 import LongtermReferenceAnswersPanel from './LongtermReferenceAnswersPanel';
 import LongtermReferenceCommandCenter from './LongtermReferenceCommandCenter';
 import OnboardingProgress from './OnboardingProgress';
+import OnboardingProgressPanel from './OnboardingProgressPanel';
 import SendEmailModal from './SendEmailModal';
 import TermNotesChat from './TermNotesChat';
 import TermEmailCorrespondence from './TermEmailCorrespondence';
@@ -77,7 +79,7 @@ export default function ApplicationDetailPanel({
     number | null
   >(null);
   const [onboardingEmailOpen, setOnboardingEmailOpen] = useState(false);
-  const [pipeline, setPipeline] = useState<OnboardingPipeline | null>(null);
+  const [longtermPipeline, setLongtermPipeline] = useState<OnboardingPipeline | null>(null);
   const [callOpen, setCallOpen] = useState(false);
   const [drillDown, setDrillDown] = useState<DrillDownView>(null);
   const [answersSlotIndex, setAnswersSlotIndex] = useState<number | null>(null);
@@ -100,17 +102,31 @@ export default function ApplicationDetailPanel({
   );
 
   useEffect(() => {
-    if (detail) {
-      setPipeline(mergePipelineWithStorage(volunteer, detail));
+    if (detail && quickActionsBeforeFiles) {
+      setLongtermPipeline(mergePipelineWithStorage(volunteer, detail, true));
     }
-  }, [volunteer.id, volunteer.timelineId, detail]);
+  }, [volunteer.id, volunteer.timelineId, detail, quickActionsBeforeFiles]);
+
+  const shortTermOnboarding = useShortTermOnboardingPipeline({
+    volunteer,
+    detail: quickActionsBeforeFiles ? null : detail,
+    actorName: displayName,
+  });
+
+  const pipeline = quickActionsBeforeFiles
+    ? longtermPipeline
+    : shortTermOnboarding.pipeline;
 
   const handlePipelineChange = (next: OnboardingPipeline) => {
-    setPipeline(next);
-    savePipeline(next, {
-      actorName: displayName,
-      volunteerName: volunteer.name,
-    });
+    if (quickActionsBeforeFiles) {
+      setLongtermPipeline(next);
+      savePipeline(next, {
+        actorName: displayName,
+        volunteerName: volunteer.name,
+      });
+      return;
+    }
+    shortTermOnboarding.handlePipelineChange(next);
   };
 
   const handleSendProgressEmail = (_stepId?: string) => {
@@ -120,8 +136,11 @@ export default function ApplicationDetailPanel({
   };
 
   const onboardingMergeContext = useMemo(
-    () => (pipeline ? buildOnboardingMergeContext(pipeline) : {}),
-    [pipeline],
+    () =>
+      pipeline
+        ? buildOnboardingMergeContext(pipeline, quickActionsBeforeFiles)
+        : {},
+    [pipeline, quickActionsBeforeFiles],
   );
 
   const { requestClose: requestCloseCall } = useNavLayer(
@@ -217,6 +236,27 @@ export default function ApplicationDetailPanel({
     </div>
   );
 
+  const referencesPanel = quickActionsBeforeFiles ? (
+    <LongtermReferenceCommandCenter
+      slots={referenceSlots}
+      loading={longtermReferences.loading}
+      onViewAnswers={setAnswersSlotIndex}
+      onSendRequest={(slotIndex) => {
+        setReferenceRequestSlot(slotIndex);
+        setSendEmailOpen(true);
+      }}
+      onApprove={(slotIndex) =>
+        void longtermReferences.setReviewStatus(slotIndex, 'approved')
+      }
+      onNeedsReview={(slotIndex) =>
+        void longtermReferences.setReviewStatus(slotIndex, 'needs_review')
+      }
+      onUndoReview={(slotIndex) =>
+        void longtermReferences.clearReviewStatus(slotIndex)
+      }
+    />
+  ) : undefined;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface">
@@ -253,6 +293,8 @@ export default function ApplicationDetailPanel({
                   onEmailClick={() => setSendEmailOpen(true)}
                   onPhoneClick={() => setCallOpen(true)}
                   sharedContent={quickActions}
+                  splitFilesRow={quickActionsBeforeFiles}
+                  besideFiles={referencesPanel}
                 />
               ) : (
                 <VolunteerContactCard
@@ -260,37 +302,16 @@ export default function ApplicationDetailPanel({
                   onEmailClick={() => setSendEmailOpen(true)}
                   onPhoneClick={() => setCallOpen(true)}
                   beforeFiles={quickActions}
+                  splitFilesRow={quickActionsBeforeFiles}
+                  besideFiles={referencesPanel}
                 />
               )}
 
-              {quickActionsBeforeFiles && (
-                <div className="w-full md:max-w-[50%]">
-                  <LongtermReferenceCommandCenter
-                    slots={referenceSlots}
-                    loading={longtermReferences.loading}
-                    onViewAnswers={setAnswersSlotIndex}
-                    onSendRequest={(slotIndex) => {
-                      setReferenceRequestSlot(slotIndex);
-                      setSendEmailOpen(true);
-                    }}
-                    onApprove={(slotIndex) =>
-                      void longtermReferences.setReviewStatus(slotIndex, 'approved')
-                    }
-                    onNeedsReview={(slotIndex) =>
-                      void longtermReferences.setReviewStatus(
-                        slotIndex,
-                        'needs_review',
-                      )
-                    }
-                    onUndoReview={(slotIndex) =>
-                      void longtermReferences.clearReviewStatus(slotIndex)
-                    }
-                  />
-                </div>
-              )}
-
-              <Panel title="Onboarding Progress">
-                {pipeline && (
+              {pipeline && (
+                <OnboardingProgressPanel
+                  pipeline={pipeline}
+                  variant={quickActionsBeforeFiles ? 'long-term' : 'short-term'}
+                >
                   <OnboardingProgress
                     pipeline={pipeline}
                     volunteer={volunteer}
@@ -298,13 +319,14 @@ export default function ApplicationDetailPanel({
                     housing={display.housing}
                     itemId={display.id}
                     boardId={boardId}
+                    variant={quickActionsBeforeFiles ? 'long-term' : 'short-term'}
                     onPipelineChange={handlePipelineChange}
                     onSendProgressEmail={handleSendProgressEmail}
                     invoiceReadOnly={!applicationsEditable}
                     onInvoiceLinked={() => refetch()}
                   />
-                )}
-              </Panel>
+                </OnboardingProgressPanel>
+              )}
 
               <Panel title="Placement Details">
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

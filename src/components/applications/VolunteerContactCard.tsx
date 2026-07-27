@@ -156,7 +156,7 @@ export default function VolunteerContactCard({
       {beforeFiles && <div className="mt-5">{beforeFiles}</div>}
 
       {splitFilesRow ? (
-        <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+        <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-2 md:items-stretch">
           <VolunteerFilesSection
             volunteerName={detail.name}
             profilePhotoUrl={detail.profilePhotoUrl}

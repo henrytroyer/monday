@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatNoteTimestamp } from '../../services/termNotes';
 import { useNoteReview, notifyNoteReviewChanged } from '../../hooks/useNoteReview';
-import { harvestMondayNotes } from '../../services/mondayNoteHarvest';
+import { harvestMondayNotes, rematchPendingNotesFromMonday } from '../../services/mondayNoteHarvest';
 import { notifyContactNotesChanged } from '../../services/mondayBoardWatcher';
 import { useMockData } from '../../config/boards';
 import { fetchContactsList } from '../../services/contactsApi';
@@ -14,6 +14,29 @@ interface NoteReviewInboxProps {
   onClose: () => void;
 }
 
+function formatMatchReason(reason: string): string {
+  switch (reason) {
+    case 'name_item':
+      return 'Item name';
+    case 'name_body':
+      return 'Name in email';
+    case 'email_recipient':
+      return 'Recipient email';
+    case 'email_exact':
+      return 'Application email';
+    case 'board_relation':
+      return 'Board relation';
+    case 'contacts_item':
+      return 'Contacts item';
+    case 'crm_tag_recruitment':
+      return 'Recruitment tag';
+    case 'crm_tag_term':
+      return 'Term tag';
+    default:
+      return reason;
+  }
+}
+
 export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
   const { items, pendingCount, approve, dismiss, bulkApproveSuggested, refresh } =
     useNoteReview();
@@ -24,6 +47,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
   const [harvesting, setHarvesting] = useState(false);
   const [bulkApproving, setBulkApproving] = useState(false);
   const [harvestMessage, setHarvestMessage] = useState<string | null>(null);
+  const rematchAttemptedRef = useRef(false);
   const [selectedContactByNote, setSelectedContactByNote] = useState<
     Record<string, ContactListItem | null>
   >({});
@@ -52,6 +76,29 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
     void loadContacts();
   }, [loadContacts]);
 
+  useEffect(() => {
+    if (isMock || rematchAttemptedRef.current || pendingCount === 0) return;
+    rematchAttemptedRef.current = true;
+    void rematchPendingNotesFromMonday()
+      .then((result) => {
+        notifyNoteReviewChanged();
+        if (result.rematchAutoApproved > 0) {
+          notifyContactNotesChanged(result.affectedContactIds);
+          setHarvestMessage(
+            `Auto-linked ${result.rematchAutoApproved} note${result.rematchAutoApproved === 1 ? '' : 's'} from inbox`,
+          );
+        }
+        refresh();
+        // Allow another pass if anything is still pending after code/index updates.
+        if (result.rematchAutoApproved === 0 && result.rematched > 0) {
+          rematchAttemptedRef.current = false;
+        }
+      })
+      .catch(() => {
+        rematchAttemptedRef.current = false;
+      });
+  }, [isMock, pendingCount, refresh]);
+
   async function runHarvest() {
     setHarvesting(true);
     setHarvestMessage(null);
@@ -66,8 +113,12 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
         result.autoApproved > 0
           ? ` · ${result.autoApproved} auto-linked to contact`
           : '';
+      const rematchPart =
+        result.rematchAutoApproved > 0
+          ? ` · ${result.rematchAutoApproved} cleared from existing inbox`
+          : '';
       setHarvestMessage(
-        `Scanned ${result.scanned} updates · ${result.queued} queued for review · ${result.matchedSuggestions} with suggested contact${autoPart}`,
+        `Scanned ${result.scanned} updates · ${result.queued} queued for review · ${result.matchedSuggestions} with suggested contact${autoPart}${rematchPart}`,
       );
       void loadContacts();
     } catch (err) {
@@ -116,8 +167,9 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
             </h2>
             <p className="mt-1 text-sm text-crm-slate">
               {pendingCount} note{pendingCount === 1 ? '' : 's'} need review.
-              Notes with a strict contact match auto-link on sync; search for a
-              contact to attach anything unmatched.
+              Notes with a contact match (relation, email, item name, or name in
+              email) auto-link on sync; search for a contact to attach
+              anything still unmatched.
             </p>
           </div>
           <button
@@ -197,7 +249,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
                       </div>
                       {item.matchReason && (
                         <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-900">
-                          Suggested: {item.matchReason}
+                          Suggested: {formatMatchReason(item.matchReason)}
                         </span>
                       )}
                     </div>

@@ -192,6 +192,12 @@ export function getApprovedNotesForContact(
   return readApproved().filter((link) => link.contactId === contactId);
 }
 
+export function getApprovedNotesForApplicationItem(
+  itemId: string,
+): ApprovedNoteLink[] {
+  return readApproved().filter((link) => link.itemId === itemId);
+}
+
 export function bulkApproveSuggestedReviewItems(): {
   approved: number;
   skipped: number;

@@ -50,6 +50,11 @@ export function notifyEmailCorrespondenceChanged(itemIds: string[] = []): void {
       detail: { itemIds },
     }),
   );
+  window.dispatchEvent(
+    new CustomEvent('crm-onboarding-pipeline-changed', {
+      detail: { itemIds },
+    }),
+  );
 }
 
 export function emailWatchIntervalMs(): number {
