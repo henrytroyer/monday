@@ -1,0 +1,67 @@
+---
+description: Applications workstream — Short-term applications pipeline, detail panel, filters, read-only UX, and column mapping.
+globs:
+  - src/pages/ApplicationsPage.tsx
+  - src/components/applications/**
+  - src/hooks/useApplication*.ts
+  - src/services/mapMondayToCrm.ts
+  - src/config/columnMap.ts
+  - src/config/timelineMap.ts
+  - docs/crm-column-mapping.md
+alwaysApply: false
+---
+
+# Applications workstream
+
+This chat/session owns **Short-term applications** in the monday CRM portal.
+
+## Repo
+
+- Work in this repo only: `Documents/Monday/monday`
+- Do not touch `crm-prototype` unless the user explicitly asks
+
+## Scope (you own)
+
+- Short-term applications pipeline list and detail
+- Pipeline sections, filters, status display, term notes chat
+- Read-only UX guards (disable writes when view-only)
+- Column mapping: `columnMap.ts`, `timelineMap.ts`
+- Application-specific hooks: `useApplication*.ts`, `useApplicationsPipeline.ts`
+
+## Active plan
+
+Follow `.cursor/plans/short-term_applications_view_b69059c7.plan.md`:
+
+- In progress: `resolve-board-id` — use `resolveApplicationsBoardId` in `useApplicationsPipeline`
+- Pending: column discovery, read-only UI, list shell parity with Contacts, detail verify, cross-nav verify, build verify
+
+## Environment
+
+- `VITE_APPLICATIONS_BOARD_ID` — required for live pipeline
+- `VITE_APPLICATION_NOTES_WRITABLE` — keep **off** for view-only phase
+- Future: `VITE_APPLICATIONS_WRITABLE`
+- Shared: `VITE_MONDAY_READ_ONLY`, `VITE_MONDAY_API_PROXY_URL`
+
+## Out of scope (do not touch unless task explicitly requires it)
+
+- Contacts list, detail, profile edit, tags, internal notes
+- `ContactsPage`, `contactsApi.ts`, `contactMap.ts`, contact components
+- Exception: cross-nav verification (Contacts → application focus) may read Contacts nav props in `Dashboard.tsx`
+
+## Shared files — minimal diffs only
+
+When editing shared infrastructure, change only Applications-related code:
+
+| File | Applications-owned areas |
+|------|-------------------------|
+| `src/config/boards.ts` | `canEditApplications()`, `resolveApplicationsBoardId()` |
+| `src/services/crmApi.ts` | `fetchApplicationsPipeline`, status/notes mutations |
+| `src/pages/Dashboard.tsx` | `applicationFocusId` / focus behavior |
+| `.env.example` | applications vars section |
+
+Do not change Contacts write flags or `resolveContactsBoardId()` without user approval.
+
+## Dev servers
+
+- `npm run dev` (port 4040)
+- `npm run monday:proxy` for live monday API

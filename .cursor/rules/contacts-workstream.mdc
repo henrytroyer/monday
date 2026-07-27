@@ -1,0 +1,66 @@
+---
+description: Contacts workstream — list, detail, profile edit, tags, internal notes, filters, and cross-nav from Contacts side.
+globs:
+  - src/pages/ContactsPage.tsx
+  - src/components/contacts/**
+  - src/hooks/useContact*.ts
+  - src/services/contactsApi.ts
+  - src/services/mapMondayToContact.ts
+  - src/services/buildContactRelationships.ts
+  - src/services/contact*.ts
+  - src/config/contactMap.ts
+  - docs/crm-contacts.md
+alwaysApply: false
+---
+
+# Contacts workstream
+
+This chat/session owns the **Contacts** page in the monday CRM portal.
+
+## Repo
+
+- Work in this repo only: `Documents/Monday/monday`
+- Do not touch `crm-prototype` unless the user explicitly asks
+
+## Scope (you own)
+
+- Contacts list, detail panel, profile edit, tags
+- Internal notes, filters, toolbar, alphabet index
+- Contact ↔ application cross-nav **from the Contacts side**
+- Contact-specific services, mappers, and hooks under `src/components/contacts/`, `src/services/contact*.ts`, `useContact*.ts`
+
+## Environment
+
+- `VITE_CONTACTS_BOARD_ID` (live board: `2463183745`)
+- `VITE_CONTACTS_WRITABLE`
+- `VITE_CONTACT_COL_*` column title overrides
+
+## Out of scope (do not touch unless task explicitly requires it)
+
+- `ApplicationsPage`, `useApplicationsPipeline`, application pipeline components
+- `columnMap.ts`, `timelineMap.ts`
+- Short-term applications plan work
+
+## Shared files — minimal diffs only
+
+When editing shared infrastructure, change only Contacts-related code:
+
+| File | Contacts-owned areas |
+|------|---------------------|
+| `src/config/boards.ts` | `canEditContacts()`, `resolveContactsBoardId()` |
+| `src/services/crmApi.ts` | contact fetch/write helpers |
+| `src/pages/Dashboard.tsx` | cross-nav props from Contacts side |
+| `.env.example` | contact vars section |
+
+Do not change Applications write flags or `resolveApplicationsBoardId()` without user approval.
+
+## Contacts backlog (reference plans)
+
+- `general_contact_internal_notes` — notes on any contact without linked application
+- `fix_profile_save_500` — surface real monday errors on profile save
+- Completed: `speed_up_contacts_load`, `live_contact_editing`, `fix_contact_tag_save`
+
+## Dev servers
+
+- `npm run dev` (port 4040)
+- `npm run monday:proxy` for live monday API
