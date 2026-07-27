@@ -26,7 +26,7 @@ function findDonationColumn(
   );
 }
 
-function getDonationColumnText(
+export function getDonationColumnText(
   columnValues: MondayColumnValue[],
   fieldKey: keyof typeof donationMap,
 ): string {

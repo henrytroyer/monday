@@ -10,10 +10,17 @@ import {
 } from '../data/mockIncomingDonations';
 import { enrichContactDetail } from './buildContactRelationships';
 import {
+  compileContactsFromBoards,
+  isCompiledContactId,
+} from './compileContactsFromBoards';
+import { contactTagsEqual } from './contactRoleTags';
+import { mergeTags } from './contactSyncHelpers';
+import {
   fetchApplicationsBoardItems,
   fetchContactItem,
   fetchContactsBoard,
   fetchEndOfServiceReviewBoardItems,
+  fetchLongtermApplicationsBoardItems,
   fetchServiceEndedBoardItems,
   updateContactFieldsOnMonday,
   updateContactPastorReferenceOnMonday,
@@ -44,7 +51,10 @@ import {
   isRecruitmentServiceTerm,
   upsertRecruitmentServiceRecord,
 } from './contactServiceRecordStorage';
-import { mapItemToContactListItem } from './mapMondayToContact';
+import {
+  mapItemToContactListItem,
+  parseContactTags,
+} from './mapMondayToContact';
 import type { MondayBoardItem } from './mapMondayToCrm';
 import { findProspectByContactId } from './recruitmentStorage';
 import {
@@ -67,6 +77,7 @@ import type { VolunteerFile } from '../types/volunteer';
 export interface ContactsFetchOptions {
   contactsBoardId?: string | null;
   applicationsBoardId?: string | null;
+  longtermApplicationsBoardId?: string | null;
   donationsBoardId?: string | null;
   serviceEndedBoardId?: string | null;
   endOfServiceReviewBoardId?: string | null;
@@ -78,13 +89,28 @@ export interface ContactsFetchOptions {
   fallbackDetail?: ContactDetail;
 }
 
+export interface ContactsCompileStats {
+  fromContactsBoard: number;
+  addedFromOtherBoards: number;
+  mergedDuplicates: number;
+  withStreetAddress: number;
+  shortTermApps: number;
+  longTermApps: number;
+  serviceEnded: number;
+  donations: number;
+}
+
 let liveContactsCache: ContactListItem[] | null = null;
 let liveContactsCacheBoardId: string | null = null;
+let liveContactsCompileStats: ContactsCompileStats | null = null;
 let liveApplicationsCache: MondayBoardItem[] | null = null;
+let liveLongtermApplicationsCache: MondayBoardItem[] | null = null;
+let liveDonationsCache: MondayBoardItem[] | null = null;
 let liveServiceEndedCache: MondayBoardItem[] | null = null;
 let liveEndOfServiceReviewCache: MondayBoardItem[] | null = null;
 
-const SESSION_CONTACTS_CACHE_KEY = 'crm-contacts-list-cache';
+/** Bump when compile shape changes so stale session lists are discarded. */
+const SESSION_CONTACTS_CACHE_KEY = 'crm-contacts-list-cache-v2';
 
 interface SessionContactsCache {
   boardId: string;
@@ -155,10 +181,18 @@ export function getContactsLiveCache(boardId?: string | null): ContactListItem[]
 export function clearContactsLiveCache(): void {
   liveContactsCache = null;
   liveContactsCacheBoardId = null;
+  liveContactsCompileStats = null;
   liveApplicationsCache = null;
+  liveLongtermApplicationsCache = null;
+  liveDonationsCache = null;
   liveServiceEndedCache = null;
+  liveEndOfServiceReviewCache = null;
   clearSessionContactsCache();
   clearSessionDetailCache();
+}
+
+export function getContactsCompileStats(): ContactsCompileStats | null {
+  return liveContactsCompileStats;
 }
 
 export function removeFromContactsLiveCache(contactIds: string[]): void {
@@ -180,6 +214,27 @@ async function getLiveApplications(
   return liveApplicationsCache;
 }
 
+async function getLiveLongtermApplications(
+  longtermApplicationsBoardId?: string | null,
+): Promise<MondayBoardItem[]> {
+  if (!longtermApplicationsBoardId) return [];
+  if (liveLongtermApplicationsCache) return liveLongtermApplicationsCache;
+  liveLongtermApplicationsCache = await fetchLongtermApplicationsBoardItems(
+    longtermApplicationsBoardId,
+  );
+  return liveLongtermApplicationsCache;
+}
+
+async function getLiveDonationItems(
+  donationsBoardId?: string | null,
+): Promise<MondayBoardItem[]> {
+  if (!donationsBoardId) return [];
+  if (liveDonationsCache) return liveDonationsCache;
+  // Donations board uses the same paginated items query as applications.
+  liveDonationsCache = await fetchApplicationsBoardItems(donationsBoardId);
+  return liveDonationsCache;
+}
+
 async function getLiveServiceEndedItems(
   serviceEndedBoardId?: string | null,
 ): Promise<MondayBoardItem[]> {
@@ -188,6 +243,17 @@ async function getLiveServiceEndedItems(
   liveServiceEndedCache =
     await fetchServiceEndedBoardItems(serviceEndedBoardId);
   return liveServiceEndedCache;
+}
+
+function buildCompiledContactDetail(listItem: ContactListItem): ContactDetail {
+  return {
+    ...listItem,
+    emailCorrespondence: [],
+    currentApplication: null,
+    serviceTerms: [],
+    linkedVolunteers: [],
+    donations: [],
+  };
 }
 
 async function getLiveEndOfServiceReviewItems(
@@ -220,20 +286,16 @@ export async function fetchContactsList(
   }
 
   if (options?.clearCache) {
-    liveContactsCache = null;
-    liveContactsCacheBoardId = null;
-    liveApplicationsCache = null;
-    liveServiceEndedCache = null;
-    liveEndOfServiceReviewCache = null;
-    clearSessionContactsCache();
+    clearContactsLiveCache();
   }
 
   if (!options?.clearCache && !options?.refresh && liveContactsCache) {
     return liveContactsCache;
   }
 
-  liveContactsCache = await fetchContactsBoard(boardId, {
+  const baseContacts = await fetchContactsBoard(boardId, {
     onPage: (items, loaded) => {
+      // Progressive paint from Contacts board while other boards load.
       liveContactsCache = items;
       liveContactsCacheBoardId = boardId;
       writeSessionContactsCache(boardId, items);
@@ -241,7 +303,29 @@ export async function fetchContactsList(
     },
   });
   liveContactsCacheBoardId = boardId;
+
+  const [shortTerm, longTerm, serviceEnded, donations] = await Promise.all([
+    getLiveApplications(options?.applicationsBoardId).catch(() => []),
+    getLiveLongtermApplications(options?.longtermApplicationsBoardId).catch(
+      () => [],
+    ),
+    getLiveServiceEndedItems(options?.serviceEndedBoardId).catch(() => []),
+    getLiveDonationItems(options?.donationsBoardId).catch(() => []),
+  ]);
+
+  const compiled = compileContactsFromBoards({
+    contacts: baseContacts,
+    shortTermApplications: shortTerm,
+    longTermApplications: longTerm,
+    serviceEndedItems: serviceEnded,
+    donationItems: donations,
+  });
+
+  liveContactsCache = compiled.contacts;
+  liveContactsCompileStats = compiled.stats;
+  liveContactsCacheBoardId = boardId;
   writeSessionContactsCache(boardId, liveContactsCache);
+  options?.onPage?.(liveContactsCache, liveContactsCache.length);
   return liveContactsCache;
 }
 
@@ -277,6 +361,22 @@ export async function fetchContactDetail(
   contactId: string,
   options?: ContactsFetchOptions & { refresh?: boolean },
 ): Promise<ContactDetail> {
+  if (isCompiledContactId(contactId)) {
+    const listItem =
+      liveContactsCache?.find((contact) => contact.id === contactId) ??
+      (options?.contactsBoardId
+        ? getContactsLiveCache(options.contactsBoardId).find(
+            (contact) => contact.id === contactId,
+          )
+        : undefined);
+    if (!listItem) {
+      throw new Error(
+        'This contact was compiled from other boards and is not on the Contacts board yet.',
+      );
+    }
+    return buildCompiledContactDetail(listItem);
+  }
+
   if (useMockData()) {
     const detail = getContactDetailBase(contactId);
     const prospect = findProspectByContactId(contactId);
@@ -419,14 +519,42 @@ export async function fetchContactDetail(
     base.email !== '—' ? base.email : undefined,
   );
 
-  const result = {
+  const mergedTags = mergeTags(
+    enriched.tags ?? base.tags,
+    donations.length > 0 ? ['donor'] : [],
+  );
+
+  const result: ContactDetail = {
     ...base,
     ...enriched,
+    tags: mergedTags,
     childSafeguardingFile,
     emailCorrespondence,
     donations,
     serviceTerms: [...mergedRecruitment, ...applicationTerms],
   };
+
+  // Persist newly derived role tags (e.g. volunteer who also donates) when writable.
+  const storedTags = parseContactTags(item.column_values);
+  const boardId = options?.contactsBoardId;
+  if (
+    boardId &&
+    canEditContacts() &&
+    !contactTagsEqual(storedTags, mergedTags)
+  ) {
+    try {
+      await updateContactTagsOnMonday(boardId, contactId, mergedTags);
+      if (liveContactsCache) {
+        liveContactsCache = liveContactsCache.map((contact) =>
+          contact.id === contactId ? { ...contact, tags: mergedTags } : contact,
+        );
+        writeSessionContactsCache(boardId, liveContactsCache);
+      }
+    } catch {
+      // Keep derived tags in the CRM view even if monday write fails.
+    }
+  }
+
   setCachedContactDetail(cacheKey, result);
   return result;
 }

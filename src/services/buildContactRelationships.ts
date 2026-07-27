@@ -26,6 +26,10 @@ import {
   type MondayContactItem,
 } from './mapMondayToContact';
 import {
+  deriveDetailRoleTags,
+  deriveTagsFromContactRelations,
+} from './contactRoleTags';
+import {
   getServiceEndedColumnText,
   mapServiceEndedItemToTerm,
   parseLinkedContactIdsFromServiceEnded,
@@ -211,7 +215,9 @@ export function enrichContactDetail(
   endOfServiceReviewItems: MondayBoardItem[] = [],
 ): Omit<
   ContactDetail,
-  keyof ContactListItem | 'donations' | 'emailCorrespondence'
+  | Exclude<keyof ContactListItem, 'demographics' | 'tags'>
+  | 'donations'
+  | 'emailCorrespondence'
 > {
   const base = mapItemToContactListItem(contactItem);
   const emailNorm = normalizeEmail(base.email);
@@ -220,6 +226,8 @@ export function enrichContactDetail(
   const serviceTerms: VolunteerTerm[] = [];
   const linkedVolunteers: LinkedVolunteerSummary[] = [];
   let currentApplication: CurrentApplicationSummary | null = null;
+  let isParentByEmail = false;
+  let isPastorByEmail = false;
 
   const contactByEmail = buildContactByEmailIndex(allContacts);
 
@@ -251,7 +259,8 @@ export function enrichContactDetail(
       }
     }
 
-    if (base.tags.includes('parent') && parentEmail === emailNorm) {
+    if (parentEmail === emailNorm) {
+      isParentByEmail = true;
       linkedVolunteers.push({
         contactId: contactByEmail.get(volunteerEmail)?.id,
         applicationItemId: app.id,
@@ -263,7 +272,8 @@ export function enrichContactDetail(
       });
     }
 
-    if (base.tags.includes('pastor') && pastorEmail === emailNorm) {
+    if (pastorEmail === emailNorm) {
+      isPastorByEmail = true;
       linkedVolunteers.push({
         contactId: contactByEmail.get(volunteerEmail)?.id,
         applicationItemId: app.id,
@@ -330,14 +340,11 @@ export function enrichContactDetail(
     ),
   };
 
-  let volunteerApp: MondayBoardItem | undefined;
-  if (base.tags.includes('volunteer')) {
-    volunteerApp = applications.find(
-      (app) =>
-        linkedAppIds.includes(app.id) ||
-        normalizeEmail(getColumnText(app.column_values, 'email')) === emailNorm,
-    );
-  }
+  const volunteerApp = applications.find(
+    (app) =>
+      linkedAppIds.includes(app.id) ||
+      normalizeEmail(getColumnText(app.column_values, 'email')) === emailNorm,
+  );
 
   const applicationDemographics = volunteerApp
     ? resolveApplicationDemographics(volunteerApp.column_values)
@@ -371,8 +378,17 @@ export function enrichContactDetail(
   const linkedDonationItemIds = parseLinkedDonationItemIds(
     contactItem.column_values,
   );
+  const tags = deriveDetailRoleTags({
+    existingTags: base.tags,
+    hasVolunteerService: serviceTermsWithReviews.length > 0,
+    hasDonations: linkedDonationItemIds.length > 0,
+    isParentByEmail,
+    isPastorByEmail,
+    relationTags: deriveTagsFromContactRelations(contactItem.column_values),
+  });
 
   return {
+    tags,
     quickbooksCustomerId:
       getContactColumnText(contactItem.column_values, 'quickbooksCustomerId') ||
       undefined,

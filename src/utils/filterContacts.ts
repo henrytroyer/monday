@@ -24,9 +24,14 @@ export function filterContacts(
       if (!haystack.includes(query)) return false;
     }
 
+    // AND semantics: contact must have every selected tag
+    // (e.g. Volunteer + Donor → only dual-tagged contacts).
+    // Email is irrelevant — no-email contacts still match by tag.
     if (filters.tags.length > 0) {
-      const hasTag = filters.tags.some((tag) => contact.tags.includes(tag));
-      if (!hasTag) return false;
+      const hasAllTags = filters.tags.every((tag) =>
+        contact.tags.includes(tag),
+      );
+      if (!hasAllTags) return false;
     }
 
     return true;

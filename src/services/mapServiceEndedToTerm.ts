@@ -17,7 +17,7 @@ export function findServiceEndedColumn(
   columnValues: MondayColumnValue[],
   fieldKey: keyof typeof serviceEndedColumnMap,
 ): MondayColumnValue | undefined {
-  const shortTermLinkColumnId = import.meta.env
+  const shortTermLinkColumnId = (import.meta.env ?? {})
     .VITE_SERVICE_ENDED_COL_SHORT_TERM_LINK_ID as string | undefined;
   if (fieldKey === 'shortTermAppLink' && shortTermLinkColumnId?.trim()) {
     const byId = columnValues.find(
@@ -26,7 +26,7 @@ export function findServiceEndedColumn(
     if (byId) return byId;
   }
 
-  const contactLinkColumnId = import.meta.env
+  const contactLinkColumnId = (import.meta.env ?? {})
     .VITE_SERVICE_ENDED_COL_CONTACT_LINK_ID as string | undefined;
   if (fieldKey === 'contactLink' && contactLinkColumnId?.trim()) {
     const byId = columnValues.find(

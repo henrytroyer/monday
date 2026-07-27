@@ -154,6 +154,8 @@ const TAG_LABEL_TO_ID: Record<string, ContactTag> = {
   volunteer: 'volunteer',
   pastor: 'pastor',
   parent: 'parent',
+  /** Legacy singular label — combine with Parents in the CRM. */
+  parents: 'parent',
   donor: 'donor',
   recruitment: 'recruitment',
 };
@@ -161,6 +163,11 @@ const TAG_LABEL_TO_ID: Record<string, ContactTag> = {
 function parseTagLabel(label: string): ContactTag | null {
   const key = label.trim().toLowerCase();
   return TAG_LABEL_TO_ID[key] ?? null;
+}
+
+/** Exported for tests — maps monday tag text (Parent / Parents) → CRM tag. */
+export function parseContactTagLabel(label: string): ContactTag | null {
+  return parseTagLabel(label);
 }
 
 export function parseContactTags(columnValues: MondayColumnValue[]): ContactTag[] {
@@ -211,11 +218,36 @@ export function formatContactTagsForMonday(tags: ContactTag[]): string {
   return JSON.stringify({ labels });
 }
 
+function mapListDemographics(
+  columnValues: MondayColumnValue[],
+): ContactListItem['demographics'] {
+  const address = getColumnText(columnValues, 'address') || undefined;
+  const city = getColumnText(columnValues, 'city') || undefined;
+  const state = getColumnText(columnValues, 'state') || undefined;
+  const zip = getColumnText(columnValues, 'zip') || undefined;
+  const country = getColumnText(columnValues, 'country') || undefined;
+
+  if (!address && !city && !state && !zip && !country) {
+    return undefined;
+  }
+
+  return { address, city, state, zip, country };
+}
+
 export function mapItemToContactListItem(item: MondayContactItem): ContactListItem {
   const email = getColumnText(item.column_values, 'email') || '—';
   const phoneRaw = getColumnPhone(item.column_values, contactMap);
   const phone = phoneRaw || undefined;
   const profilePhotoUrl = getContactProfilePhotoUrl(item.column_values);
+  const storedTags = parseContactTags(item.column_values);
+  const relationTags: ContactTag[] = [];
+  if (parseLinkedApplicationIds(item.column_values).length > 0) {
+    relationTags.push('volunteer');
+  }
+  if (parseLinkedDonationItemIds(item.column_values).length > 0) {
+    relationTags.push('donor');
+  }
+  const tags = [...new Set([...storedTags, ...relationTags])];
 
   return {
     id: item.id,
@@ -224,7 +256,8 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
     phone,
     profilePhotoUrl,
     createdAt: item.created_at ?? undefined,
-    tags: parseContactTags(item.column_values),
+    tags,
+    demographics: mapListDemographics(item.column_values),
   };
 }
 

@@ -55,9 +55,12 @@ function statusColumnHasCrmLabels(settingsStr?: string): boolean {
       label.toLowerCase(),
     ),
   );
-  return Object.values(CONTACT_TAG_LABELS).some((label) =>
-    boardLabels.has(label.toLowerCase()),
+  const crmLabels = new Set(
+    Object.values(CONTACT_TAG_LABELS).map((label) => label.toLowerCase()),
   );
+  // Boards may still have the legacy singular "Parent" label.
+  crmLabels.add('parent');
+  return [...crmLabels].some((label) => boardLabels.has(label));
 }
 
 function isTextLikeColumnType(columnType: string): boolean {

@@ -16,7 +16,7 @@ const crmStatusSettings = JSON.stringify({
   labels: [
     { name: 'Volunteer' },
     { name: 'Pastor' },
-    { name: 'Parent' },
+    { name: 'Parents' },
     { name: 'Donor' },
   ],
 });

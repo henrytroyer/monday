@@ -104,6 +104,13 @@ const CONTACT_LIST_COLUMN_KEYS = [
   'tags',
   'type',
   'profilePhoto',
+  'address',
+  'city',
+  'state',
+  'zip',
+  'country',
+  'applicationsLink',
+  'donationsLink',
 ] as const satisfies ReadonlyArray<keyof typeof contactMap>;
 
 async function resolveContactListColumnIds(boardId: string): Promise<string[]> {

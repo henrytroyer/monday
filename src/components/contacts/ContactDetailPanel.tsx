@@ -7,6 +7,7 @@ import { usePastorReferenceLinkOptions } from '../../hooks/usePastorReferenceLin
 import type { ReactNode } from 'react';
 import type { ContactDetail, ContactEmailMessage, ContactListItem } from '../../types/contact';
 import type { VolunteerTerm } from '../../types/volunteer';
+import { isCompiledContactId } from '../../services/compileContactsFromBoards';
 import { isServiceEndedTerm } from '../../services/contactServiceRecordStorage';
 import {
   formatEndOfServiceReviewLabel,
@@ -204,13 +205,20 @@ export default function ContactDetailPanel({
 
           {detail && !loading && (
             <div className="space-y-6">
+              {isCompiledContactId(detail.id) && (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                  This person was found on Applications, Service Ended, or
+                  Donations but is not yet an item on the Contacts board. Profile
+                  edits and monday writes are limited until they are added there.
+                </div>
+              )}
               <ContactProfileCard
                 detail={detail}
                 saving={saving}
                 onGoToRecruitment={onGoToRecruitment}
-                canEdit={canEdit}
+                canEdit={canEdit && !isCompiledContactId(detail.id)}
                 onSave={
-                  canEdit
+                  canEdit && !isCompiledContactId(detail.id)
                     ? async (fields) => {
                         const updated = await updateCoreFields(fields);
                         onContactUpdated?.(updated);

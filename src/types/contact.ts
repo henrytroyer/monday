@@ -18,29 +18,11 @@ export const CONTACT_TAGS: ContactTag[] = [
 export const CONTACT_TAG_LABELS: Record<ContactTag, string> = {
   volunteer: 'Volunteer',
   pastor: 'Pastor',
-  parent: 'Parent',
+  /** Canonical monday Tags label (also accepts legacy "Parent" when reading). */
+  parent: 'Parents',
   donor: 'Donor',
   recruitment: 'Recruitment',
 };
-
-export interface ContactListItem {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  profilePhotoUrl?: string;
-  createdAt?: string;
-  tags: ContactTag[];
-}
-
-export interface ContactPastorReference {
-  name?: string;
-  email?: string;
-  phone?: string;
-  church?: string;
-  /** Linked items on the Pastor Reference board (Contacts board_relation column). */
-  linkedItemIds?: string[];
-}
 
 export interface ContactDemographics {
   /** Street line — maps to monday "Address" column */
@@ -50,6 +32,33 @@ export interface ContactDemographics {
   zip?: string;
   country?: string;
   dateOfBirth?: string;
+}
+
+/** Mailing fields available on the contacts list (for map pins, etc.). */
+export type ContactListDemographics = Pick<
+  ContactDemographics,
+  'address' | 'city' | 'state' | 'zip' | 'country'
+>;
+
+export interface ContactListItem {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  profilePhotoUrl?: string;
+  createdAt?: string;
+  tags: ContactTag[];
+  /** Address columns when present on the Contacts board list fetch. */
+  demographics?: ContactListDemographics;
+}
+
+export interface ContactPastorReference {
+  name?: string;
+  email?: string;
+  phone?: string;
+  church?: string;
+  /** Linked items on the Pastor Reference board (Contacts board_relation column). */
+  linkedItemIds?: string[];
 }
 
 export interface CurrentApplicationSummary {

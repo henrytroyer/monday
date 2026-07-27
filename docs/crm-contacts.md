@@ -11,7 +11,7 @@ Create or use a board (default name in sync script: `Contacts Test`). Required c
 | Column title | Type | Notes |
 |--------------|------|--------|
 | Email | email | Primary match key |
-| Tags | status (multi-label) | Labels: `Volunteer`, `Pastor`, `Parent`, `Donor` |
+| Tags | status (multi-label) | Labels: `Volunteer`, `Pastor`, `Parents`, `Donor` (legacy `Parent` is read as Parents) |
 | type | status/text | Legacy single-value column (still read if present) |
 | Phone | phone | Optional; displayed in international format (`+1 555 123 4567`); writes use `{ phone, countryShortName }` JSON |
 | Profile Photo | file | Optional |
@@ -53,11 +53,47 @@ VITE_CONTACTS_BOARD_ID=your_contacts_board_id
 
 Use `VITE_USE_MOCK_DATA=true` for offline UI development.
 
+## Comprehensive compile (all boards)
+
+The Contacts page builds a **compiled directory** by merging people across:
+
+| Board | What is pulled |
+|-------|----------------|
+| **Contacts** | Base records (name, email, phone, tags, address, relations) |
+| **Short-term Applications** | Volunteers + parent/pastor emails → tags, phone; **Street / City / Postal / Fillout address** |
+| **Long-term Applications** | Applicants → volunteer tag, phone, **Home Address** |
+| **Current Service Ended** | Alumni volunteers + parent/pastor emails |
+| **Donations** | Donor email/name → donor tag |
+
+People are matched by **email**, then combined when the same person appears again with the **same name + phone**, or a no-email Contacts row uniquely matches a name. Existing Contacts board items keep their monday ids; people found only on other boards appear with a `compiled:…` id so they still show in search, filters, map, and batch email. Opening a compiled-only contact shows a limited detail view until they exist on the Contacts board.
+
+Mailing address is **mass-compiled** from every source: the richest street-level fields win (Contacts + short-term Street/Fillout + long-term Home Address). Stuffed single-line addresses are normalized into street/city/state/zip.
+
+Refresh reloads all boards and recompiles. The header shows Contacts vs added-from-other-boards counts, duplicates combined, and how many have a street address.
+
 ## Tags
 
-- Stored on the Contacts board **Tags** column (multi-select).
-- Editable from the contact detail header (writes to monday via API).
-- Parent/pastor relationships are inferred from application email columns when the Applications board id is configured.
+- Stored on the Contacts board **Tags** column (multi-select). Contacts can have **multiple** tags (e.g. Volunteer + Donor, Pastor + Donor, Parent + Donor).
+- Editable from the contact detail header (writes to monday via API) for real Contacts items.
+- The CRM also **merges role tags** automatically from the boards above.
+- Opening a (real) contact detail persists newly derived tags to monday when contacts are writable.
+- Filters use **AND** semantics: selecting Volunteer and Donor shows only contacts that have both tags.
+- Tag filters do **not** require an email — every contact with the tag is shown (including compiled people with no email).
+
+## Batch email
+
+After filtering by one or more tags (or selecting contacts), use **Email N** in the action bar:
+
+1. Filter by tag(s) — e.g. Donor, or Volunteer + Donor.
+2. Optionally **Select all** / refine the checkbox selection.
+3. Click **Email N** to open the batch composer.
+4. Pick a template or write a message, then **Open in email app** (recipients go in **BCC**) or **Copy BCC list**.
+
+Same message for everyone (mail-client BCC). Per-person merge fields like `{{firstName}}` are not filled in batch mode. Large lists may need **Copy BCC list** if the mailto URL is too long for the mail app.
+
+## Map view
+
+Map view is **hidden** in the Contacts toolbar for now (list only). Geocoding/pin work remains in the codebase (`ContactMapView`, etc.) but is not exposed in the UI until it is reliable enough to ship.
 
 ## Service terms (volunteers)
 

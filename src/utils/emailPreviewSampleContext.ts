@@ -36,7 +36,7 @@ const RECIPIENT_BY_ROLE: Record<
   },
   parent: {
     email: 'parent.doe@example.com',
-    recipientLabel: 'Parent',
+    recipientLabel: 'Parents',
     toName: 'Jane Doe',
   },
   pastor: {
@@ -51,7 +51,7 @@ export const SAMPLE_RECIPIENT_ROLES: {
   label: string;
 }[] = [
   { id: 'volunteer', label: 'Volunteer' },
-  { id: 'parent', label: 'Parent' },
+  { id: 'parent', label: 'Parents' },
   { id: 'pastor', label: 'Pastor' },
 ];
 

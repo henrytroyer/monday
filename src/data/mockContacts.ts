@@ -1,6 +1,8 @@
 import type {
   ContactDetail,
+  ContactDemographics,
   ContactEmailMessage,
+  ContactListDemographics,
   ContactListItem,
   ContactTag,
 } from '../types/contact';
@@ -52,9 +54,18 @@ function slugify(value: string): string {
     .replace(/^\.|\.$/g, '');
 }
 
+function toListDemographics(
+  demographics?: ContactDemographics,
+): ContactListDemographics | undefined {
+  if (!demographics) return undefined;
+  const { address, city, state, zip, country } = demographics;
+  if (!address && !city && !state && !zip && !country) return undefined;
+  return { address, city, state, zip, country };
+}
+
 function tagsForIndex(index: number): ContactTag[] {
   const bucket = index % 12;
-  if (bucket === 0) return ['pastor'];
+  if (bucket === 0) return ['pastor', 'donor'];
   if (bucket === 1) return ['parent'];
   if (bucket === 2) return ['parent', 'donor'];
   if (bucket === 3 || bucket === 4) return ['donor'];
@@ -84,6 +95,9 @@ function generateExtraContacts(
       name,
       email: `${emailLocal}@example.com`,
       tags,
+      demographics: toListDemographics(
+        demographicsForContact(`contact-${idNum}`, tags),
+      ),
     };
 
     const isVolunteer = tags.includes('volunteer');
@@ -130,13 +144,24 @@ const BASE_CONTACTS: ContactListItem[] = [
     phone: '+1 (555) 201-4401',
     profilePhotoUrl: mockProfilePhotoUrl('john'),
     tags: ['volunteer', 'donor'],
+    demographics: {
+      address: '123 Oak Street',
+      city: 'Portland',
+      state: 'OR',
+      zip: '97201',
+      country: 'United States',
+    },
   },
   {
     id: 'contact-2',
     name: 'Rev. Michael Thompson',
     email: 'pastor@church.example.com',
     phone: '+1 (555) 301-2200',
-    tags: ['pastor'],
+    tags: ['pastor', 'donor'],
+    demographics: {
+      city: 'Portland',
+      country: 'United States',
+    },
   },
   {
     id: 'contact-3',
@@ -144,6 +169,7 @@ const BASE_CONTACTS: ContactListItem[] = [
     email: 'parent.doe@example.com',
     phone: '+1 (555) 201-4402',
     tags: ['parent', 'donor'],
+    demographics: toListDemographics(buildMockMailingDemographics('contact-3')),
   },
   {
     id: 'contact-4',
@@ -152,12 +178,18 @@ const BASE_CONTACTS: ContactListItem[] = [
     phone: '+49 30 901820',
     profilePhotoUrl: mockProfilePhotoUrl('rachel'),
     tags: ['volunteer'],
+    demographics: toListDemographics(buildMockVolunteerDemographics('contact-4')),
   },
   {
     id: 'contact-5',
     name: 'Eleanor Grant',
     email: 'eleanor.grant@example.com',
     tags: ['donor'],
+    demographics: {
+      address: '88 Highland Avenue',
+      city: 'Boston',
+      country: 'United States',
+    },
   },
 ];
 
@@ -320,7 +352,7 @@ const MOCK_CONTACT_DETAILS: Record<
         relationship: 'reference',
       },
     ],
-    donations: [],
+    donations: donationsForContact('contact-2', BASE_CONTACTS[1].tags),
   },
   'contact-3': {
     ...BASE_CONTACTS[2],

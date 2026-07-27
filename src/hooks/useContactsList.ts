@@ -3,13 +3,19 @@ import {
   canEditContacts,
   isMondayReadOnly,
   isStandaloneMondayMode,
+  resolveApplicationsBoardId,
   resolveContactsBoardId,
+  resolveDonationsBoardId,
+  resolveLongtermApplicationsBoardId,
+  resolveServiceEndedBoardId,
   useMockData,
 } from '../config/boards';
 import {
   clearContactsLiveCache,
   fetchContactsList,
+  getContactsCompileStats,
   getContactsLiveCache,
+  type ContactsCompileStats,
 } from '../services/contactsApi';
 import type { ContactListItem } from '../types/contact';
 import { useMondayContext } from './useMondayContext';
@@ -20,6 +26,10 @@ export function useContactsList() {
   const isReadOnly = isMondayReadOnly();
   const contactsEditable = canEditContacts();
   const contactsBoardId = resolveContactsBoardId(context);
+  const applicationsBoardId = resolveApplicationsBoardId(context);
+  const longtermApplicationsBoardId = resolveLongtermApplicationsBoardId(context);
+  const donationsBoardId = resolveDonationsBoardId(context);
+  const serviceEndedBoardId = resolveServiceEndedBoardId(context);
 
   const [contacts, setContacts] = useState<ContactListItem[]>(() => {
     if (isMock) return [];
@@ -34,6 +44,9 @@ export function useContactsList() {
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [compileStats, setCompileStats] = useState<ContactsCompileStats | null>(
+    null,
+  );
 
   useEffect(() => {
     if (isMock || contacts.length > 0) return;
@@ -81,6 +94,12 @@ export function useContactsList() {
       try {
         const data = await fetchContactsList({
           contactsBoardId: isMock ? undefined : contactsBoardId,
+          applicationsBoardId: isMock ? undefined : applicationsBoardId,
+          longtermApplicationsBoardId: isMock
+            ? undefined
+            : longtermApplicationsBoardId,
+          donationsBoardId: isMock ? undefined : donationsBoardId,
+          serviceEndedBoardId: isMock ? undefined : serviceEndedBoardId,
           clearCache: options?.clearCache,
           refresh: hasCachedList && !options?.clearCache,
           onPage: isMock
@@ -96,6 +115,7 @@ export function useContactsList() {
               },
         });
         setContacts(data);
+        setCompileStats(isMock ? null : getContactsCompileStats());
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load contacts',
@@ -109,7 +129,15 @@ export function useContactsList() {
         setLoadProgress(null);
       }
     },
-    [isMock, contactsBoardId, contextLoading],
+    [
+      isMock,
+      contactsBoardId,
+      applicationsBoardId,
+      longtermApplicationsBoardId,
+      donationsBoardId,
+      serviceEndedBoardId,
+      contextLoading,
+    ],
   );
 
   useEffect(() => {
@@ -133,6 +161,7 @@ export function useContactsList() {
     isReadOnly,
     contactsEditable,
     contactsBoardId,
+    compileStats,
     refetch,
     removeContacts,
   };

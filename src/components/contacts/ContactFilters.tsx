@@ -133,7 +133,8 @@ export default function ContactFilters({
             })}
           </div>
           <p className="mt-2 text-xs text-crm-slate">
-            Choose All or one or more tags to narrow the list.
+            Select multiple tags to show only contacts that have all of them
+            (e.g. Volunteer and Donor).
           </p>
         </div>
       </div>

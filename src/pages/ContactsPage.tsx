@@ -5,12 +5,17 @@ import ContactAlphabetIndex from '../components/contacts/ContactAlphabetIndex';
 import ContactFilters from '../components/contacts/ContactFilters';
 import ContactListToolbar from '../components/contacts/ContactListToolbar';
 import ContactList from '../components/contacts/ContactList';
+import ContactBatchEmailModal from '../components/contacts/ContactBatchEmailModal';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { useContactsList } from '../hooks/useContactsList';
 import { usePersistedPageWorkspace } from '../hooks/usePersistedPageWorkspace';
 import type { ContactListItem } from '../types/contact';
 import { emptyContactFilters } from '../types/contact';
+import {
+  contactEmailRecipients,
+  formatContactFilterTagSummary,
+} from '../utils/contactBatchEmail';
 import {
   countMatchingContacts,
   filterContacts,
@@ -43,6 +48,7 @@ export default function ContactsPage({
   );
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [batchEmailOpen, setBatchEmailOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
@@ -69,6 +75,7 @@ export default function ContactsPage({
     isReadOnly,
     contactsEditable,
     contactsBoardId,
+    compileStats,
     refetch,
     removeContacts,
   } = useContactsList();
@@ -196,6 +203,23 @@ export default function ContactsPage({
 
   const filtersActive = hasActiveContactFilters(filters);
   const selectedCount = selectedIds.size;
+  const tagFilterActive = filters.tags.length > 0;
+
+  const selectedContacts = useMemo(
+    () => displayed.filter((contact) => selectedIds.has(contact.id)),
+    [displayed, selectedIds],
+  );
+
+  /** Selection wins; otherwise email everyone in the current tag filter. */
+  const batchEmailContacts =
+    selectedCount > 0 ? selectedContacts : tagFilterActive ? displayed : [];
+
+  const batchEmailRecipientCount = useMemo(
+    () => contactEmailRecipients(batchEmailContacts).length,
+    [batchEmailContacts],
+  );
+
+  const showBatchActions = selectedCount > 0 || tagFilterActive;
 
   const toggleContactSelection = (contact: ContactListItem) => {
     setDeleteError(null);
@@ -213,6 +237,11 @@ export default function ContactsPage({
   const clearSelection = () => {
     setDeleteError(null);
     setSelectedIds(new Set());
+  };
+
+  const selectAllFiltered = () => {
+    setDeleteError(null);
+    setSelectedIds(new Set(displayed.map((contact) => contact.id)));
   };
 
   const handleDeleteSelected = async () => {
@@ -270,10 +299,23 @@ export default function ContactsPage({
             <p className="mt-2 text-crm-slate">
               Master list of volunteers, pastors, parents, and donors.
             </p>
-            {!isMock && !isReadOnly && (
+            {!isMock && (
               <p className="mt-2 text-xs text-crm-slate">
-                Live data from monday.com Contacts board
-                {contactsBoardId ? ` ${contactsBoardId}` : ''}
+                Compiled from Contacts
+                {contactsBoardId ? ` (${contactsBoardId})` : ''}, short-term and
+                long-term applications, Current Service Ended, and Donations.
+                {compileStats
+                  ? ` ${compileStats.fromContactsBoard} on Contacts board · ${compileStats.addedFromOtherBoards} added from other boards${
+                      compileStats.mergedDuplicates > 0
+                        ? ` · ${compileStats.mergedDuplicates} duplicates combined`
+                        : ''
+                    }${
+                      compileStats.withStreetAddress > 0
+                        ? ` · ${compileStats.withStreetAddress} with street address`
+                        : ''
+                    }.`
+                  : null}
+                {isReadOnly ? ' Read-only.' : null}
               </p>
             )}
             {isMock && (
@@ -320,6 +362,15 @@ export default function ContactsPage({
                 profilePhotoUrl: updated.profilePhotoUrl,
                 tags: updated.tags,
                 createdAt: updated.createdAt,
+                demographics: updated.demographics
+                  ? {
+                      address: updated.demographics.address,
+                      city: updated.demographics.city,
+                      state: updated.demographics.state,
+                      zip: updated.demographics.zip,
+                      country: updated.demographics.country,
+                    }
+                  : undefined,
               });
             }}
             onSelectContact={(id) => {
@@ -380,41 +431,81 @@ export default function ContactsPage({
               />
             </div>
 
+            {showBatchActions && (
+              <div className="shrink-0 border-b border-crm-taupe/15 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-crm-indigo/15 bg-crm-indigo-50 px-4 py-3 shadow-sm">
+                  <p className="text-sm font-medium text-crm-heading">
+                    {selectedCount > 0 ? (
+                      <>{selectedCount} selected</>
+                    ) : (
+                      <>
+                        {displayed.length} match
+                        {displayed.length === 1 ? '' : 'es'} ·{' '}
+                        {formatContactFilterTagSummary(filters.tags)}
+                      </>
+                    )}
+                    {batchEmailRecipientCount > 0 ? (
+                      <span className="font-normal text-crm-slate">
+                        {' '}
+                        · {batchEmailRecipientCount} with email
+                      </span>
+                    ) : null}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {selectedCount === 0 && displayed.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={selectAllFiltered}
+                        className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
+                      >
+                        Select all
+                      </button>
+                    )}
+                    {selectedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearSelection}
+                        disabled={deleting}
+                        className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setBatchEmailOpen(true)}
+                      disabled={batchEmailRecipientCount === 0}
+                      className="rounded-xl border border-crm-indigo/20 bg-crm-indigo px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Email {batchEmailRecipientCount || ''}
+                    </button>
+                    {selectedCount > 0 && contactsEditable && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteSelected()}
+                        disabled={deleting}
+                        className="rounded-xl border border-red-200 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deleting ? 'Deleting…' : 'Delete'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {deleteError && (
+                  <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {deleteError}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex min-h-0 flex-1 overflow-hidden">
               <div
                 ref={listScrollRef}
                 className="min-h-0 flex-1 overflow-y-auto"
               >
                 <div className="px-4 pb-4 pt-2 pr-2">
-                  {selectedCount > 0 && (
-                    <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-crm-indigo/15 bg-crm-indigo-50 px-4 py-3 shadow-sm">
-                      <p className="text-sm font-medium text-crm-heading">
-                        {selectedCount} selected
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={clearSelection}
-                          disabled={deleting}
-                          className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-                        >
-                          Clear
-                        </button>
-                        {contactsEditable && (
-                          <button
-                            type="button"
-                            onClick={() => void handleDeleteSelected()}
-                            disabled={deleting}
-                            className="rounded-xl border border-red-200 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-                          >
-                            {deleting ? 'Deleting…' : 'Delete'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {deleteError && (
+                  {!showBatchActions && deleteError && (
                     <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       {deleteError}
                     </div>
@@ -437,6 +528,14 @@ export default function ContactsPage({
             </div>
           </div>
         </div>
+      )}
+
+      {batchEmailOpen && (
+        <ContactBatchEmailModal
+          contacts={batchEmailContacts}
+          filterTags={filters.tags}
+          onClose={() => setBatchEmailOpen(false)}
+        />
       )}
 
       {filtersVisible &&
