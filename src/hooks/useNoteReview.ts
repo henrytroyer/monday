@@ -7,6 +7,11 @@ import {
   getPendingReviewItems,
   getPendingReviewItemsForContact,
 } from '../services/noteReviewStorage';
+import {
+  persistApprovedNoteToMonday,
+  persistDismissedNoteToMonday,
+  syncNoteReviewFromMonday,
+} from '../services/noteReviewMondaySync';
 import { notifyContactNotesChanged } from '../services/mondayBoardWatcher';
 import type { NoteReviewItem } from '../types/noteReview';
 
@@ -31,8 +36,15 @@ export function useNoteReview() {
   }, [refresh]);
 
   const approve = useCallback(
-    (noteKey: string, contactId: string, contactName: string) => {
-      approveReviewItem(noteKey, contactId, contactName);
+    async (noteKey: string, contactId: string, contactName: string) => {
+      const link = approveReviewItem(noteKey, contactId, contactName);
+      if (link) {
+        try {
+          await persistApprovedNoteToMonday(link);
+        } catch {
+          // Local cache updated; Monday sync is best-effort.
+        }
+      }
       refresh();
       window.dispatchEvent(new Event('crm-note-review-changed'));
       notifyContactNotesChanged([contactId]);
@@ -41,22 +53,38 @@ export function useNoteReview() {
   );
 
   const dismiss = useCallback(
-    (noteKey: string) => {
+    async (noteKey: string) => {
       dismissReviewItem(noteKey);
+      try {
+        await persistDismissedNoteToMonday(noteKey);
+      } catch {
+        // Local cache updated; Monday sync is best-effort.
+      }
       refresh();
       window.dispatchEvent(new Event('crm-note-review-changed'));
     },
     [refresh],
   );
 
-  const bulkApproveSuggested = useCallback(() => {
+  const bulkApproveSuggested = useCallback(async () => {
     const result = bulkApproveSuggestedReviewItems();
+    await Promise.all(
+      result.links.map((link) =>
+        persistApprovedNoteToMonday(link).catch(() => {}),
+      ),
+    );
     refresh();
     window.dispatchEvent(new Event('crm-note-review-changed'));
     if (result.contactIds.length > 0) {
       notifyContactNotesChanged(result.contactIds);
     }
     return result;
+  }, [refresh]);
+
+  const syncFromMonday = useCallback(async () => {
+    await syncNoteReviewFromMonday();
+    refresh();
+    window.dispatchEvent(new Event('crm-note-review-changed'));
   }, [refresh]);
 
   const pendingForContact = useCallback((contactId: string) => {
@@ -70,6 +98,7 @@ export function useNoteReview() {
     approve,
     dismiss,
     bulkApproveSuggested,
+    syncFromMonday,
     pendingForContact,
   };
 }

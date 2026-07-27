@@ -49,6 +49,40 @@ function writeDismissed(keys: Set<string>): void {
   localStorage.setItem(DISMISSED_KEY, JSON.stringify([...keys]));
 }
 
+export function readApprovedLinks(): ApprovedNoteLink[] {
+  return readApproved();
+}
+
+export function readDismissedKeys(): Set<string> {
+  return readDismissed();
+}
+
+/** Merge Monday registry state into local cache (Monday wins on conflicts). */
+export function importSyncedReviewState(
+  approvedFromMonday: ApprovedNoteLink[],
+  dismissedFromMonday: string[],
+): void {
+  const approvedByKey = new Map<string, ApprovedNoteLink>();
+  for (const link of readApproved()) {
+    approvedByKey.set(link.noteKey, link);
+  }
+  for (const link of approvedFromMonday) {
+    approvedByKey.set(link.noteKey, link);
+  }
+  writeApproved([...approvedByKey.values()]);
+
+  const dismissed = new Set([...readDismissed(), ...dismissedFromMonday]);
+  writeDismissed(dismissed);
+
+  const queue = readQueue().filter(
+    (item) =>
+      item.status === 'pending' &&
+      !approvedByKey.has(item.id) &&
+      !dismissed.has(item.id),
+  );
+  writeQueue(queue);
+}
+
 export function noteReviewKey(
   boardId: string,
   itemId: string,
@@ -202,11 +236,13 @@ export function bulkApproveSuggestedReviewItems(): {
   approved: number;
   skipped: number;
   contactIds: string[];
+  links: ApprovedNoteLink[];
 } {
   const pending = getPendingReviewItems();
   let approved = 0;
   let skipped = 0;
   const contactIds = new Set<string>();
+  const links: ApprovedNoteLink[] = [];
 
   for (const item of pending) {
     if (!item.suggestedContactId) {
@@ -222,6 +258,7 @@ export function bulkApproveSuggestedReviewItems(): {
     if (link) {
       approved += 1;
       contactIds.add(item.suggestedContactId);
+      links.push(link);
     } else {
       skipped += 1;
     }
@@ -231,6 +268,7 @@ export function bulkApproveSuggestedReviewItems(): {
     approved,
     skipped,
     contactIds: [...contactIds],
+    links,
   };
 }
 

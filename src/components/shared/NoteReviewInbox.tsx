@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatNoteTimestamp } from '../../services/termNotes';
 import { useNoteReview, notifyNoteReviewChanged } from '../../hooks/useNoteReview';
 import { harvestMondayNotes, rematchPendingNotesFromMonday } from '../../services/mondayNoteHarvest';
+import { getPendingReviewCount } from '../../services/noteReviewStorage';
 import { notifyContactNotesChanged } from '../../services/mondayBoardWatcher';
 import { useMockData } from '../../config/boards';
 import { fetchContactsList } from '../../services/contactsApi';
@@ -38,7 +39,7 @@ function formatMatchReason(reason: string): string {
 }
 
 export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
-  const { items, pendingCount, approve, dismiss, bulkApproveSuggested, refresh } =
+  const { items, pendingCount, approve, dismiss, bulkApproveSuggested, syncFromMonday, refresh } =
     useNoteReview();
   const isMock = useMockData();
   const contactsBoardId = resolveContactsBoardId();
@@ -73,14 +74,13 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
   }, [contactsBoardId]);
 
   useEffect(() => {
-    void loadContacts();
-  }, [loadContacts]);
-
-  useEffect(() => {
-    if (isMock || rematchAttemptedRef.current || pendingCount === 0) return;
-    rematchAttemptedRef.current = true;
-    void rematchPendingNotesFromMonday()
-      .then((result) => {
+    if (isMock) return;
+    void (async () => {
+      await syncFromMonday();
+      if (rematchAttemptedRef.current || getPendingReviewCount() === 0) return;
+      rematchAttemptedRef.current = true;
+      try {
+        const result = await rematchPendingNotesFromMonday();
         notifyNoteReviewChanged();
         if (result.rematchAutoApproved > 0) {
           notifyContactNotesChanged(result.affectedContactIds);
@@ -89,15 +89,18 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
           );
         }
         refresh();
-        // Allow another pass if anything is still pending after code/index updates.
         if (result.rematchAutoApproved === 0 && result.rematched > 0) {
           rematchAttemptedRef.current = false;
         }
-      })
-      .catch(() => {
+      } catch {
         rematchAttemptedRef.current = false;
-      });
-  }, [isMock, pendingCount, refresh]);
+      }
+    })();
+  }, [isMock, syncFromMonday, refresh]);
+
+  useEffect(() => {
+    void loadContacts();
+  }, [loadContacts]);
 
   async function runHarvest() {
     setHarvesting(true);
@@ -134,7 +137,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
     setBulkApproving(true);
     setHarvestMessage(null);
     try {
-      const result = bulkApproveSuggested();
+      const result = await bulkApproveSuggested();
       refresh();
       notifyNoteReviewChanged();
       setHarvestMessage(
@@ -167,8 +170,8 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
             </h2>
             <p className="mt-1 text-sm text-crm-slate">
               {pendingCount} note{pendingCount === 1 ? '' : 's'} need review.
-              Notes with a contact match (relation, email, item name, or name in
-              email) auto-link on sync; search for a contact to attach
+              Approve/dismiss syncs via Monday so local and production stay aligned.
+              Notes with a contact match auto-link on sync; search for a contact to attach
               anything still unmatched.
             </p>
           </div>
@@ -296,7 +299,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
                           disabled={!selectedContact?.id}
                           onClick={() => {
                             if (!selectedContact?.id) return;
-                            approve(
+                            void approve(
                               item.id,
                               selectedContact.id,
                               selectedContact.name ??
@@ -311,7 +314,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => dismiss(item.id)}
+                          onClick={() => void dismiss(item.id)}
                           className="rounded-xl border border-crm-taupe/20 px-4 py-2 text-sm text-crm-slate hover:bg-crm-taupe-50"
                         >
                           Dismiss

@@ -18,6 +18,12 @@ import {
   isRecruitmentNoteUpdate,
 } from './contactInternalNotes';
 import {
+  isNoteReviewRegistryUpdate,
+  NOTE_REVIEW_REGISTRY_ITEM_NAME,
+  persistApprovedNoteToMonday,
+  syncNoteReviewFromMonday,
+} from './noteReviewMondaySync';
+import {
   type NoteMatchResult,
   type RawMondayNote,
   resolveContactForHarvest,
@@ -46,7 +52,8 @@ function isSkippableCrmNote(body: string): boolean {
   return (
     isTermNoteUpdate(body) ||
     isRecruitmentNoteUpdate(body) ||
-    isContactHubNoteUpdate(body)
+    isContactHubNoteUpdate(body) ||
+    isNoteReviewRegistryUpdate(body)
   );
 }
 
@@ -103,7 +110,7 @@ export function rematchPendingReviewItems(index: ContactMatchIndex): {
     }
 
     if (shouldAutoApproveMatch(match) && match.contactId) {
-      autoApproveContactItemNote({
+      const approvedLink = {
         noteKey: item.id,
         contactId: match.contactId,
         boardId: item.boardId,
@@ -116,7 +123,9 @@ export function rematchPendingReviewItems(index: ContactMatchIndex): {
         authorName: item.authorName,
         sourceLabel: match.sourceLabel ?? item.boardName,
         matchReason: match.matchReason!,
-      });
+      };
+      autoApproveContactItemNote(approvedLink);
+      void persistApprovedNoteToMonday(approvedLink).catch(() => {});
       rematchAutoApproved += 1;
       affectedContactIds.add(match.contactId);
       continue;
@@ -198,6 +207,8 @@ export async function harvestMondayNotes(
     );
   }
 
+  await syncNoteReviewFromMonday();
+
   const { contactsBoardId, applicationsBoardId } = defaultHarvestBoardIds();
   const index = await buildContactMatchIndex(
     contactsBoardId,
@@ -230,6 +241,8 @@ export async function harvestMondayNotes(
     );
 
     for (const item of itemsWithUpdates) {
+      if (item.name === NOTE_REVIEW_REGISTRY_ITEM_NAME) continue;
+
       const itemEmail = index.applicationEmails.get(item.id);
       for (const update of item.updates ?? []) {
         scanned += 1;
@@ -273,7 +286,7 @@ export async function harvestMondayNotes(
         if (match.matched) matchedSuggestions += 1;
 
         if (shouldAutoApproveMatch(match) && match.contactId) {
-          autoApproveContactItemNote({
+          const approvedLink = {
             noteKey,
             contactId: match.contactId,
             boardId: raw.boardId,
@@ -286,7 +299,9 @@ export async function harvestMondayNotes(
             authorName: raw.authorName,
             sourceLabel: match.sourceLabel ?? raw.boardName,
             matchReason: match.matchReason!,
-          });
+          };
+          autoApproveContactItemNote(approvedLink);
+          void persistApprovedNoteToMonday(approvedLink).catch(() => {});
           autoApproved += 1;
           affectedContactIds.add(match.contactId);
           continue;

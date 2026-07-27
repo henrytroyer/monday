@@ -56,6 +56,8 @@ Legacy formats `[CRM_RECRUITMENT_NOTE …]` and Applications-board `[CRM_TERM_NO
 
 Harvested monday updates that are not already CRM-tagged are matched to contacts using board relation, exact email (application column or SuperMail recipient), CRM tags, Contacts board item, or **exact full name** from the Monday item title or email body. Notes with a match are **auto-approved** on sync and appear on the contact immediately. Sync also re-evaluates notes already in the inbox. The inbox is only for unmatched notes; use **Approve all matched** to clear any pending items that already have a suggested contact from a prior harvest.
 
+**Approve/dismiss sync:** decisions are written to a Contacts-board registry item (`CRM Note Review Registry`) as `[CRM_NOTE_REVIEW]` updates so local dev and production share the same queue. Requires `VITE_CONTACTS_WRITABLE=true`. Optional override: `VITE_CRM_NOTE_REVIEW_REGISTRY_ITEM_ID`.
+
 ## Contact internal notes hub
 
 On the **Contacts** detail page, all internal notes appear in one timeline:
@@ -65,7 +67,7 @@ On the **Contacts** detail page, all internal notes appear in one timeline:
 | Contact page (new writes) | Contacts board item | `[CRM_CONTACT_NOTE source=…]` |
 | Service term (legacy read) | Applications board item | `[CRM_TERM_NOTE timeline=…]` |
 | Recruitment (legacy read) | Contacts board item | `[CRM_RECRUITMENT_NOTE prospect=…]` |
-| Approved harvest | localStorage link | Shown with board source pill |
+| Approved harvest | Contacts registry item + local cache | Shown with board source pill |
 
 **Contact-page writes go to the Contacts board only** — not Applications.
 
