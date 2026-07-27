@@ -36,11 +36,10 @@ import {
 import {
   buildCoupleFromLongtermDetails,
   mapLongtermBoardToPipelineSections,
+  mapLongtermItemToVolunteer,
   mapLongtermItemToVolunteerDetail,
   type LongtermStatus,
 } from './mapMondayToLongterm';
-import { longtermColumnMap } from '../config/longtermColumnMap';
-import type { LongtermVolunteer } from '../types/longtermVolunteer';
 import {
   contactTagsUseSimpleColumnValue,
   formatContactTagsColumnValue,
@@ -70,12 +69,8 @@ import {
   parseLocationOptionsFromColumn,
   resolveLocationPreferenceColumn,
 } from './applicationLocationOptions';
-import {
-  mapBoardToLongtermVolunteers,
-  mapItemToLongtermVolunteerDetail,
-  buildLongtermStatusOptionsFromGroups,
-} from './mapMondayToLongterm';
 import type { LongtermVolunteer } from '../types/longtermVolunteer';
+import { LONGTERM_STATUS_OPTIONS } from '../constants/longtermApplicationStatuses';
 
 export { parseColumnLabelsFromSettings } from './applicationLocationOptions';
 
@@ -730,22 +725,7 @@ export async function fetchLongtermApplications(
       );
     }
   }
-  return mapBoardToLongtermVolunteers(items);
-}
-
-export async function fetchLongtermApplicationDetail(
-  itemId: string,
-): Promise<VolunteerDetail> {
-  const data = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
-    itemId: [itemId],
-  });
-
-  const item = data.items?.[0];
-  if (!item) {
-    throw new Error(`Long-term application item ${itemId} not found`);
-  }
-
-  return mapItemToLongtermVolunteerDetail(item);
+  return items.map(mapLongtermItemToVolunteer);
 }
 
 export async function fetchLongtermStatusOptions(
@@ -772,33 +752,7 @@ export async function fetchLongtermStatusOptions(
     // fall through to group-derived defaults
   }
 
-  return buildLongtermStatusOptionsFromGroups();
-}
-
-export async function updateLongtermApplicationStatus(
-  boardId: string,
-  itemId: string,
-  statusLabel: string,
-): Promise<void> {
-  assertApplicationsWritable('update long-term application status');
-  const columns = await fetchBoardColumns(boardId);
-  const target = normalizeColumnTitle(longtermColumnMap.status);
-  const column = columns.find(
-    (c) => normalizeColumnTitle(c.title) === target,
-  );
-
-  if (!column) {
-    throw new Error(
-      `Column "${longtermColumnMap.status}" not found on long-term board. Add it or set VITE_LONGTERM_COL_STATUS.`,
-    );
-  }
-
-  await api(mutations.updateColumnValue, {
-    boardId,
-    itemId,
-    columnId: column.id,
-    value: formatColumnValue(statusLabel.trim(), column.type),
-  });
+  return [...LONGTERM_STATUS_OPTIONS];
 }
 
 export async function addTermNote(

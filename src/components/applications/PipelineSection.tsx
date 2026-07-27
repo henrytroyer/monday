@@ -111,7 +111,6 @@ export default function PipelineSection({
                 options={statusOptions}
                 onChange={onStatusChange}
                 disabled={statusSelectDisabled}
-                onboardingLabel={onboardingLabel}
               />
               <span className="text-crm-slate">→</span>
             </div>

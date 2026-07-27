@@ -1,8 +1,8 @@
-import type { EmailTemplate } from '../../data/emailTemplates';
+import type { EmailTemplateWithSource } from '../../utils/emailTemplateDisplay';
 import { getEmailTemplateSourceLabel } from '../../utils/emailTemplateDisplay';
 
 interface EmailTemplateSourceBadgeProps {
-  source?: EmailTemplate['source'];
+  source?: EmailTemplateWithSource['source'];
 }
 
 export default function EmailTemplateSourceBadge({
