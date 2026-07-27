@@ -13,13 +13,14 @@ import { fetchBoardItemsFull, fetchItemsUpdates } from './crmApi';
 import { mondayGraphQL } from './mondayGraphQL';
 import { mutations } from '../utils/mondayQueries';
 import {
+  clearPendingReviewQueue,
   importSyncedReviewState,
   readApprovedLinks,
   readDismissedKeys,
+  setHarvestBaselineBefore,
 } from './noteReviewStorage';
 import {
   encodeNoteReviewRegistryBody,
-  isNoteReviewRegistryUpdate,
   parseNoteReviewRegistryUpdates,
   type NoteReviewRegistryEntry,
 } from './noteReviewRegistryFormat';
@@ -106,7 +107,11 @@ export async function syncNoteReviewFromMonday(): Promise<{
 
   const updates = await fetchRegistryUpdates();
   const parsed = parseNoteReviewRegistryUpdates(updates);
-  importSyncedReviewState(parsed.approved, parsed.dismissed);
+  importSyncedReviewState(
+    parsed.approved,
+    parsed.dismissed,
+    parsed.baselineBeforeIso,
+  );
 
   lastSyncedApprovedKeys = new Set(parsed.approved.map((link) => link.noteKey));
   lastSyncedDismissedKeys = new Set(parsed.dismissed);
@@ -145,6 +150,24 @@ export async function persistDismissedNoteToMonday(
   await writeRegistryEntry({ action: 'dismissed', noteKey });
   lastSyncedDismissedKeys.add(noteKey);
   lastSyncedApprovedKeys.delete(noteKey);
+}
+
+export async function persistHarvestBaselineToMonday(
+  beforeIso: string,
+): Promise<void> {
+  await writeRegistryEntry({ action: 'baseline', beforeIso });
+}
+
+/** Clear pending inbox and set baseline so old board history is not re-queued. */
+export async function resetNoteReviewInbox(beforeIso = new Date().toISOString()): Promise<number> {
+  const cleared = clearPendingReviewQueue();
+  setHarvestBaselineBefore(beforeIso);
+  try {
+    await persistHarvestBaselineToMonday(beforeIso);
+  } catch {
+    // Local reset still helps even if Monday write fails.
+  }
+  return cleared;
 }
 
 export async function migrateUnsyncedLocalReviewToMonday(): Promise<number> {

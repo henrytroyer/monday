@@ -31,11 +31,13 @@ import {
 import {
   isNoteApproved,
   isNoteDismissed,
+  isNoteBeforeHarvestBaseline,
   noteReviewKey,
   autoApproveContactItemNote,
   getPendingReviewItems,
   upsertReviewItems,
 } from './noteReviewStorage';
+import { resolveHarvestSinceIso } from './noteReviewHarvestCursors';
 import { mondayUpdateToNoteBody } from '../utils/formatMondayNoteBody';
 import { isTermNoteUpdate, stripHtml } from './termNotes';
 
@@ -216,9 +218,8 @@ export async function harvestMondayNotes(
   );
 
   const itemLimit = options?.itemLimitPerBoard ?? HARVEST_ITEM_LIMIT;
-  const sinceMs = options?.sinceIso
-    ? new Date(options.sinceIso).getTime()
-    : null;
+  const sinceIso = resolveHarvestSinceIso(options?.sinceIso);
+  const sinceMs = new Date(sinceIso).getTime();
 
   let scanned = 0;
   let skipped = 0;
@@ -264,7 +265,12 @@ export async function harvestMondayNotes(
           continue;
         }
 
-        if (sinceMs && new Date(update.created_at).getTime() <= sinceMs) {
+        if (isNoteBeforeHarvestBaseline(update.created_at)) {
+          skipped += 1;
+          continue;
+        }
+
+        if (new Date(update.created_at).getTime() <= sinceMs) {
           skipped += 1;
           continue;
         }

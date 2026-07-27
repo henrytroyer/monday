@@ -3,6 +3,7 @@ import { formatNoteTimestamp } from '../../services/termNotes';
 import { useNoteReview, notifyNoteReviewChanged } from '../../hooks/useNoteReview';
 import { harvestMondayNotes, rematchPendingNotesFromMonday } from '../../services/mondayNoteHarvest';
 import { getPendingReviewCount } from '../../services/noteReviewStorage';
+import { resetNoteReviewInbox } from '../../services/noteReviewMondaySync';
 import { notifyContactNotesChanged } from '../../services/mondayBoardWatcher';
 import { useMockData } from '../../config/boards';
 import { fetchContactsList } from '../../services/contactsApi';
@@ -47,6 +48,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [harvesting, setHarvesting] = useState(false);
   const [bulkApproving, setBulkApproving] = useState(false);
+  const [clearingInbox, setClearingInbox] = useState(false);
   const [harvestMessage, setHarvestMessage] = useState<string | null>(null);
   const rematchAttemptedRef = useRef(false);
   const [selectedContactByNote, setSelectedContactByNote] = useState<
@@ -101,6 +103,28 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
   useEffect(() => {
     void loadContacts();
   }, [loadContacts]);
+
+  async function runClearInbox() {
+    if (
+      !window.confirm(
+        'Clear all pending notes from the inbox? Older board history will not be re-queued. This syncs to Monday.',
+      )
+    ) {
+      return;
+    }
+    setClearingInbox(true);
+    setHarvestMessage(null);
+    try {
+      const cleared = await resetNoteReviewInbox();
+      refresh();
+      notifyNoteReviewChanged();
+      setHarvestMessage(
+        `Cleared ${cleared} pending note${cleared === 1 ? '' : 's'} from inbox.`,
+      );
+    } finally {
+      setClearingInbox(false);
+    }
+  }
 
   async function runHarvest() {
     setHarvesting(true);
@@ -171,8 +195,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
             <p className="mt-1 text-sm text-crm-slate">
               {pendingCount} note{pendingCount === 1 ? '' : 's'} need review.
               Approve/dismiss syncs via Monday so local and production stay aligned.
-              Notes with a contact match auto-link on sync; search for a contact to attach
-              anything still unmatched.
+              Sync only pulls recent updates, not full board history.
             </p>
           </div>
           <button
@@ -192,8 +215,18 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
               disabled={harvesting || isMock}
               className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
             >
-              {harvesting ? 'Syncing from monday…' : 'Sync notes from monday'}
+              {harvesting ? 'Syncing from monday…' : 'Sync new notes'}
             </button>
+            {pendingCount > 0 && (
+              <button
+                type="button"
+                onClick={() => void runClearInbox()}
+                disabled={clearingInbox || isMock}
+                className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-800 hover:bg-red-100 disabled:opacity-50"
+              >
+                {clearingInbox ? 'Clearing…' : `Clear inbox (${pendingCount})`}
+              </button>
+            )}
             {matchedCount > 0 && (
               <button
                 type="button"

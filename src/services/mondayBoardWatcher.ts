@@ -5,29 +5,10 @@ import {
   useMockData,
 } from '../config/boards';
 import { harvestMondayNotes } from './mondayNoteHarvest';
-
-const CURSORS_KEY = 'crm-watch-cursors';
-
-interface WatchCursors {
-  lastRunAt: string;
-  knownUpdateIds: string[];
-}
-
-function readCursors(): WatchCursors {
-  try {
-    const raw = localStorage.getItem(CURSORS_KEY);
-    if (!raw) {
-      return { lastRunAt: new Date(0).toISOString(), knownUpdateIds: [] };
-    }
-    return JSON.parse(raw) as WatchCursors;
-  } catch {
-    return { lastRunAt: new Date(0).toISOString(), knownUpdateIds: [] };
-  }
-}
-
-function writeCursors(cursors: WatchCursors): void {
-  localStorage.setItem(CURSORS_KEY, JSON.stringify(cursors));
-}
+import {
+  readWatchCursors,
+  writeWatchCursors,
+} from './noteReviewHarvestCursors';
 
 export interface WatchPollResult {
   ranAt: string;
@@ -38,13 +19,13 @@ export async function pollMondayBoardUpdates(): Promise<WatchPollResult | null> 
   if (useMockData() || !isMondayWatchEnabled()) return null;
   if (resolveMonitoredBoardIds().length === 0) return null;
 
-  const cursors = readCursors();
+  const cursors = readWatchCursors();
   const harvest = await harvestMondayNotes({
     sinceIso: cursors.lastRunAt,
     itemLimitPerBoard: 100,
   });
 
-  writeCursors({
+  writeWatchCursors({
     lastRunAt: new Date().toISOString(),
     knownUpdateIds: cursors.knownUpdateIds,
   });

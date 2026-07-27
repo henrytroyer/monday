@@ -5,7 +5,8 @@ export const NOTE_REVIEW_REGISTRY_PREFIX = '[CRM_NOTE_REVIEW]';
 
 export type NoteReviewRegistryEntry =
   | { action: 'approved'; link: ApprovedNoteLink }
-  | { action: 'dismissed'; noteKey: string };
+  | { action: 'dismissed'; noteKey: string }
+  | { action: 'baseline'; beforeIso: string };
 
 export function isNoteReviewRegistryUpdate(text: string): boolean {
   return stripHtml(text).startsWith(NOTE_REVIEW_REGISTRY_PREFIX);
@@ -35,6 +36,9 @@ export function parseNoteReviewRegistryEntry(
     if (parsed.action === 'dismissed' && typeof parsed.noteKey === 'string') {
       return parsed;
     }
+    if (parsed.action === 'baseline' && typeof parsed.beforeIso === 'string') {
+      return parsed;
+    }
     if (
       parsed.action === 'approved' &&
       parsed.link &&
@@ -50,12 +54,17 @@ export function parseNoteReviewRegistryEntry(
 
 export function parseNoteReviewRegistryUpdates(
   updates: Array<{ text_body?: string; created_at: string }> | undefined,
-): { approved: ApprovedNoteLink[]; dismissed: string[] } {
+): {
+  approved: ApprovedNoteLink[];
+  dismissed: string[];
+  baselineBeforeIso: string | null;
+} {
   const approvedByKey = new Map<string, ApprovedNoteLink>();
   const dismissed = new Set<string>();
+  let baselineBeforeIso: string | null = null;
 
   if (!updates?.length) {
-    return { approved: [], dismissed: [] };
+    return { approved: [], dismissed: [], baselineBeforeIso: null };
   }
 
   const sorted = [...updates].sort(
@@ -71,12 +80,17 @@ export function parseNoteReviewRegistryUpdates(
       dismissed.delete(entry.link.noteKey);
       continue;
     }
-    dismissed.add(entry.noteKey);
-    approvedByKey.delete(entry.noteKey);
+    if (entry.action === 'dismissed') {
+      dismissed.add(entry.noteKey);
+      approvedByKey.delete(entry.noteKey);
+      continue;
+    }
+    baselineBeforeIso = entry.beforeIso;
   }
 
   return {
     approved: [...approvedByKey.values()],
     dismissed: [...dismissed],
+    baselineBeforeIso,
   };
 }

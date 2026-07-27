@@ -3,6 +3,7 @@ import type { ApprovedNoteLink, NoteReviewItem } from '../types/noteReview';
 const QUEUE_KEY = 'crm-note-review-queue';
 const APPROVED_KEY = 'crm-approved-note-links';
 const DISMISSED_KEY = 'crm-dismissed-note-keys';
+const BASELINE_KEY = 'crm-note-review-baseline-before';
 
 function readQueue(): NoteReviewItem[] {
   try {
@@ -61,6 +62,7 @@ export function readDismissedKeys(): Set<string> {
 export function importSyncedReviewState(
   approvedFromMonday: ApprovedNoteLink[],
   dismissedFromMonday: string[],
+  baselineBeforeIso?: string | null,
 ): void {
   const approvedByKey = new Map<string, ApprovedNoteLink>();
   for (const link of readApproved()) {
@@ -74,13 +76,52 @@ export function importSyncedReviewState(
   const dismissed = new Set([...readDismissed(), ...dismissedFromMonday]);
   writeDismissed(dismissed);
 
-  const queue = readQueue().filter(
-    (item) =>
-      item.status === 'pending' &&
-      !approvedByKey.has(item.id) &&
-      !dismissed.has(item.id),
-  );
+  if (baselineBeforeIso) {
+    setHarvestBaselineBefore(baselineBeforeIso);
+  }
+
+  const baselineMs = readHarvestBaselineMs();
+  const queue = readQueue().filter((item) => {
+    if (item.status !== 'pending') return false;
+    if (approvedByKey.has(item.id) || dismissed.has(item.id)) return false;
+    if (baselineMs != null && new Date(item.createdAt).getTime() < baselineMs) {
+      return false;
+    }
+    return true;
+  });
   writeQueue(queue);
+}
+
+export function readHarvestBaselineBefore(): string | null {
+  try {
+    return localStorage.getItem(BASELINE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function readHarvestBaselineMs(): number | null {
+  const iso = readHarvestBaselineBefore();
+  if (!iso) return null;
+  const ms = new Date(iso).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+export function setHarvestBaselineBefore(iso: string): void {
+  localStorage.setItem(BASELINE_KEY, iso);
+}
+
+export function isNoteBeforeHarvestBaseline(createdAt: string): boolean {
+  const baselineMs = readHarvestBaselineMs();
+  if (baselineMs == null) return false;
+  return new Date(createdAt).getTime() < baselineMs;
+}
+
+/** Remove all pending inbox items locally (does not affect approved/dismissed registry). */
+export function clearPendingReviewQueue(): number {
+  const pending = getPendingReviewItems().length;
+  writeQueue(readQueue().filter((item) => item.status !== 'pending'));
+  return pending;
 }
 
 export function noteReviewKey(
@@ -116,6 +157,7 @@ export function upsertReviewItems(incoming: NoteReviewItem[]): number {
 
   for (const item of incoming) {
     if (dismissed.has(item.id) || approved.has(item.id)) continue;
+    if (isNoteBeforeHarvestBaseline(item.createdAt)) continue;
     const existing = byId.get(item.id);
     if (existing?.status === 'approved' || existing?.status === 'dismissed') {
       continue;

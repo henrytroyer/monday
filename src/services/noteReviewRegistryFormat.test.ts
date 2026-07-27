@@ -65,5 +65,17 @@ describe('noteReviewRegistryFormat', () => {
 
     assert.equal(parsed.approved.length, 0);
     assert.deepEqual(parsed.dismissed, ['1:2:3']);
+    assert.equal(parsed.baselineBeforeIso, null);
+  });
+
+  it('reads latest harvest baseline from registry', () => {
+    const baseline = encodeNoteReviewRegistryBody({
+      action: 'baseline',
+      beforeIso: '2026-07-27T12:00:00.000Z',
+    });
+    const parsed = parseNoteReviewRegistryUpdates([
+      { text_body: baseline, created_at: '2026-07-27T12:00:00.000Z' },
+    ]);
+    assert.equal(parsed.baselineBeforeIso, '2026-07-27T12:00:00.000Z');
   });
 });
