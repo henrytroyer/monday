@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useMockData } from '../config/boards';
+import { useCurrentUser } from '../context/CurrentUserContext';
 import { addTermNote, fetchApplicationDetail } from '../services/crmApi';
 import {
   addLocalTermNote,
@@ -28,6 +29,7 @@ export function useTermNotes({
   initialNotes,
 }: UseTermNotesOptions): UseTermNotesReturn {
   const isMock = useMockData();
+  const { displayName } = useCurrentUser();
   const useLocal = shouldUseLocalTermNotes(itemId, isMock);
 
   const [notes, setNotes] = useState<TermNote[]>(initialNotes);
@@ -70,7 +72,7 @@ export function useTermNotes({
 
       try {
         if (useLocal) {
-          const note = addLocalTermNote(itemId, timelineId, trimmed);
+          const note = addLocalTermNote(itemId, timelineId, trimmed, displayName);
           setNotes((prev) => [...prev, note]);
         } else {
           await addTermNote(itemId, timelineId, trimmed);
@@ -82,7 +84,7 @@ export function useTermNotes({
         setSending(false);
       }
     },
-    [itemId, timelineId, useLocal, refresh],
+    [itemId, timelineId, useLocal, refresh, displayName],
   );
 
   return { notes, sending, error, addNote, refresh };

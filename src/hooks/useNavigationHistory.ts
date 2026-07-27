@@ -7,7 +7,10 @@ import { useEffect, useRef } from 'react';
 export type NavPage =
   | 'applications'
   | 'contacts'
-  | 'email-templates'
+  | 'recruitment'
+  | 'longterm-applications'
+  | 'email'
+  | 'history'
   | 'forms'
   | 'automations';
 

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import RecruitmentDetailPanel from '../components/recruitment/RecruitmentDetailPanel';
 import RecruitmentList from '../components/recruitment/RecruitmentList';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { useRecruitmentProspects } from '../hooks/useRecruitmentProspects';
+import { usePersistedPageWorkspace } from '../hooks/usePersistedPageWorkspace';
 import type { RecruitmentProspect } from '../types/recruitment';
 
 export default function RecruitmentPage({
@@ -16,6 +17,24 @@ export default function RecruitmentPage({
   const { prospects, addProspect, updateProspect, removeProspect, reload } =
     useRecruitmentProspects();
   const [selected, setSelected] = useState<RecruitmentProspect | null>(null);
+
+  const restoreProspect = useCallback((prospect: RecruitmentProspect) => {
+    setSelected(prospect);
+  }, []);
+
+  const findProspect = useCallback(
+    (id: string) => prospects.find((prospect) => prospect.id === id),
+    [prospects],
+  );
+
+  usePersistedPageWorkspace({
+    page: 'recruitment',
+    loading: false,
+    selectedId: selected?.id,
+    detailOpen: selected !== null,
+    findItem: findProspect,
+    onRestore: (prospect) => restoreProspect(prospect),
+  });
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

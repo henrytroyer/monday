@@ -20,6 +20,11 @@ import {
   type MondayPhoneColumnValue,
 } from '../utils/phoneFormat';
 import {
+  getCachedApplicationDetail,
+  invalidateApplicationDetail,
+  setCachedApplicationDetail,
+} from './sessionDetailCache';
+import {
   mapBoardToPipeline,
   mapItemToVolunteerDetail,
   type MondayBoardGroup,
@@ -27,6 +32,14 @@ import {
   type MondayBoardPipeline,
   type MondayItemDetail,
 } from './mapMondayToCrm';
+import {
+  buildCoupleFromLongtermDetails,
+  mapLongtermBoardToPipelineSections,
+  mapLongtermItemToVolunteerDetail,
+  type LongtermStatus,
+} from './mapMondayToLongterm';
+import { longtermColumnMap } from '../config/longtermColumnMap';
+import type { LongtermVolunteer } from '../types/longtermVolunteer';
 import {
   contactTagsUseSimpleColumnValue,
   formatContactTagsColumnValue,
@@ -184,7 +197,13 @@ async function fetchApplicationsBoardPipeline(
 
 export async function fetchApplicationDetail(
   itemId: string,
+  options?: { refresh?: boolean },
 ): Promise<VolunteerDetail> {
+  if (!options?.refresh) {
+    const cached = getCachedApplicationDetail(itemId);
+    if (cached) return cached;
+  }
+
   const data = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
     itemId: [itemId],
   });
@@ -225,11 +244,65 @@ export async function fetchApplicationDetail(
     }
   }
 
-  return {
+  const result = {
     ...detail,
     childSafeguardingFile,
     couple,
   };
+  setCachedApplicationDetail(itemId, result);
+  return result;
+}
+
+export async function fetchLongtermApplicationDetail(
+  itemId: string,
+  options?: { refresh?: boolean; partnerItemId?: string },
+): Promise<VolunteerDetail> {
+  if (!options?.refresh) {
+    const cached = getCachedApplicationDetail(itemId);
+    if (cached && (!options?.partnerItemId || cached.couple)) {
+      return cached;
+    }
+  }
+
+  const data = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
+    itemId: [itemId],
+  });
+
+  const item = data.items?.[0];
+  if (!item) {
+    throw new Error(`Item ${itemId} not found`);
+  }
+
+  let detail = mapLongtermItemToVolunteerDetail(item);
+
+  if (options?.partnerItemId) {
+    const partnerData = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
+      itemId: [options.partnerItemId],
+    });
+    const partnerItem = partnerData.items?.[0];
+    if (partnerItem) {
+      const partnerDetail = mapLongtermItemToVolunteerDetail(partnerItem);
+      const couple = buildCoupleFromLongtermDetails(detail, partnerDetail);
+      detail = {
+        ...detail,
+        name: couple.displayName,
+        couplePreview: {
+          displayName: couple.displayName,
+          primaryFirstName: couple.primaryFirstName,
+          primaryEmail: detail.email !== '—' ? detail.email : undefined,
+          partnerName: couple.partner.name,
+          partnerFirstName: couple.partner.firstName,
+          partnerEmail: couple.partner.email,
+          partnerPhotoUrl: couple.partner.profilePhotoUrl,
+          partnerItemId: options.partnerItemId,
+        },
+        couple,
+      };
+    }
+  }
+
+  setCachedApplicationDetail(itemId, detail);
+  return detail;
 }
 
 export type MondayBoardColumn = {
@@ -332,6 +405,21 @@ export async function fetchContactItem(
   const item = data.items?.[0];
   if (!item) {
     throw new Error(`Contact item ${itemId} not found`);
+  }
+
+  return item;
+}
+
+export async function fetchApplicationItem(
+  itemId: string,
+): Promise<MondayBoardItem> {
+  const data = await api<{ items: MondayBoardItem[] }>(queries.getItem, {
+    itemId: [itemId],
+  });
+
+  const item = data.items?.[0];
+  if (!item) {
+    throw new Error(`Application item ${itemId} not found`);
   }
 
   return item;
@@ -511,6 +599,7 @@ export async function addTermNote(
     itemId,
     body: encodeTermNoteBody(timelineId, trimmed),
   });
+  invalidateApplicationDetail(itemId);
 }
 
 export async function addRecruitmentNoteOnContact(
@@ -715,6 +804,7 @@ export async function updateApplicationStatus(
     columnId: column.id,
     value: formatColumnValue(statusLabel.trim(), column.type),
   });
+  invalidateApplicationDetail(itemId);
 }
 
 const CONTACT_UPDATE_COLUMNS: Array<{
@@ -925,4 +1015,66 @@ export async function deleteMondayItems(itemIds: string[]): Promise<void> {
     );
   }
 }
+
+async function fetchLongtermBoardPipeline(
+  boardId: string,
+): Promise<MondayBoardPipeline> {
+  const meta = await api<{
+    boards: Array<{
+      id: string;
+      name: string;
+      groups: MondayBoardGroup[];
+    }>;
+  }>(queries.getBoard, { boardId: [boardId] });
+
+  const boardMeta = meta.boards?.[0];
+  if (!boardMeta) {
+    throw new Error(`Long-term board ${boardId} not found or not accessible`);
+  }
+
+  const items = await fetchApplicationsBoardItems(boardId);
+
+  return {
+    id: boardMeta.id,
+    name: boardMeta.name,
+    groups: boardMeta.groups,
+    items,
+  };
+}
+
+export async function fetchLongtermApplicationsPipeline(
+  boardId: string,
+): Promise<{ stage: string; volunteers: LongtermVolunteer[] }[]> {
+  const board = await fetchLongtermBoardPipeline(boardId);
+  return mapLongtermBoardToPipelineSections(board);
+}
+
+export async function updateLongtermApplicationStatus(
+  boardId: string,
+  itemId: string,
+  statusLabel: string,
+): Promise<void> {
+  assertApplicationsWritable('update long-term application status');
+  const columns = await fetchBoardColumns(boardId);
+  const target = longtermColumnMap.status.trim().toLowerCase();
+  const column = columns.find(
+    (c) => c.title.trim().toLowerCase() === target,
+  );
+
+  if (!column) {
+    throw new Error(
+      `Column "${longtermColumnMap.status}" not found on long-term board.`,
+    );
+  }
+
+  await api(mutations.updateColumnValue, {
+    boardId,
+    itemId,
+    columnId: column.id,
+    value: formatColumnValue(statusLabel.trim(), column.type),
+  });
+  invalidateApplicationDetail(itemId);
+}
+
+export type { LongtermStatus };
 

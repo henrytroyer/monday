@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useCurrentUser } from '../context/CurrentUserContext';
 import {
   addServiceRecordNote,
   getServiceRecordNotes,
@@ -7,6 +8,7 @@ import type { ServiceRecordNote } from '../types/internalNote';
 import type { RecruitmentNoteAttachment } from '../types/recruitment';
 
 export function useServiceRecordNotes(serviceRecordId: string) {
+  const { displayName } = useCurrentUser();
   const [notes, setNotes] = useState<ServiceRecordNote[]>([]);
   const [sending, setSending] = useState(false);
 
@@ -27,7 +29,7 @@ export function useServiceRecordNotes(serviceRecordId: string) {
         const note = addServiceRecordNote(
           serviceRecordId,
           trimmed,
-          'You',
+          displayName,
           attachment,
         );
         setNotes((prev) => [...prev, note]);
@@ -35,7 +37,7 @@ export function useServiceRecordNotes(serviceRecordId: string) {
         setSending(false);
       }
     },
-    [serviceRecordId],
+    [serviceRecordId, displayName],
   );
 
   return { notes, sending, addNote, reload };

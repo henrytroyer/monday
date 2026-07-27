@@ -7,7 +7,9 @@ import {
   MOCK_PASTOR_REFERENCE_FORM_FIELDS_RACHEL,
 } from '../data/mockApplicationForm';
 import { buildMockVolunteerDemographics } from '../data/mockVolunteerContactProfile';
-import { fetchApplicationDetail } from '../services/crmApi';
+import { fetchApplicationDetail, fetchLongtermApplicationDetail } from '../services/crmApi';
+import { getCachedApplicationDetail } from '../services/sessionDetailCache';
+import type { LongtermVolunteer } from '../types/longtermVolunteer';
 import type { VolunteerItinerary } from '../types/itinerary';
 import type { Volunteer, VolunteerDetail, VolunteerFile } from '../types/volunteer';
 import { buildApplicationEmails } from '../utils/applicationEmails';
@@ -313,6 +315,7 @@ interface UseApplicationDetailReturn {
 
 export function useApplicationDetail(
   volunteer: Volunteer | null,
+  options?: { longterm?: boolean },
 ): UseApplicationDetailReturn {
   const [detail, setDetail] = useState<VolunteerDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -340,13 +343,30 @@ export function useApplicationDetail(
 
     const itemId = selected.id;
     const fallback = selected;
+    const partnerItemId =
+      (selected as LongtermVolunteer).partnerItemId ??
+      selected.couplePreview?.partnerItemId;
+    const cached = getCachedApplicationDetail(itemId);
     let cancelled = false;
 
-    async function load() {
-      setLoading(true);
+    if (cached) {
+      setDetail(cached);
+      setLoading(false);
       setError(null);
+    }
+
+    async function load() {
+      if (!cached) {
+        setLoading(true);
+        setError(null);
+      }
       try {
-        const data = await fetchApplicationDetail(itemId);
+        const data = options?.longterm
+          ? await fetchLongtermApplicationDetail(itemId, {
+              refresh: true,
+              partnerItemId,
+            })
+          : await fetchApplicationDetail(itemId, { refresh: true });
         if (!cancelled) {
           setDetail(data);
           setLoading(false);
@@ -356,7 +376,9 @@ export function useApplicationDetail(
           setError(
             err instanceof Error ? err.message : 'Failed to load application',
           );
-          setDetail(buildMockVolunteerDetail(fallback));
+          if (!cached) {
+            setDetail(buildMockVolunteerDetail(fallback));
+          }
           setLoading(false);
         }
       }
@@ -367,7 +389,7 @@ export function useApplicationDetail(
     return () => {
       cancelled = true;
     };
-  }, [volunteer, isMock, reloadKey]);
+  }, [volunteer, isMock, reloadKey, options?.longterm]);
 
   return { detail, loading, error, refetch };
 }

@@ -1,6 +1,7 @@
 import {
-  LONGTERM_REFERENCE_TYPE_LABELS,
-  type LongtermReferenceType,
+  LONGTERM_SLOT_LABEL_GREY_STYLE,
+  LONGTERM_SLOT_LABEL_STYLES,
+  slotLabelForIndex,
 } from '../../constants/longtermReferenceSlots';
 import type { LongtermReferenceSlot } from '../../types/longtermReference';
 
@@ -31,7 +32,11 @@ export default function LongtermReferencesPanel({
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <ReferenceTypePill type={slot.type} />
+                    <SlotLabelPill
+                      label={
+                        slot.slotLabel ?? slotLabelForIndex(slot.slotIndex)
+                      }
+                    />
                     {slot.receivedAt && (
                       <span className="text-xs text-crm-slate">
                         {slot.receivedAt}
@@ -48,7 +53,11 @@ export default function LongtermReferencesPanel({
               <div className="rounded-xl bg-crm-surface/80 px-4 py-3 ring-1 ring-crm-taupe/20/80">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <ReferenceTypePill type={slot.type} />
+                    <SlotLabelPill
+                      label={
+                        slot.slotLabel ?? slotLabelForIndex(slot.slotIndex)
+                      }
+                    />
                     <p className="mt-1 text-sm text-crm-slate">
                       Awaiting reference
                     </p>
@@ -70,20 +79,18 @@ export default function LongtermReferencesPanel({
   );
 }
 
-function ReferenceTypePill({ type }: { type: LongtermReferenceType }) {
-  const styles: Record<LongtermReferenceType, string> = {
-    friend: 'bg-sky-100 text-sky-800',
-    employer: 'bg-violet-100 text-violet-800',
-    pastor: 'bg-emerald-100 text-emerald-800',
-  };
+function SlotLabelPill({ label }: { label: string }) {
+  const style =
+    LONGTERM_SLOT_LABEL_STYLES[label] ??
+    'bg-crm-taupe-50 text-crm-heading ring-crm-taupe/30';
 
   return (
     <span
-      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[type]}`}
+      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${style}`}
     >
-      {LONGTERM_REFERENCE_TYPE_LABELS[type]}
+      {label}
     </span>
   );
 }
 
-export { LONGTERM_REFERENCE_TYPE_LABELS };
+export { slotLabelForIndex, LONGTERM_SLOT_LABEL_GREY_STYLE };

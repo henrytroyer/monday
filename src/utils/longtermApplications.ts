@@ -4,23 +4,30 @@ import type {
   LongtermPipelineSection,
   LongtermVolunteer,
 } from '../types/longtermVolunteer';
+import { findLongtermVolunteerById, visibleLongtermVolunteers } from '../services/mergeLongtermCouples';
 
 export function countLongtermVolunteers(volunteers: LongtermVolunteer[]): number {
-  return volunteers.length;
+  return visibleLongtermVolunteers(volunteers).length;
 }
 
 export function countPipelineVolunteers(volunteers: LongtermVolunteer[]): number {
-  return volunteers.filter((volunteer) => !volunteer.onField).length;
+  return visibleLongtermVolunteers(volunteers).filter(
+    (volunteer) => !volunteer.onField,
+  ).length;
 }
 
 export function countOnFieldVolunteers(volunteers: LongtermVolunteer[]): number {
-  return volunteers.filter((volunteer) => volunteer.onField).length;
+  return visibleLongtermVolunteers(volunteers).filter(
+    (volunteer) => volunteer.onField,
+  ).length;
 }
 
 export function buildPipelineSections(
   volunteers: LongtermVolunteer[],
 ): LongtermPipelineSection[] {
-  const pipelineVolunteers = volunteers.filter((volunteer) => !volunteer.onField);
+  const pipelineVolunteers = visibleLongtermVolunteers(
+    volunteers.filter((volunteer) => !volunteer.onField),
+  );
 
   return LONGTERM_STATUS_OPTIONS.map((stage) => ({
     stage,
@@ -33,7 +40,9 @@ export function buildPipelineSections(
 export function buildFieldSections(
   volunteers: LongtermVolunteer[],
 ): LongtermPipelineSection[] {
-  const onFieldVolunteers = volunteers.filter((volunteer) => volunteer.onField);
+  const onFieldVolunteers = visibleLongtermVolunteers(
+    volunteers.filter((volunteer) => volunteer.onField),
+  );
 
   return LONGTERM_FIELD_LOCATIONS.map((stage) => ({
     stage,
@@ -57,7 +66,7 @@ export function findLongtermVolunteer(
   volunteers: LongtermVolunteer[],
   volunteerId: string,
 ): LongtermVolunteer | undefined {
-  return volunteers.find((volunteer) => volunteer.id === volunteerId);
+  return findLongtermVolunteerById(volunteers, volunteerId);
 }
 
 export function asPipelineSection(

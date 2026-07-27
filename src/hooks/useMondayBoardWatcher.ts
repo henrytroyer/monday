@@ -3,6 +3,7 @@ import { resolveMonitoredBoardIds, useMockData } from '../config/boards';
 import { harvestMondayNotes } from '../services/mondayNoteHarvest';
 import { notifyContactNotesChanged, pollMondayBoardUpdates, watchIntervalMs, watchIsEnabled } from '../services/mondayBoardWatcher';
 import { pollEmailTimelineUpdates } from '../services/emailTimelineWatcher';
+import { pollReferenceBoardUpdates } from '../services/referenceBoardWatcher';
 import { notifyNoteReviewChanged } from './useNoteReview';
 
 const INITIAL_HARVEST_KEY = 'crm-note-initial-harvest-done';
@@ -55,6 +56,7 @@ export function useMondayBoardWatcher() {
           notifyHarvestResult(result.harvest);
         }
         await pollEmailTimelineUpdates();
+        await pollReferenceBoardUpdates();
       } catch {
         // Watcher is best-effort during prototype
       } finally {

@@ -1,6 +1,6 @@
 import type { FinancialRecord } from '../types/contact';
+import type { EmailTemplate } from '../types/emailTemplate';
 import { buildMailtoUrl, mergeEmailTemplate } from './emailMerge';
-import { getYearEndTaxReceiptTemplate } from '../data/emailTemplates';
 
 const ORGANIZATION_NAME = 'Field Ministry Partners';
 const ORGANIZATION_EIN = '12-3456789';
@@ -42,9 +42,11 @@ export function buildYearEndDonationReceipt(
   contactName: string,
   year: string,
   records: FinancialRecord[],
+  template?: EmailTemplate,
 ): { subject: string; body: string; total: number; currency: string } | null {
   const paid = paidDonationsForYear(records, year);
   if (paid.length === 0) return null;
+  if (!template) return null;
 
   const currency = paid[0]?.currency ?? 'USD';
   const total = paid.reduce((sum, record) => sum + record.amount, 0);
@@ -59,7 +61,6 @@ export function buildYearEndDonationReceipt(
     )
     .join('\n');
 
-  const template = getYearEndTaxReceiptTemplate();
   const merged = mergeEmailTemplate(template.subject, template.body, {
     name: contactName,
     firstName: firstName(contactName),
@@ -84,11 +85,17 @@ export function buildYearEndDonationReceiptMailto(
   contactEmail: string,
   year: string,
   records: FinancialRecord[],
+  template?: EmailTemplate,
 ): string | null {
   const email = contactEmail.trim();
   if (!email || email === '—') return null;
 
-  const receipt = buildYearEndDonationReceipt(contactName, year, records);
+  const receipt = buildYearEndDonationReceipt(
+    contactName,
+    year,
+    records,
+    template,
+  );
   if (!receipt) return null;
 
   return buildMailtoUrl(contactEmail, receipt.subject, receipt.body);

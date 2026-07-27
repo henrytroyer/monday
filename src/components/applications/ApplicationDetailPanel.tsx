@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
-import { LONGTERM_REFERENCE_TYPE_LABELS } from '../../constants/longtermReferenceSlots';
-import { buildLongtermReferenceSlots } from '../../data/mockLongtermReferences';
+import { slotLabelForIndex } from '../../constants/longtermReferenceSlots';
 import { useApplicationDetail } from '../../hooks/useApplicationDetail';
+import { useLongtermReferences } from '../../hooks/useLongtermReferences';
 import { openItem } from '../../utils/mondayHelpers';
 import { savePipeline } from '../../services/onboardingPipelineStorage';
 import type { OnboardingPipeline, Volunteer, VolunteerDetail } from '../../types/volunteer';
@@ -23,7 +23,8 @@ import {
 } from '../../utils/volunteerTerm';
 import FormFieldsPanel, { findFormPdf } from './FormFieldsPanel';
 import ItineraryBubbles from './ItineraryBubbles';
-import LongtermReferencesPanel from './LongtermReferencesPanel';
+import LongtermReferenceAnswersPanel from './LongtermReferenceAnswersPanel';
+import LongtermReferenceCommandCenter from './LongtermReferenceCommandCenter';
 import OnboardingProgress from './OnboardingProgress';
 import SendEmailModal from './SendEmailModal';
 import TermNotesChat from './TermNotesChat';
@@ -35,6 +36,7 @@ import VolunteerAvatar from './VolunteerAvatar';
 import CoupleAvatarStack from './CoupleAvatarStack';
 import VolunteerTermDisplay from './VolunteerTermDisplay';
 import ContactCallModal from '../contacts/ContactCallModal';
+import { useCurrentUser } from '../../context/CurrentUserContext';
 import { useTermNotes } from '../../hooks/useTermNotes';
 import { useApplicationActivityTimeline } from '../../hooks/useApplicationActivityTimeline';
 
@@ -57,15 +59,20 @@ export default function ApplicationDetailPanel({
   quickActionsBeforeFiles = false,
   applicationsEditable = false,
 }: ApplicationDetailPanelProps) {
-  const { detail, loading, error, refetch } = useApplicationDetail(volunteer);
-  const referenceSlots = useMemo(
-    () =>
-      quickActionsBeforeFiles
-        ? buildLongtermReferenceSlots(volunteer.id)
-        : [],
-    [quickActionsBeforeFiles, volunteer.id],
-  );
+  const { displayName } = useCurrentUser();
+  const { detail, loading, error, refetch } = useApplicationDetail(volunteer, {
+    longterm: quickActionsBeforeFiles,
+  });
+  const longtermReferences = useLongtermReferences({
+    applicationId: volunteer.id,
+    applicationBoardId: quickActionsBeforeFiles ? boardId : null,
+    enabled: quickActionsBeforeFiles,
+  });
+  const referenceSlots = longtermReferences.slots;
   const [sendEmailOpen, setSendEmailOpen] = useState(false);
+  const [referenceRequestSlot, setReferenceRequestSlot] = useState<
+    number | null
+  >(null);
   const [referenceReminderSlot, setReferenceReminderSlot] = useState<
     number | null
   >(null);
@@ -73,9 +80,7 @@ export default function ApplicationDetailPanel({
   const [pipeline, setPipeline] = useState<OnboardingPipeline | null>(null);
   const [callOpen, setCallOpen] = useState(false);
   const [drillDown, setDrillDown] = useState<DrillDownView>(null);
-  const [selectedReferenceSlot, setSelectedReferenceSlot] = useState<
-    number | null
-  >(null);
+  const [answersSlotIndex, setAnswersSlotIndex] = useState<number | null>(null);
 
   const { requestClose: requestCloseDrillDown } = useNavLayer(
     drillDown !== null,
@@ -87,6 +92,7 @@ export default function ApplicationDetailPanel({
     sendEmailOpen,
     () => {
       setSendEmailOpen(false);
+      setReferenceRequestSlot(null);
       setReferenceReminderSlot(null);
       setOnboardingEmailOpen(false);
     },
@@ -101,7 +107,10 @@ export default function ApplicationDetailPanel({
 
   const handlePipelineChange = (next: OnboardingPipeline) => {
     setPipeline(next);
-    savePipeline(next);
+    savePipeline(next, {
+      actorName: displayName,
+      volunteerName: volunteer.name,
+    });
   };
 
   const handleSendProgressEmail = (_stepId?: string) => {
@@ -128,14 +137,14 @@ export default function ApplicationDetailPanel({
         !drillDown &&
         !sendEmailOpen &&
         !callOpen &&
-        selectedReferenceSlot === null
+        answersSlotIndex === null
       ) {
         onBack();
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onBack, drillDown, sendEmailOpen, callOpen, selectedReferenceSlot]);
+  }, [onBack, drillDown, sendEmailOpen, callOpen, answersSlotIndex]);
 
   const display = detail ?? null;
   const emailCorrespondenceRefetch = useRef<(() => void) | null>(null);
@@ -153,15 +162,30 @@ export default function ApplicationDetailPanel({
     contactEmails: display?.emails.map((entry) => entry.address),
     itemCreatedAt: display?.itemCreatedAt,
   });
-  const selectedReference = referenceSlots.find(
-    (slot) => slot.slotIndex === selectedReferenceSlot,
+  const { requestClose: requestCloseAnswers } = useNavLayer(
+    answersSlotIndex !== null,
+    () => setAnswersSlotIndex(null),
+    `lt-ref-answers-${answersSlotIndex ?? 'none'}-${volunteer.id}`,
   );
 
-  const { requestClose: requestCloseReference } = useNavLayer(
-    selectedReferenceSlot !== null,
-    () => setSelectedReferenceSlot(null),
-    `reference-${selectedReferenceSlot ?? 'none'}-${volunteer.id}`,
+  const requestReferenceSlot = referenceSlots.find(
+    (slot) => slot.slotIndex === referenceRequestSlot,
   );
+  const answersSlot = referenceSlots.find(
+    (slot) => slot.slotIndex === answersSlotIndex,
+  );
+
+  const referenceFixedRecipient =
+    requestReferenceSlot?.refereeEmail && display
+      ? {
+          role: 'reference' as const,
+          label:
+            requestReferenceSlot.refereeName ??
+            (requestReferenceSlot.slotLabel ??
+              slotLabelForIndex(requestReferenceSlot.slotIndex)),
+          address: requestReferenceSlot.refereeEmail,
+        }
+      : undefined;
 
   const handleOpenInMonday = () => {
     if (!volunteer.id.startsWith('mock-') && boardId) {
@@ -229,19 +253,6 @@ export default function ApplicationDetailPanel({
                   onEmailClick={() => setSendEmailOpen(true)}
                   onPhoneClick={() => setCallOpen(true)}
                   sharedContent={quickActions}
-                  splitFilesRow={quickActionsBeforeFiles}
-                  besideFiles={
-                    quickActionsBeforeFiles ? (
-                      <LongtermReferencesPanel
-                        slots={referenceSlots}
-                        onSelectReference={setSelectedReferenceSlot}
-                        onSendReminder={(slotIndex) => {
-                          setReferenceReminderSlot(slotIndex);
-                          setSendEmailOpen(true);
-                        }}
-                      />
-                    ) : undefined
-                  }
                 />
               ) : (
                 <VolunteerContactCard
@@ -249,20 +260,33 @@ export default function ApplicationDetailPanel({
                   onEmailClick={() => setSendEmailOpen(true)}
                   onPhoneClick={() => setCallOpen(true)}
                   beforeFiles={quickActions}
-                  splitFilesRow={quickActionsBeforeFiles}
-                  besideFiles={
-                    quickActionsBeforeFiles ? (
-                      <LongtermReferencesPanel
-                        slots={referenceSlots}
-                        onSelectReference={setSelectedReferenceSlot}
-                        onSendReminder={(slotIndex) => {
-                          setReferenceReminderSlot(slotIndex);
-                          setSendEmailOpen(true);
-                        }}
-                      />
-                    ) : undefined
-                  }
                 />
+              )}
+
+              {quickActionsBeforeFiles && (
+                <div className="w-full md:max-w-[50%]">
+                  <LongtermReferenceCommandCenter
+                    slots={referenceSlots}
+                    loading={longtermReferences.loading}
+                    onViewAnswers={setAnswersSlotIndex}
+                    onSendRequest={(slotIndex) => {
+                      setReferenceRequestSlot(slotIndex);
+                      setSendEmailOpen(true);
+                    }}
+                    onApprove={(slotIndex) =>
+                      void longtermReferences.setReviewStatus(slotIndex, 'approved')
+                    }
+                    onNeedsReview={(slotIndex) =>
+                      void longtermReferences.setReviewStatus(
+                        slotIndex,
+                        'needs_review',
+                      )
+                    }
+                    onUndoReview={(slotIndex) =>
+                      void longtermReferences.clearReviewStatus(slotIndex)
+                    }
+                  />
+                </div>
               )}
 
               <Panel title="Onboarding Progress">
@@ -362,29 +386,49 @@ export default function ApplicationDetailPanel({
                 emailCorrespondenceRefetch.current?.();
               }, 3000);
             }}
+            onAfterMailto={() => {
+              if (referenceRequestSlot !== null) {
+                void longtermReferences.markEmailSent(referenceRequestSlot);
+              }
+            }}
             initialTemplateId={
-              referenceReminderSlot !== null
-                ? 'reference-reminder'
-                : onboardingEmailOpen
-                  ? 'onboarding-progress-update'
-                  : undefined
+              referenceRequestSlot !== null
+                ? 'longterm-reference-request'
+                : referenceReminderSlot !== null
+                  ? 'reference-reminder'
+                  : onboardingEmailOpen
+                    ? 'onboarding-progress-update'
+                    : undefined
             }
             initialRecipientRole={
               referenceReminderSlot !== null ? 'volunteer' : undefined
             }
+            fixedRecipient={referenceFixedRecipient}
             extraMergeContext={
-              referenceReminderSlot !== null
+              referenceRequestSlot !== null && requestReferenceSlot
                 ? {
-                    referenceType:
-                      referenceSlots[referenceReminderSlot]?.type ?? '',
+                    referenceType: requestReferenceSlot.type,
                     referenceTypeLabel:
-                      LONGTERM_REFERENCE_TYPE_LABELS[
-                        referenceSlots[referenceReminderSlot]?.type ?? 'friend'
-                      ],
+                      requestReferenceSlot.slotLabel ??
+                      slotLabelForIndex(requestReferenceSlot.slotIndex),
+                    applicantName: display.name,
+                    applicantFirstName: display.name.split(' ')[0] ?? display.name,
+                    refereeName: requestReferenceSlot.refereeName ?? '',
+                    refereeNameGreeting: requestReferenceSlot.refereeName
+                      ? ` ${requestReferenceSlot.refereeName.split(' ')[0]}`
+                      : '',
                   }
-                : onboardingEmailOpen
-                  ? onboardingMergeContext
-                  : undefined
+                : referenceReminderSlot !== null
+                  ? {
+                      referenceType:
+                        referenceSlots[referenceReminderSlot]?.type ?? '',
+                      referenceTypeLabel:
+                        referenceSlots[referenceReminderSlot]?.slotLabel ??
+                        slotLabelForIndex(referenceReminderSlot ?? 0),
+                    }
+                  : onboardingEmailOpen
+                    ? onboardingMergeContext
+                    : undefined
             }
           />
         )}
@@ -396,19 +440,6 @@ export default function ApplicationDetailPanel({
             onClose={requestCloseCall}
           />
         )}
-
-        {selectedReference &&
-          selectedReference.status === 'received' &&
-          selectedReference.formFields &&
-          display && (
-            <FormFieldsPanel
-              title={`${LONGTERM_REFERENCE_TYPE_LABELS[selectedReference.type]} reference — ${selectedReference.refereeName}`}
-              backLabel={display.name}
-              fields={selectedReference.formFields}
-              emptyMessage="No reference fields on this item."
-              onClose={requestCloseReference}
-            />
-          )}
 
         {drillDown && display && (
           <FormFieldsPanel
@@ -434,6 +465,15 @@ export default function ApplicationDetailPanel({
                 : findFormPdf(display.files, /pastor.*reference/i)
             }
             onClose={requestCloseDrillDown}
+          />
+        )}
+
+        {answersSlot?.formFields && answersSlotIndex !== null && (
+          <LongtermReferenceAnswersPanel
+            title={`${answersSlot.slotLabel ?? slotLabelForIndex(answersSlot.slotIndex)} — ${answersSlot.refereeName ?? 'Referee'}`}
+            backLabel="References"
+            fields={answersSlot.formFields}
+            onClose={requestCloseAnswers}
           />
         )}
       </div>

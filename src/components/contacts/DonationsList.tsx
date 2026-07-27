@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FinancialRecord } from '../../types/contact';
 import { buildYearEndDonationReceiptMailto } from '../../utils/yearEndDonationReceipt';
+import { findEmailTemplate, useEmailTemplates } from '../../hooks/useEmailTemplates';
 
 interface DonationsListProps {
   records: FinancialRecord[];
@@ -13,6 +14,8 @@ export default function DonationsList({
   contactName,
   contactEmail,
 }: DonationsListProps) {
+  const { templates } = useEmailTemplates();
+  const taxReceiptTemplate = findEmailTemplate(templates, 'year-end-tax-receipt');
   const sorted = useMemo(
     () =>
       [...records].sort(
@@ -94,12 +97,13 @@ export default function DonationsList({
             .filter((r) => r.isPaid !== false)
             .reduce((sum, r) => sum + r.amount, 0);
           const taxReceiptMailto =
-            yearPaidTotal > 0
+            yearPaidTotal > 0 && taxReceiptTemplate
               ? buildYearEndDonationReceiptMailto(
                   contactName,
                   contactEmail,
                   year,
                   records,
+                  taxReceiptTemplate,
                 )
               : null;
           return (

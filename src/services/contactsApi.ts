@@ -19,6 +19,13 @@ import {
   deleteMondayItems,
 } from './crmApi';
 import {
+  contactDetailCacheKey,
+  getCachedContactDetail,
+  invalidateContactDetail,
+  setCachedContactDetail,
+  clearSessionDetailCache,
+} from './sessionDetailCache';
+import {
   getContactDetailBase,
   getAllContacts,
   updateContactCoreFields,
@@ -138,6 +145,7 @@ export function clearContactsLiveCache(): void {
   liveContactsCacheBoardId = null;
   liveApplicationsCache = null;
   clearSessionContactsCache();
+  clearSessionDetailCache();
 }
 
 export function removeFromContactsLiveCache(contactIds: string[]): void {
@@ -198,7 +206,7 @@ export async function fetchContactsList(
 
 export async function fetchContactDetail(
   contactId: string,
-  options?: ContactsFetchOptions,
+  options?: ContactsFetchOptions & { refresh?: boolean },
 ): Promise<ContactDetail> {
   if (useMockData()) {
     const detail = getContactDetailBase(contactId);
@@ -236,6 +244,16 @@ export async function fetchContactDetail(
       emailCorrespondence,
       serviceTerms,
     };
+  }
+
+  const cacheKey = contactDetailCacheKey(contactId, {
+    contactsBoardId: options?.contactsBoardId,
+    applicationsBoardId: options?.applicationsBoardId,
+    donationsBoardId: options?.donationsBoardId,
+  });
+  if (!options?.refresh) {
+    const cached = getCachedContactDetail(cacheKey);
+    if (cached) return cached;
   }
 
   const item = await fetchContactItem(contactId);
@@ -312,13 +330,15 @@ export async function fetchContactDetail(
     serviceTerms: [...mergedRecruitment, ...applicationTerms],
   });
 
-  return {
+  const result = {
     ...base,
     ...enriched,
     emailCorrespondence,
     donations,
     serviceTerms: [...mergedRecruitment, ...applicationTerms],
   };
+  setCachedContactDetail(cacheKey, result);
+  return result;
 }
 
 export async function updateContactCoreFieldsApi(
@@ -344,9 +364,10 @@ export async function updateContactCoreFieldsApi(
   }
 
   await updateContactFieldsOnMonday(boardId, contactId, fields);
+  invalidateContactDetail(contactId);
   clearContactsLiveCache();
   try {
-    return await fetchContactDetail(contactId, options);
+    return await fetchContactDetail(contactId, { ...options, refresh: true });
   } catch (fetchErr) {
     if (options?.fallbackDetail) {
       return applyCoreFieldsToDetail(options.fallbackDetail, fields);
@@ -377,9 +398,10 @@ export async function updateContactPastorReferenceApi(
   }
 
   await updateContactPastorReferenceOnMonday(boardId, contactId, fields);
+  invalidateContactDetail(contactId);
   clearContactsLiveCache();
   try {
-    return await fetchContactDetail(contactId, options);
+    return await fetchContactDetail(contactId, { ...options, refresh: true });
   } catch (fetchErr) {
     if (options?.fallbackDetail) {
       return applyPastorReferenceToDetail(options.fallbackDetail, fields);

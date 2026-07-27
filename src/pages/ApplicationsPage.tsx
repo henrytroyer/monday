@@ -8,6 +8,7 @@ import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { countVolunteers } from '../data/mockApplications';
 import { useApplicationsPipeline } from '../hooks/useApplicationsPipeline';
+import { usePersistedPageWorkspace } from '../hooks/usePersistedPageWorkspace';
 import type { ApplicationFilterState, Volunteer } from '../types/volunteer';
 import {
   collectPipelineItemIds,
@@ -21,6 +22,7 @@ import {
 } from '../utils/filterApplications';
 import { syncAllContactsFromPipeline } from '../services/contactApplicationSync';
 import { registerWatchedApplicationItemIds } from '../services/emailTimelineWatcher';
+import { readWorkspaceState } from '../services/crmNavigationStorage';
 
 export default function ApplicationsPage({
   focusApplicationId,
@@ -32,6 +34,9 @@ export default function ApplicationsPage({
   const [filters, setFilters] = useState<ApplicationFilterState>(emptyFilters);
   const [selectedApplication, setSelectedApplication] =
     useState<Volunteer | null>(null);
+  const [detailVisible, setDetailVisible] = useState(
+    () => readWorkspaceState('applications')?.detailOpen ?? false,
+  );
   const [statusError, setStatusError] = useState<string | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -39,10 +44,15 @@ export default function ApplicationsPage({
   const [filterPanelTop, setFilterPanelTop] = useState(0);
 
   const { requestClose: requestCloseApplication } = useNavLayer(
-    selectedApplication !== null,
-    () => setSelectedApplication(null),
+    detailVisible && selectedApplication !== null,
+    () => setDetailVisible(false),
     `application-${selectedApplication?.id ?? 'none'}`,
   );
+
+  const openApplication = useCallback((volunteer: Volunteer) => {
+    setSelectedApplication(volunteer);
+    setDetailVisible(true);
+  }, []);
 
   const {
     pipeline,
@@ -55,6 +65,28 @@ export default function ApplicationsPage({
     updateVolunteerStatus,
     applicationsEditable,
   } = useApplicationsPipeline();
+
+  const restoreApplication = useCallback(
+    (volunteer: Volunteer, detailOpen: boolean) => {
+      setSelectedApplication(volunteer);
+      if (detailOpen) setDetailVisible(true);
+    },
+    [],
+  );
+
+  const findApplication = useCallback(
+    (id: string) => findVolunteerInPipeline(pipeline, id),
+    [pipeline],
+  );
+
+  usePersistedPageWorkspace({
+    page: 'applications',
+    loading,
+    selectedId: selectedApplication?.id,
+    detailOpen: detailVisible,
+    findItem: findApplication,
+    onRestore: restoreApplication,
+  });
 
   const totalCount = useMemo(() => countVolunteers(pipeline), [pipeline]);
 
@@ -79,7 +111,7 @@ export default function ApplicationsPage({
   );
 
   const filtersActive = hasActiveFilters(filters);
-  const showingDetail = selectedApplication !== null;
+  const showingDetail = detailVisible && selectedApplication !== null;
   const listReady = !loading && !error;
 
   const { setDetailMode } = useLayout();
@@ -121,10 +153,10 @@ export default function ApplicationsPage({
     if (!focusApplicationId || loading) return;
     const match = findVolunteerInPipeline(pipeline, focusApplicationId);
     if (match) {
-      setSelectedApplication(match);
+      openApplication(match);
       onClearFocus?.();
     }
-  }, [focusApplicationId, loading, pipeline, onClearFocus]);
+  }, [focusApplicationId, loading, pipeline, onClearFocus, openApplication]);
 
   useLayoutEffect(() => {
     if (!filtersVisible || !toolbarRef.current) return;
@@ -158,29 +190,29 @@ export default function ApplicationsPage({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-6 flex shrink-0 flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-semibold text-crm-heading">
-            Short-term applications
-          </h1>
-          {!showingDetail && (
+      {!showingDetail && (
+        <div className="mb-6 flex shrink-0 flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-semibold text-crm-heading">
+              Short-term applications
+            </h1>
             <p className="mt-2 text-crm-slate">
               Track volunteers through onboarding, references, placement, and
               deployment.
             </p>
+          </div>
+          {!isMock && (
+            <button
+              type="button"
+              onClick={refetch}
+              disabled={loading}
+              className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+            >
+              Refresh
+            </button>
           )}
         </div>
-        {!isMock && !showingDetail && (
-          <button
-            type="button"
-            onClick={refetch}
-            disabled={loading}
-            className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-          >
-            Refresh
-          </button>
-        )}
-      </div>
+      )}
 
       {statusError && !showingDetail && (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -219,13 +251,19 @@ export default function ApplicationsPage({
         </div>
       )}
 
-      {showingDetail && selectedApplication && (
-        <ApplicationDetailPanel
-          volunteer={selectedApplication}
-          boardId={boardId}
-          onBack={requestCloseApplication}
-          applicationsEditable={applicationsEditable}
-        />
+      {selectedApplication && (
+        <div
+          className={`min-h-0 flex-1 flex-col ${
+            detailVisible ? 'flex' : 'hidden'
+          }`}
+        >
+          <ApplicationDetailPanel
+            volunteer={selectedApplication}
+            boardId={boardId}
+            onBack={requestCloseApplication}
+            applicationsEditable={applicationsEditable}
+          />
+        </div>
       )}
 
       {showListCard && (
@@ -275,7 +313,7 @@ export default function ApplicationsPage({
                     <PipelineSection
                       key={section.stage}
                       section={section}
-                      onSelectVolunteer={setSelectedApplication}
+                      onSelectVolunteer={openApplication}
                       statusOptions={statusOptions}
                       onStatusChange={handleStatusChange}
                       statusSelectDisabled={!applicationsEditable}

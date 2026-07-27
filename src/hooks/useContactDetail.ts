@@ -11,6 +11,10 @@ import {
   updateContactCoreFieldsApi,
   updateContactPastorReferenceApi,
 } from '../services/contactsApi';
+import {
+  contactDetailCacheKey,
+  getCachedContactDetail,
+} from '../services/sessionDetailCache';
 import type { ContactCoreFields, ContactPastorFields } from '../services/contactStorage';
 import type { ContactDetail } from '../types/contact';
 import { useMondayContext } from './useMondayContext';
@@ -32,20 +36,37 @@ export function useContactDetail(contactId: string | null) {
       setDetail(null);
       return;
     }
-    setLoading(true);
-    setError(null);
+
+    const cacheKey = contactDetailCacheKey(contactId, {
+      contactsBoardId: isMock ? undefined : contactsBoardId,
+      applicationsBoardId: isMock ? undefined : applicationsBoardId,
+      donationsBoardId: isMock ? undefined : donationsBoardId,
+    });
+    const cached = !isMock ? getCachedContactDetail(cacheKey) : null;
+    if (cached) {
+      setDetail(cached);
+      setLoading(false);
+      setError(null);
+    } else {
+      setLoading(true);
+      setError(null);
+    }
+
     try {
       const data = await fetchContactDetail(contactId, {
         contactsBoardId: isMock ? undefined : contactsBoardId,
         applicationsBoardId: isMock ? undefined : applicationsBoardId,
         donationsBoardId: isMock ? undefined : donationsBoardId,
+        refresh: true,
       });
       setDetail(data);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to load contact',
       );
-      setDetail(null);
+      if (!cached) {
+        setDetail(null);
+      }
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,8 @@ import type { VolunteerDetail } from '../types/volunteer';
 import { displayLocationPreference } from './volunteerLocation';
 import { formatPhoneDisplay } from './phoneFormat';
 
+import { htmlToPlainText } from './htmlEmailBody';
+
 export interface MergedEmail {
   subject: string;
   body: string;
@@ -86,7 +88,7 @@ export function buildMailtoUrl(
 ): string {
   const params = new URLSearchParams();
   params.set('subject', subject);
-  params.set('body', body);
+  params.set('body', htmlToPlainText(body));
   return `mailto:${encodeURIComponent(to)}?${params.toString()}`;
 }
 

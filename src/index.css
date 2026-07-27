@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/email-composer.css";
 
 @theme {
   /* Soft, low-contrast palette */
@@ -159,5 +160,35 @@ h4 {
 .email-body-content--html b {
   font-weight: 600;
   color: var(--color-crm-heading);
+}
+
+.email-rich-editor:empty::before,
+.email-rich-editor[data-placeholder]:has(> p:only-child > br:only-child)::before {
+  content: attr(data-placeholder);
+  color: var(--color-crm-slate);
+  pointer-events: none;
+}
+
+.email-rich-editor p {
+  margin: 0 0 0.75rem;
+}
+
+.email-rich-editor ul,
+.email-rich-editor ol {
+  margin: 0 0 0.75rem 1.25rem;
+  padding: 0;
+}
+
+.email-rich-editor li {
+  margin-bottom: 0.35rem;
+}
+
+.email-rich-editor a {
+  color: var(--color-crm-indigo);
+  text-decoration: underline;
+}
+
+.email-rich-editor:focus {
+  outline: none;
 }
 

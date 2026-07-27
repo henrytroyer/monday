@@ -5,6 +5,7 @@ import {
   mondayWatchIntervalMs,
   useMockData,
 } from '../config/boards';
+import { useCurrentUser } from '../context/CurrentUserContext';
 import { fetchContactInternalNotes } from '../services/fetchContactInternalNotes';
 import { addContactHubNoteOnContact } from '../services/crmApi';
 import { addLocalContactHubNote } from '../services/contactHubNoteStorage';
@@ -26,6 +27,7 @@ export function useContactInternalNotes(
   currentApplication: CurrentApplicationSummary | null,
 ) {
   const isMock = useMockData();
+  const { displayName } = useCurrentUser();
   const [notes, setNotes] = useState<Awaited<ReturnType<typeof fetchContactInternalNotes>>>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -129,19 +131,19 @@ export function useContactInternalNotes(
       try {
         if (isMock) {
           if (target.kind === 'contact') {
-            addLocalContactHubNote(contactId, trimmed);
+            addLocalContactHubNote(contactId, trimmed, displayName);
           } else if (target.kind === 'recruitment') {
             await addRecruitmentNote(
               target.prospectId,
               trimmed,
-              'You',
+              displayName,
               undefined,
               { contactId },
             );
           } else if (shouldUseLocalTermNotes(target.itemId, isMock)) {
-            addLocalTermNote(target.itemId, target.timelineId, trimmed);
+            addLocalTermNote(target.itemId, target.timelineId, trimmed, displayName);
           } else {
-            addLocalTermNote(target.itemId, target.timelineId, trimmed);
+            addLocalTermNote(target.itemId, target.timelineId, trimmed, displayName);
           }
         } else {
           await addContactHubNoteOnContact(contactId, target, trimmed);
@@ -154,7 +156,7 @@ export function useContactInternalNotes(
         setSending(false);
       }
     },
-    [contactId, isMock, canWrite, load],
+    [contactId, isMock, canWrite, load, displayName],
   );
 
   return {

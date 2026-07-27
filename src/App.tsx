@@ -3,6 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { CurrentUserProvider } from './context/CurrentUserContext';
 import { LayoutProvider } from './context/LayoutContext';
 import { NavigationHistoryProvider } from './context/NavigationHistoryContext';
 import Dashboard from './pages/Dashboard';
@@ -21,9 +22,11 @@ function App() {
 
   return (
     <LayoutProvider>
-      <NavigationHistoryProvider>
-        <Dashboard />
-      </NavigationHistoryProvider>
+      <CurrentUserProvider>
+        <NavigationHistoryProvider>
+          <Dashboard />
+        </NavigationHistoryProvider>
+      </CurrentUserProvider>
     </LayoutProvider>
   );
 }

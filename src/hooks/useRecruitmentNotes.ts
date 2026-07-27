@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useCurrentUser } from '../context/CurrentUserContext';
 import {
   addRecruitmentNote,
   getRecruitmentNotes,
@@ -9,6 +10,7 @@ import type {
 } from '../types/recruitment';
 
 export function useRecruitmentNotes(prospectId: string) {
+  const { displayName } = useCurrentUser();
   const [notes, setNotes] = useState<RecruitmentNote[]>([]);
   const [sending, setSending] = useState(false);
 
@@ -29,7 +31,7 @@ export function useRecruitmentNotes(prospectId: string) {
         const note = await addRecruitmentNote(
           prospectId,
           trimmed,
-          'You',
+          displayName,
           attachment,
         );
         setNotes((prev) => [...prev, note]);
@@ -37,7 +39,7 @@ export function useRecruitmentNotes(prospectId: string) {
         setSending(false);
       }
     },
-    [prospectId],
+    [prospectId, displayName],
   );
 
   return { notes, sending, addNote, reload };

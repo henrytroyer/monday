@@ -94,14 +94,32 @@ const PIPELINE_SEEDS: LongtermSeed[] = [
 
 const ON_FIELD_SEEDS: LongtermSeed[] = [
   {
-    id: 'longterm-mock-9',
-    name: 'Thomas Keller',
+    id: 'longterm-mock-couple-arlen',
+    name: 'Arlen Fisher',
     locationPreference: 'Lesvos',
     location: 'Lesvos',
     status: 'approved',
     timelineId: 'fall-2026',
     onField: true,
     fieldLocation: 'Lesvos',
+    maritalStatus: 'Married',
+    homeAddress: '100 Orchard Lane, Lancaster, PA, USA',
+    email: 'arlen.fisher@example.com',
+    photoSeed: 'arlen',
+  },
+  {
+    id: 'longterm-mock-couple-sharon',
+    name: 'Sharon Fisher',
+    locationPreference: 'Lesvos',
+    location: 'Lesvos',
+    status: 'approved',
+    timelineId: 'fall-2026',
+    onField: true,
+    fieldLocation: 'Lesvos',
+    maritalStatus: 'Married',
+    homeAddress: '100 Orchard Ln, Lancaster, PA, USA',
+    email: 'sharon.fisher@example.com',
+    photoSeed: 'sharon',
   },
   {
     id: 'longterm-mock-10',
@@ -152,16 +170,6 @@ const ON_FIELD_SEEDS: LongtermSeed[] = [
     timelineId: 'fall-2026',
     onField: true,
     fieldLocation: 'Intern',
-  },
-  {
-    id: 'longterm-mock-15',
-    name: 'Noah Williams',
-    locationPreference: 'Lesvos',
-    location: 'Lesvos',
-    status: 'prepartation',
-    timelineId: 'spring-2027',
-    onField: true,
-    fieldLocation: 'Lesvos',
   },
 ];
 

@@ -1,4 +1,7 @@
-import { LONGTERM_REFERENCE_SLOT_TYPES } from '../constants/longtermReferenceSlots';
+import {
+  LONGTERM_REFERENCE_SLOT_TYPES,
+  slotLabelForIndex,
+} from '../constants/longtermReferenceSlots';
 import type { LongtermReferenceSlot } from '../types/longtermReference';
 import type { ApplicationFormField } from '../types/volunteer';
 
@@ -16,7 +19,8 @@ function receivedReference(
   return {
     slotIndex,
     type: LONGTERM_REFERENCE_SLOT_TYPES[slotIndex]!,
-    status: 'received',
+    status: 'pending_review',
+    slotLabel: slotLabelForIndex(slotIndex),
     refereeName: seed.refereeName,
     refereeEmail: seed.refereeEmail,
     receivedAt: seed.receivedAt,
@@ -28,7 +32,8 @@ function pendingReference(slotIndex: number): LongtermReferenceSlot {
   return {
     slotIndex,
     type: LONGTERM_REFERENCE_SLOT_TYPES[slotIndex]!,
-    status: 'pending',
+    status: 'placeholder',
+    slotLabel: slotLabelForIndex(slotIndex),
   };
 }
 
@@ -732,6 +737,9 @@ export function findLongtermReferenceSlot(
 
 export function countReceivedReferences(volunteerId: string): number {
   return buildLongtermReferenceSlots(volunteerId).filter(
-    (slot) => slot.status === 'received',
+    (slot) =>
+      slot.status === 'pending_review' ||
+      slot.status === 'approved' ||
+      slot.status === 'needs_review',
   ).length;
 }

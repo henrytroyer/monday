@@ -1,4 +1,7 @@
-import { EMAIL_TEMPLATES } from './emailTemplates';
+import {
+  getEmailTemplateById,
+  MOCK_EMAIL_TEMPLATES,
+} from './emailTemplates';
 import type { ContactEmailMessage, ContactListItem } from '../types/contact';
 
 const TEAM_COORDINATOR = {
@@ -14,24 +17,22 @@ interface ThreadScenario {
 }
 
 const THREAD_SCENARIOS: ThreadScenario[] = [
-  { direction: 'outbound', templateId: 'onboarding-welcome' },
+  { direction: 'outbound', templateId: 'comms-child-safeguarding-course' },
   {
     direction: 'inbound',
-    templateId: 'onboarding-welcome',
-    inboundSubject: 'Re: Welcome to the team',
+    templateId: 'comms-child-safeguarding-course',
+    inboundSubject: 'Re: Child Safeguarding Course',
     inboundBody: `Hi Sarah,
 
-Thank you so much for the welcome email! I'm really excited about serving on the team this summer.
-
-I've started gathering my documents and will upload them this week.
+Thank you for the safeguarding course link. I've started the training and will upload my certificate this week.
 
 Best,
 {{firstName}}`,
   },
-  { direction: 'outbound', templateId: 'pastor-reference-request' },
+  { direction: 'outbound', templateId: 'comms-pastor-letter-2' },
   {
     direction: 'inbound',
-    templateId: 'pastor-reference-request',
+    templateId: 'comms-pastor-letter-2',
     inboundSubject: 'Re: Reference request',
     inboundBody: `Hello,
 
@@ -42,23 +43,23 @@ Please let me know if you need anything else from me.
 Thanks,
 {{firstName}}`,
   },
-  { direction: 'outbound', templateId: 'missing-documents' },
-  { direction: 'outbound', templateId: 'invoice-reminder' },
+  { direction: 'outbound', templateId: 'comms-new-volunteer-acceptance-letter' },
+  { direction: 'outbound', templateId: 'comms-team-chat-invitation' },
   {
     direction: 'inbound',
-    templateId: 'invoice-reminder',
-    inboundSubject: 'Re: Invoice reminder',
+    templateId: 'comms-team-chat-invitation',
+    inboundSubject: 'Re: Team chat',
     inboundBody: `Hi,
 
-I just submitted payment through the link you sent. Please confirm when it comes through.
+I've joined the team chat and introduced myself.
 
 Thank you,
 {{firstName}}`,
   },
-  { direction: 'outbound', templateId: 'pre-arrival-reminder' },
+  { direction: 'outbound', templateId: 'comms-return-volunteer-acceptance-letter' },
   {
     direction: 'inbound',
-    templateId: 'pre-arrival-reminder',
+    templateId: 'comms-return-volunteer-acceptance-letter',
     inboundSubject: 'Travel itinerary attached',
     inboundBody: `Hi Sarah,
 
@@ -127,8 +128,8 @@ function outboundMessage(
   },
 ): ContactEmailMessage {
   const template =
-    EMAIL_TEMPLATES.find((item) => item.id === scenario.templateId) ??
-    EMAIL_TEMPLATES[0]!;
+    getEmailTemplateById(MOCK_EMAIL_TEMPLATES, scenario.templateId) ??
+    MOCK_EMAIL_TEMPLATES[0]!;
   const context = buildContext(contact);
 
   return {
@@ -168,7 +169,7 @@ function inboundMessage(
   const context = buildContext(contact);
   const subject =
     scenario.inboundSubject ??
-    `Re: ${EMAIL_TEMPLATES.find((item) => item.id === scenario.templateId)?.subject ?? 'Message'}`;
+    `Re: ${getEmailTemplateById(MOCK_EMAIL_TEMPLATES, scenario.templateId)?.subject ?? 'Message'}`;
   const bodyTemplate =
     scenario.inboundBody ??
     `Hi,\n\nThank you for your message. I'll follow up shortly.\n\n${contact.name}`;

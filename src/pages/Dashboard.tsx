@@ -1,27 +1,38 @@
 import { useEffect, useState } from 'react';
-import AppSidebar, { type PageId } from '../components/layout/AppSidebar';
+import AppSidebar from '../components/layout/AppSidebar';
+import { type PageId } from '../constants/navItems';
 import KeepAlivePage from '../components/layout/KeepAlivePage';
 import { useLayout } from '../context/LayoutContext';
 import { useMondayBoardWatcher } from '../hooks/useMondayBoardWatcher';
+import {
+  getInitialActivePage,
+  getInitialMountedPages,
+  patchCrmNavigationState,
+} from '../services/crmNavigationStorage';
 import ApplicationsPage from './ApplicationsPage';
 import ContactsPage from './ContactsPage';
-import EmailTemplatesPage from './EmailTemplatesPage';
+import EmailAdminPage from './EmailAdminPage';
 import LongtermApplicationsPage from './LongtermApplicationsPage';
+import HistoryPage from './HistoryPage';
 import RecruitmentPage from './RecruitmentPage';
 
 export default function Dashboard() {
-  const [activePage, setActivePage] = useState<PageId>('applications');
-  const [mountedPages, setMountedPages] = useState<Set<PageId>>(
-    () => new Set(['applications', 'contacts']),
-  );
+  const [activePage, setActivePage] = useState<PageId>(getInitialActivePage);
+  const [mountedPages, setMountedPages] =
+    useState<Set<PageId>>(getInitialMountedPages);
   const [recruitmentFocusId, setRecruitmentFocusId] = useState<string | null>(
     null,
   );
   const [applicationFocusId, setApplicationFocusId] = useState<string | null>(
     null,
   );
+  const [contactFocusId, setContactFocusId] = useState<string | null>(null);
   const { closeSidebar } = useLayout();
   useMondayBoardWatcher();
+
+  useEffect(() => {
+    patchCrmNavigationState({ activePage });
+  }, [activePage]);
 
   useEffect(() => {
     setMountedPages((prev) => {
@@ -47,6 +58,12 @@ export default function Dashboard() {
     closeSidebar();
   };
 
+  const handleGoToContact = (contactId: string) => {
+    setContactFocusId(contactId);
+    setActivePage('contacts');
+    closeSidebar();
+  };
+
   return (
     <div className="flex h-screen bg-crm-white">
       <AppSidebar activePage={activePage} onNavigate={handleNavigate} />
@@ -67,16 +84,33 @@ export default function Dashboard() {
           mounted={mountedPages.has('contacts')}
         >
           <ContactsPage
+            focusContactId={contactFocusId}
+            onClearFocus={() => setContactFocusId(null)}
             onGoToRecruitment={handleGoToRecruitment}
             onGoToApplication={handleGoToApplication}
           />
         </KeepAlivePage>
 
         <KeepAlivePage
-          active={activePage === 'email-templates'}
-          mounted={mountedPages.has('email-templates')}
+          active={activePage === 'history'}
+          mounted={mountedPages.has('history')}
         >
-          <EmailTemplatesPage />
+          <HistoryPage
+            onNavigate={handleNavigate}
+            onFocusApplication={handleGoToApplication}
+            onFocusRecruitment={handleGoToRecruitment}
+            onFocusContact={handleGoToContact}
+          />
+        </KeepAlivePage>
+
+        <KeepAlivePage
+          active={activePage === 'email'}
+          mounted={mountedPages.has('email')}
+        >
+          <EmailAdminPage
+            onOpenApplication={handleGoToApplication}
+            onOpenContact={handleGoToContact}
+          />
         </KeepAlivePage>
 
         <KeepAlivePage

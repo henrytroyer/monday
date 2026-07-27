@@ -125,8 +125,71 @@ function inferDirection(
   return 'outbound';
 }
 
+export interface SuperMailPayload {
+  subject: string;
+  body: string;
+  bodyHtml?: string;
+  direction: 'inbound' | 'outbound';
+  sentAt: string;
+  senderEmail: string;
+  recipientEmail: string;
+}
+
+export interface ExtractSuperMailPayloadOptions {
+  fallbackSentAt?: string;
+  contactEmails?: string[];
+  creatorEmail?: string;
+}
+
 export function isSuperMailUpdate(html: string): boolean {
   return EMAIL_LOG_PATTERN.test(html);
+}
+
+export function extractSuperMailPayload(
+  html: string,
+  options: ExtractSuperMailPayloadOptions = {},
+): SuperMailPayload | null {
+  const trimmed = html.trim();
+  if (!trimmed || !isSuperMailUpdate(trimmed)) return null;
+
+  const plain = htmlToPlainText(trimmed);
+  const senderEmail =
+    extractLabeledValue(trimmed, 'from') ||
+    extractLabeledValue(trimmed, 'From') ||
+    options.creatorEmail?.trim() ||
+    '—';
+  const recipientEmail =
+    extractLabeledValue(trimmed, 'to') ||
+    extractLabeledValue(trimmed, 'To') ||
+    '—';
+  const subject = extractSubject(trimmed, plain) || '(No subject)';
+  const bodyHtmlRaw = extractBodyHtml(trimmed);
+  const bodyHtml = bodyHtmlRaw ? sanitizeEmailHtml(bodyHtmlRaw) : undefined;
+  const body = bodyHtml
+    ? htmlToPlainText(bodyHtmlRaw)
+    : plain
+        .replace(/^(?:Outgoing SuperMail|Outgoing Email)[\s\S]*?Body:\s*/i, '')
+        .trim();
+
+  const contactEmails = options.contactEmails ?? [];
+  const direction = /Incoming SuperMail/i.test(trimmed)
+    ? 'inbound'
+    : inferDirection(senderEmail, contactEmails);
+
+  const sentAt = parseSentAt(
+    plain,
+    options.fallbackSentAt ?? new Date().toISOString(),
+  );
+
+  return {
+    subject,
+    body: body || subject,
+    bodyHtml,
+    direction,
+    sentAt,
+    senderEmail,
+    recipientEmail,
+  };
 }
 
 export function mapSuperMailUpdateToEmailMessage(
@@ -134,49 +197,29 @@ export function mapSuperMailUpdateToEmailMessage(
   context: ParseTimelineEmailContext,
 ): ContactEmailMessage | null {
   const html = (update.body || update.text_body || '').trim();
-  if (!html || !isSuperMailUpdate(html)) return null;
-
-  const plain = htmlToPlainText(html);
-  const senderEmail =
-    extractLabeledValue(html, 'from') ||
-    extractLabeledValue(html, 'From') ||
-    update.creator?.email?.trim() ||
-    '—';
-  const recipientEmail =
-    extractLabeledValue(html, 'to') || extractLabeledValue(html, 'To') || '—';
-  const subject = extractSubject(html, plain) || '(No subject)';
-  const bodyHtmlRaw = extractBodyHtml(html);
-  const bodyHtml = bodyHtmlRaw ? sanitizeEmailHtml(bodyHtmlRaw) : undefined;
-  const body = bodyHtml
-    ? htmlToPlainText(bodyHtmlRaw)
-    : plain.replace(/^(?:Outgoing SuperMail|Outgoing Email)[\s\S]*?Body:\s*/i, '').trim();
-
-  const contactEmails = context.contactEmails ?? [];
-  const direction = /Incoming SuperMail/i.test(html)
-    ? 'inbound'
-    : inferDirection(senderEmail, contactEmails);
-
-  const sentAt = parseSentAt(
-    plain,
-    update.created_at
+  const payload = extractSuperMailPayload(html, {
+    fallbackSentAt: update.created_at
       ? new Date(update.created_at).toISOString()
       : new Date().toISOString(),
-  );
+    contactEmails: context.contactEmails,
+    creatorEmail: update.creator?.email ?? undefined,
+  });
+  if (!payload) return null;
 
   const itemId = context.itemId ?? context.contactId;
 
   return {
     id: `${itemId}-sm-${update.id}`,
     contactId: context.contactId,
-    direction,
+    direction: payload.direction,
     senderName: update.creator?.name?.trim() || 'Coordinator',
-    senderEmail,
+    senderEmail: payload.senderEmail,
     recipientName: '—',
-    recipientEmail,
-    subject,
-    body: body || subject,
-    bodyHtml,
-    sentAt,
+    recipientEmail: payload.recipientEmail,
+    subject: payload.subject,
+    body: payload.body,
+    bodyHtml: payload.bodyHtml,
+    sentAt: payload.sentAt,
     source: context.source,
     sourceLabel: context.sourceLabel,
     itemId: context.itemId,

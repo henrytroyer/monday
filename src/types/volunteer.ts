@@ -68,6 +68,8 @@ export interface CouplePreview {
   partnerFirstName?: string;
   partnerEmail?: string;
   partnerPhotoUrl?: string;
+  /** When two long-term applications are merged, the partner monday item id. */
+  partnerItemId?: string;
 }
 
 export interface ApplicationPartner {

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ContactDetailPanel from '../components/contacts/ContactDetailPanel';
 import ContactAlphabetIndex from '../components/contacts/ContactAlphabetIndex';
@@ -8,6 +8,7 @@ import ContactList from '../components/contacts/ContactList';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { useContactsList } from '../hooks/useContactsList';
+import { usePersistedPageWorkspace } from '../hooks/usePersistedPageWorkspace';
 import type { ContactListItem } from '../types/contact';
 import { emptyContactFilters } from '../types/contact';
 import {
@@ -21,17 +22,25 @@ import {
 } from '../utils/contactSortLetter';
 import { sortContacts } from '../utils/sortContacts';
 import { ingestPendingDonations, deleteContacts } from '../services/contactsApi';
+import { readWorkspaceState } from '../services/crmNavigationStorage';
 
 export default function ContactsPage({
+  focusContactId,
+  onClearFocus,
   onGoToRecruitment,
   onGoToApplication,
 }: {
+  focusContactId?: string | null;
+  onClearFocus?: () => void;
   onGoToRecruitment?: (prospectId: string) => void;
   onGoToApplication?: (applicationId: string) => void;
 }) {
   const [filters, setFilters] = useState(emptyContactFilters());
   const [selectedContact, setSelectedContact] =
     useState<ContactListItem | null>(null);
+  const [detailVisible, setDetailVisible] = useState(
+    () => readWorkspaceState('contacts')?.detailOpen ?? false,
+  );
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [deleting, setDeleting] = useState(false);
@@ -41,10 +50,15 @@ export default function ContactsPage({
   const [filterPanelTop, setFilterPanelTop] = useState(0);
 
   const { requestClose: requestCloseContact } = useNavLayer(
-    selectedContact !== null,
-    () => setSelectedContact(null),
+    detailVisible && selectedContact !== null,
+    () => setDetailVisible(false),
     `contact-${selectedContact?.id ?? 'none'}`,
   );
+
+  const openContact = useCallback((contact: ContactListItem) => {
+    setSelectedContact(contact);
+    setDetailVisible(true);
+  }, []);
 
   const {
     contacts,
@@ -58,6 +72,28 @@ export default function ContactsPage({
     refetch,
     removeContacts,
   } = useContactsList();
+
+  const restoreContact = useCallback(
+    (contact: ContactListItem, detailOpen: boolean) => {
+      setSelectedContact(contact);
+      if (detailOpen) setDetailVisible(true);
+    },
+    [],
+  );
+
+  const findContact = useCallback(
+    (id: string) => contacts.find((contact) => contact.id === id),
+    [contacts],
+  );
+
+  usePersistedPageWorkspace({
+    page: 'contacts',
+    loading,
+    selectedId: selectedContact?.id,
+    detailOpen: detailVisible,
+    findItem: findContact,
+    onRestore: restoreContact,
+  });
 
   const filtered = useMemo(
     () => filterContacts(contacts, filters),
@@ -82,7 +118,7 @@ export default function ContactsPage({
     [contacts, filters],
   );
 
-  const showingDetail = selectedContact !== null;
+  const showingDetail = detailVisible && selectedContact !== null;
   const listReady = contacts.length > 0 || (!loading && !error);
 
   const { setDetailMode } = useLayout();
@@ -91,6 +127,15 @@ export default function ContactsPage({
     setDetailMode(showingDetail);
     return () => setDetailMode(false);
   }, [showingDetail, setDetailMode]);
+
+  useEffect(() => {
+    if (!focusContactId || loading) return;
+    const match = contacts.find((contact) => contact.id === focusContactId);
+    if (match) {
+      openContact(match);
+      onClearFocus?.();
+    }
+  }, [focusContactId, loading, contacts, onClearFocus, openContact]);
 
   useEffect(() => {
     if (!isMock) return;
@@ -218,67 +263,71 @@ export default function ContactsPage({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-6 flex shrink-0 flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-semibold text-crm-heading">Contacts</h1>
-          {!showingDetail && (
-            <>
-              <p className="mt-2 text-crm-slate">
-                Master list of volunteers, pastors, parents, and donors.
+      {!showingDetail && (
+        <div className="mb-6 flex shrink-0 flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-semibold text-crm-heading">Contacts</h1>
+            <p className="mt-2 text-crm-slate">
+              Master list of volunteers, pastors, parents, and donors.
+            </p>
+            {!isMock && !isReadOnly && (
+              <p className="mt-2 text-xs text-crm-slate">
+                Live data from monday.com Contacts board
+                {contactsBoardId ? ` ${contactsBoardId}` : ''}
               </p>
-              {!isMock && !isReadOnly && (
-                <p className="mt-2 text-xs text-crm-slate">
-                  Live data from monday.com Contacts board
-                  {contactsBoardId ? ` ${contactsBoardId}` : ''}
-                </p>
-              )}
-              {isMock && (
-                <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
-                  Showing mock data — not your monday.com Contacts board. Set{' '}
-                  <code className="rounded bg-amber-100 px-1">
-                    VITE_USE_MOCK_DATA=false
-                  </code>{' '}
-                  in .env to load live contacts.
-                </p>
-              )}
-            </>
+            )}
+            {isMock && (
+              <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+                Showing mock data — not your monday.com Contacts board. Set{' '}
+                <code className="rounded bg-amber-100 px-1">
+                  VITE_USE_MOCK_DATA=false
+                </code>{' '}
+                in .env to load live contacts.
+              </p>
+            )}
+          </div>
+          {!isMock && (
+            <button
+              type="button"
+              onClick={refetch}
+              disabled={loading || loadingMore}
+              className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+            >
+              Refresh
+            </button>
           )}
         </div>
-        {!isMock && !showingDetail && (
-          <button
-            type="button"
-            onClick={refetch}
-            disabled={loading || loadingMore}
-            className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-          >
-            Refresh
-          </button>
-        )}
-      </div>
+      )}
 
-      {showingDetail && selectedContact && (
-        <ContactDetailPanel
-          contact={selectedContact}
-          onBack={requestCloseContact}
-          onGoToRecruitment={onGoToRecruitment}
-          onGoToApplication={onGoToApplication}
-          onContactUpdated={(updated) => {
-            void refetch();
-            setSelectedContact({
-              id: updated.id,
-              name: updated.name,
-              email: updated.email,
-              phone: updated.phone,
-              profilePhotoUrl: updated.profilePhotoUrl,
-              tags: updated.tags,
-              createdAt: updated.createdAt,
-            });
-          }}
-          onSelectContact={(id) => {
-            const next = contacts.find((c) => c.id === id);
-            if (next) setSelectedContact(next);
-          }}
-        />
+      {selectedContact && (
+        <div
+          className={`min-h-0 flex-1 flex-col ${
+            detailVisible ? 'flex' : 'hidden'
+          }`}
+        >
+          <ContactDetailPanel
+            contact={selectedContact}
+            onBack={requestCloseContact}
+            onGoToRecruitment={onGoToRecruitment}
+            onGoToApplication={onGoToApplication}
+            onContactUpdated={(updated) => {
+              void refetch();
+              setSelectedContact({
+                id: updated.id,
+                name: updated.name,
+                email: updated.email,
+                phone: updated.phone,
+                profilePhotoUrl: updated.profilePhotoUrl,
+                tags: updated.tags,
+                createdAt: updated.createdAt,
+              });
+            }}
+            onSelectContact={(id) => {
+              const next = contacts.find((c) => c.id === id);
+              if (next) openContact(next);
+            }}
+          />
+        </div>
       )}
 
       {!showingDetail && loading && contacts.length === 0 && (
@@ -375,7 +424,7 @@ export default function ContactsPage({
                     contacts={displayed}
                     selectedIds={selectedIds}
                     onToggleSelect={toggleContactSelection}
-                    onSelect={setSelectedContact}
+                    onSelect={openContact}
                   />
                 </div>
               </div>

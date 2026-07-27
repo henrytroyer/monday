@@ -1,4 +1,5 @@
 import type { OnboardingPipeline } from '../types/volunteer';
+import { logLocalActivity } from './localActivityLog';
 
 const STORAGE_KEY = 'crm-onboarding-pipeline';
 
@@ -21,10 +22,35 @@ export function loadPipeline(volunteerId: string): OnboardingPipeline | undefine
   return readAll()[volunteerId];
 }
 
-export function savePipeline(pipeline: OnboardingPipeline): OnboardingPipeline {
+export function savePipeline(
+  pipeline: OnboardingPipeline,
+  options?: { actorName?: string; volunteerName?: string },
+): OnboardingPipeline {
   const all = readAll();
+  const previous = all[pipeline.volunteerId];
   all[pipeline.volunteerId] = pipeline;
   writeAll(all);
+
+  if (JSON.stringify(previous) !== JSON.stringify(pipeline)) {
+    const actorName = options?.actorName?.trim() || 'Coordinator';
+    const volunteerName = options?.volunteerName?.trim();
+    const subject = volunteerName ? `"${volunteerName}"` : 'application';
+
+    logLocalActivity({
+      occurredAt: new Date().toISOString(),
+      actorName,
+      category: 'updated',
+      entityType: 'application',
+      entityId: pipeline.volunteerId,
+      entityName: volunteerName,
+      summary: `Updated onboarding progress for ${subject}`,
+      navigateTo: {
+        page: 'applications',
+        focusId: pipeline.volunteerId,
+      },
+    });
+  }
+
   return pipeline;
 }
 

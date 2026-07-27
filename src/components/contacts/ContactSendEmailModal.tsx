@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EMAIL_TEMPLATES } from '../../data/emailTemplates';
 import type { ContactDetail } from '../../types/contact';
+import type { EmailDraftAttachment } from '../../types/emailCompose';
+import EmailComposePanel from '../email/EmailComposePanel';
 import {
   buildContactMergeContext,
   buildMailtoUrl,
   mergeEmailTemplate,
 } from '../../utils/emailMerge';
+import { BLANK_EMAIL_TEMPLATE_ID } from '../../utils/emailMergeFields';
+import { plainTextToHtml } from '../../utils/htmlEmailBody';
+import {
+  findEmailTemplate,
+  useEmailTemplates,
+} from '../../hooks/useEmailTemplates';
+import { appendEmailComposeLogEntry } from '../../utils/emailComposeLog';
 import OverlayBackButton from '../layout/OverlayBackButton';
 
 interface ContactSendEmailModalProps {
@@ -17,28 +25,52 @@ export default function ContactSendEmailModal({
   contact,
   onClose,
 }: ContactSendEmailModalProps) {
-  const [templateId, setTemplateId] = useState(EMAIL_TEMPLATES[0]?.id ?? '');
+  const { templates, loading } = useEmailTemplates();
+  const [templateKey, setTemplateKey] = useState(BLANK_EMAIL_TEMPLATE_ID);
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('<p><br></p>');
+  const [attachments, setAttachments] = useState<EmailDraftAttachment[]>([]);
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const selectedTemplate =
-    EMAIL_TEMPLATES.find((t) => t.id === templateId) ?? EMAIL_TEMPLATES[0];
+    templateKey === BLANK_EMAIL_TEMPLATE_ID
+      ? null
+      : findEmailTemplate(templates, templateKey);
 
-  const merged = useMemo(() => {
-    if (!selectedTemplate || !contact.email || contact.email === '—') {
-      return { subject: '', body: '' };
+  const mergeContext = useMemo(
+    () => buildContactMergeContext(contact),
+    [contact],
+  );
+
+  useEffect(() => {
+    if (templateKey === BLANK_EMAIL_TEMPLATE_ID) {
+      setSubject('');
+      setBody('<p><br></p>');
+      return;
     }
-    const context = buildContactMergeContext(contact);
-    return mergeEmailTemplate(
+    if (!selectedTemplate) return;
+    const merged = mergeEmailTemplate(
       selectedTemplate.subject,
       selectedTemplate.body,
-      context,
+      mergeContext,
     );
-  }, [contact, selectedTemplate]);
+    setSubject(merged.subject);
+    setBody(plainTextToHtml(merged.body));
+  }, [templateKey, selectedTemplate?.id, contact.id]);
+
+  const finalEmail = useMemo(
+    () => mergeEmailTemplate(subject, body, mergeContext),
+    [subject, body, mergeContext],
+  );
 
   const mailtoUrl = useMemo(() => {
-    if (!contact.email || contact.email === '—' || !merged.subject) return '';
-    return buildMailtoUrl(contact.email, merged.subject, merged.body);
-  }, [contact.email, merged]);
+    if (!contact.email || contact.email === '—' || !finalEmail.subject.trim()) {
+      return '';
+    }
+    return buildMailtoUrl(contact.email, finalEmail.subject, finalEmail.body);
+  }, [contact.email, finalEmail]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -67,14 +99,14 @@ export default function ContactSendEmailModal({
         onClick={onClose}
       />
 
-      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-2xl">
+      <div className="relative flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-2xl">
         <div className="shrink-0 border-b border-crm-taupe/20 px-5 py-4">
           <OverlayBackButton backLabel={contact.name} onBack={onClose} />
           <h2
             id="contact-send-email-title"
             className="mt-3 text-lg font-semibold text-crm-heading"
           >
-            Email templates
+            Send email
           </h2>
           <p className="mt-1 text-sm text-crm-slate">
             To{' '}
@@ -83,63 +115,81 @@ export default function ContactSendEmailModal({
           </p>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-          <div className="min-h-0 overflow-y-auto border-b border-crm-taupe/20 p-4 md:border-b-0 md:border-r">
+        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+          <div className="min-h-0 overflow-y-auto border-b border-crm-taupe/20 p-4 lg:border-b-0 lg:border-r">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-crm-slate">
-              Choose a template
+              Start from
             </p>
-            <ul className="space-y-2">
-              {EMAIL_TEMPLATES.map((template) => {
-                const selected = template.id === templateId;
-                return (
-                  <li key={template.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTemplateId(template.id);
-                        setStatusMessage(null);
-                      }}
-                      className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                        selected
-                          ? 'border-crm-indigo bg-crm-taupe-50 ring-1 ring-crm-indigo'
-                          : 'border-crm-taupe/20 bg-crm-surface hover:border-crm-taupe/28 hover:bg-crm-taupe-50'
-                      }`}
-                    >
-                      <p className="font-medium text-crm-heading">
-                        {template.name}
-                      </p>
-                      <p className="mt-1 line-clamp-2 text-sm text-crm-slate">
-                        {template.subject}
-                      </p>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            {loading ? (
+              <p className="text-sm text-crm-slate">Loading templates…</p>
+            ) : (
+              <ul className="space-y-2">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplateKey(BLANK_EMAIL_TEMPLATE_ID);
+                      setStatusMessage(null);
+                    }}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                      templateKey === BLANK_EMAIL_TEMPLATE_ID
+                        ? 'border-crm-indigo bg-crm-taupe-50 ring-1 ring-crm-indigo'
+                        : 'border-crm-taupe/20 bg-crm-surface hover:border-crm-taupe/28 hover:bg-crm-taupe-50'
+                    }`}
+                  >
+                    <p className="font-medium text-crm-heading">Blank email</p>
+                    <p className="mt-1 text-sm text-crm-slate">
+                      Write a custom message from scratch
+                    </p>
+                  </button>
+                </li>
+                {templates.map((template) => {
+                  const selected = template.templateId === templateKey;
+                  return (
+                    <li key={template.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTemplateKey(template.templateId);
+                          setStatusMessage(null);
+                        }}
+                        className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                          selected
+                            ? 'border-crm-indigo bg-crm-taupe-50 ring-1 ring-crm-indigo'
+                            : 'border-crm-taupe/20 bg-crm-surface hover:border-crm-taupe/28 hover:bg-crm-taupe-50'
+                        }`}
+                      >
+                        <p className="font-medium text-crm-heading">
+                          {template.name}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-sm text-crm-slate">
+                          {template.subject}
+                        </p>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
-          <div className="min-h-0 overflow-y-auto p-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-crm-slate">
-              Preview
-            </p>
-            {selectedTemplate ? (
-              <div className="rounded-xl border border-crm-taupe/20 bg-crm-white p-4 text-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-crm-slate">
-                  Subject
-                </p>
-                <p className="mt-1 font-medium text-crm-heading">
-                  {merged.subject || '—'}
-                </p>
-                <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-crm-slate">
-                  Body
-                </p>
-                <pre className="mt-2 whitespace-pre-wrap font-sans text-crm-text">
-                  {merged.body || '—'}
-                </pre>
-              </div>
-            ) : (
-              <p className="text-sm text-crm-slate">Select a template.</p>
-            )}
+          <div className="min-h-0 overflow-y-auto p-3">
+            <EmailComposePanel
+              subject={subject}
+              body={body}
+              onSubjectChange={setSubject}
+              onBodyChange={setBody}
+              mergeContext={mergeContext}
+              insertMode="value"
+              mode="compose"
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              cc={cc}
+              bcc={bcc}
+              onCcChange={setCc}
+              onBccChange={setBcc}
+              layout="split"
+            />
 
             {statusMessage && (
               <p className="mt-4 text-sm text-amber-800" role="status">
@@ -153,6 +203,18 @@ export default function ContactSendEmailModal({
           {mailtoUrl && (
             <a
               href={mailtoUrl}
+              onClick={() => {
+                appendEmailComposeLogEntry({
+                  subject: finalEmail.subject,
+                  body: finalEmail.body,
+                  recipientEmail: contact.email,
+                  recipientName: contact.name,
+                  contactId: contact.id,
+                  templateId: selectedTemplate?.templateId,
+                  templateName: selectedTemplate?.name,
+                  sourceLabel: 'Contact compose',
+                });
+              }}
               className="rounded-xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
             >
               Open in email app
@@ -165,7 +227,8 @@ export default function ContactSendEmailModal({
                 'Direct send is not configured yet. Use "Open in email app" to send from your mail client.',
               )
             }
-            className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
+            disabled={!finalEmail.subject.trim()}
+            className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             Send email
           </button>

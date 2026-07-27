@@ -102,6 +102,49 @@ export function resolveDonationsBoardId(
   return null;
 }
 
+export function resolveLongtermApplicationsBoardId(
+  _context: MondayContext | null = null,
+): string | null {
+  if (useMockData()) return null;
+
+  const envBoardId = import.meta.env.VITE_LONGTERM_APPLICATIONS_BOARD_ID;
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+
+  return null;
+}
+
+export function resolveLongtermReferencesBoardId(): string | null {
+  if (useMockData()) return null;
+
+  const envBoardId = import.meta.env.VITE_LONGTERM_REFERENCES_BOARD_ID;
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+
+  return null;
+}
+
+export function resolveEmailTemplatesBoardId(): string | null {
+  if (useMockData()) return null;
+
+  const envBoardId = import.meta.env.VITE_EMAIL_TEMPLATES_BOARD_ID;
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+
+  return null;
+}
+
+/** Email template writes on the Email Templates board. */
+export function canEditEmailTemplates(): boolean {
+  if (useMockData()) return true;
+  if (import.meta.env.VITE_EMAIL_TEMPLATES_WRITABLE === 'true') return true;
+  return !isMondayReadOnly();
+}
+
+/** Reference sent/review writes while applications board stays read-only. */
+export function canEditLongtermReferences(): boolean {
+  if (useMockData()) return true;
+  if (import.meta.env.VITE_LONGTERM_REFERENCES_WRITABLE === 'true') return true;
+  return !isMondayReadOnly();
+}
+
 export function contactsBoardName(): string {
   return import.meta.env.VITE_CONTACTS_BOARD_NAME || 'Contacts Test';
 }
@@ -122,9 +165,13 @@ export function resolveMonitoredBoardIds(): string[] {
   const contactsId = import.meta.env.VITE_CONTACTS_BOARD_ID;
   const applicationsId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
   const donationsId = import.meta.env.VITE_DONATIONS_BOARD_ID;
+  const longtermAppsId = import.meta.env.VITE_LONGTERM_APPLICATIONS_BOARD_ID;
+  const longtermRefsId = import.meta.env.VITE_LONGTERM_REFERENCES_BOARD_ID;
   if (contactsId) ids.push(String(contactsId));
   if (applicationsId) ids.push(String(applicationsId));
   if (donationsId) ids.push(String(donationsId));
+  if (longtermAppsId) ids.push(String(longtermAppsId));
+  if (longtermRefsId) ids.push(String(longtermRefsId));
   return [...new Set(ids)];
 }
 

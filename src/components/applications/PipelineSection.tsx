@@ -2,8 +2,6 @@ import type {
   PipelineSection as PipelineSectionType,
   Volunteer,
 } from '../../types/volunteer';
-import { loadPipeline } from '../../services/onboardingPipelineStorage';
-import { getOnboardingStepLabel } from '../../utils/onboardingPipeline';
 import {
   displayLocationPreferenceOnly,
   displayConfirmedLocation,
@@ -48,13 +46,7 @@ export default function PipelineSection({
       </div>
 
       <div className="divide-y divide-crm-taupe/20">
-        {section.volunteers.map((volunteer) => {
-          const storedPipeline = loadPipeline(volunteer.id);
-          const onboardingLabel = storedPipeline
-            ? getOnboardingStepLabel(storedPipeline)
-            : null;
-
-          return (
+        {section.volunteers.map((volunteer) => (
           <button
             key={volunteer.id}
             type="button"
@@ -107,11 +99,6 @@ export default function PipelineSection({
                           pipelineStage={section.stage}
                         />
                       </div>
-                      {onboardingLabel && (
-                        <div className="mt-1 text-xs text-crm-indigo">
-                          Onboarding: {onboardingLabel}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </>
@@ -128,8 +115,7 @@ export default function PipelineSection({
               <span className="text-crm-slate">→</span>
             </div>
           </button>
-          );
-        })}
+        ))}
       </div>
     </div>
   );
