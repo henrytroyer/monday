@@ -38,11 +38,18 @@ export function mondayMergedAssetsProxyUrl(
   proxyBase?: string,
 ): string | undefined {
   if (assetIds.length < 2) return undefined;
-  const base = (proxyBase ?? viteEnv().VITE_MONDAY_API_PROXY_URL)
+  const base = (
+    proxyBase ??
+    getMondayProxyBaseOverride() ??
+    viteEnv().VITE_MONDAY_API_PROXY_URL
+  )
     ?.trim()
     .replace(/\/$/, '');
   if (!base) return undefined;
-  return `${base}/assets/merge/${assetIds.join(',')}`;
+  const url = `${base}/assets/merge/${assetIds.join(',')}`;
+  const token = getCachedMondayProxyAuthToken();
+  if (!token) return url;
+  return `${url}?token=${encodeURIComponent(token)}`;
 }
 
 export function parseAssetIdFromColumn(col: MondayColumnValue): string | undefined {

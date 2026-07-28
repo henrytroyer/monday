@@ -5,6 +5,10 @@
 import type { VolunteerItinerary } from '../types/itinerary';
 import type { VolunteerFile } from '../types/volunteer';
 import { assembleDestinationItinerary } from './itinerary';
+import {
+  getMondayProxyAuthToken,
+  getMondayProxyBaseOverride,
+} from './mondayProxyAuth';
 
 const ITINERARY_NAME_PATTERN =
   /itinerary|flight|travel|traveler\s+receipt|e-?ticket|boarding\s*pass|airline|trip\s+itinerary|booking\s+information/i;
@@ -94,20 +98,58 @@ export function clearAssetTextCache(): void {
   assetTextCache.clear();
 }
 
+function resolveProxyBase(): string | undefined {
+  const override = getMondayProxyBaseOverride();
+  if (override) return override;
+  return (import.meta.env.VITE_MONDAY_API_PROXY_URL as string | undefined)
+    ?.trim()
+    .replace(/\/$/, '');
+}
+
+/**
+ * Fetch extracted PDF/text for an asset via the monday proxy.
+ * Production Cloud Function requires Firebase auth (Bearer or ?token=).
+ */
 async function fetchAssetExtractedText(assetId: string): Promise<string> {
   if (assetTextCache.has(assetId)) {
     return assetTextCache.get(assetId) ?? '';
   }
 
-  const base = import.meta.env.VITE_MONDAY_API_PROXY_URL?.trim().replace(/\/$/, '');
+  const base = resolveProxyBase();
   if (!base) {
     return '';
   }
 
   try {
-    const res = await fetch(`${base}/assets/${assetId}/text`, {
-      signal: AbortSignal.timeout(30_000),
+    const idToken = await getMondayProxyAuthToken();
+    const headers: Record<string, string> = {};
+    if (idToken) {
+      headers.Authorization = `Bearer ${idToken}`;
+    }
+
+    const url = idToken
+      ? `${base}/assets/${assetId}/text?token=${encodeURIComponent(idToken)}`
+      : `${base}/assets/${assetId}/text`;
+
+    let res = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(45_000),
     });
+
+    // One refresh retry on 401 when using Firebase auth (Admin embed).
+    if (!res.ok && res.status === 401 && idToken) {
+      const refreshed = await getMondayProxyAuthToken(true);
+      if (refreshed) {
+        res = await fetch(
+          `${base}/assets/${assetId}/text?token=${encodeURIComponent(refreshed)}`,
+          {
+            headers: { Authorization: `Bearer ${refreshed}` },
+            signal: AbortSignal.timeout(45_000),
+          },
+        );
+      }
+    }
+
     if (!res.ok) {
       return '';
     }
