@@ -59,11 +59,10 @@ import {
   mapEndOfServiceReviewItem,
   type EndOfServiceReviewSummary,
 } from './mapEndOfServiceReview';
-import {
-  mergeVolunteerItinerary,
-} from './itinerary';
 import { parseItineraryFromVolunteerFiles } from './itineraryFromFiles';
-import { itineraryHasData } from '../types/itinerary';
+import { enrichPipelineItinerariesFromFiles } from './enrichPipelineItineraries';
+import { resolveFieldAirportIata } from '../constants/fieldAirports';
+import { emptyItinerary, itineraryHasData } from '../types/itinerary';
 import {
   parseColumnLabelsFromSettings,
   parseLocationOptionsFromColumn,
@@ -192,7 +191,12 @@ export async function fetchApplicationsPipeline(
   boardId: string,
 ): Promise<PipelineSection[]> {
   const board = await fetchApplicationsBoardPipeline(boardId);
-  return mapBoardToPipeline(board);
+  const sections = mapBoardToPipeline(board);
+  try {
+    return await enrichPipelineItinerariesFromFiles(sections, board.items);
+  } catch {
+    return sections;
+  }
 }
 
 async function fetchApplicationsBoardPipeline(
@@ -241,14 +245,25 @@ export async function fetchApplicationDetail(
 
   const detail = mapItemToVolunteerDetail(item);
 
+  // Flight info only from uploaded itinerary PDFs — never preferred airport /
+  // timeline columns. Wait until a receipt is uploaded.
   let itinerary = detail.itinerary;
   try {
-    const fromFiles = await parseItineraryFromVolunteerFiles(detail.files);
+    const fieldAirport = resolveFieldAirportIata(
+      detail.location,
+      detail.locationPreference,
+    );
+    const fromFiles = await parseItineraryFromVolunteerFiles(
+      detail.files,
+      fieldAirport,
+    );
     if (fromFiles && itineraryHasData(fromFiles)) {
-      itinerary = mergeVolunteerItinerary(detail.itinerary, fromFiles);
+      itinerary = fromFiles;
+    } else {
+      itinerary = emptyItinerary();
     }
   } catch {
-    // optional — PDF extraction requires monday proxy
+    itinerary = emptyItinerary();
   }
 
   let childSafeguardingFile: VolunteerDetail['childSafeguardingFile'];
@@ -825,18 +840,31 @@ export interface SendApplicationEmailParams {
   templateName: string;
   subject: string;
   body: string;
+  cc?: string;
+  bcc?: string;
 }
 
 /**
- * Phase 2: wire Gmail API or monday automation. Phase 1: not configured.
+ * Send via monday proxy (/email/send — Resend or SMTP) and log on the item.
  */
 export async function sendApplicationEmail(
-  _params: SendApplicationEmailParams,
+  params: SendApplicationEmailParams,
 ): Promise<void> {
-  assertMondayWritable('send application email');
-  throw new Error(
-    'Direct send is not configured yet. Use "Open in email app" to send from your mail client, or connect Gmail in a future update.',
+  const { sendCrmEmail } = await import('./sendCrmEmail');
+  const { plainTextToHtml, isLikelyHtmlBody } = await import(
+    '../utils/htmlEmailBody'
   );
+  const html = isLikelyHtmlBody(params.body)
+    ? params.body
+    : plainTextToHtml(params.body);
+  await sendCrmEmail({
+    to: params.to,
+    cc: params.cc,
+    bcc: params.bcc,
+    subject: params.subject,
+    html,
+    itemId: params.itemId,
+  });
 }
 
 function normalizeColumnTitle(title: string): string {

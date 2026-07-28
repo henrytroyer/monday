@@ -10,6 +10,12 @@
 import http from 'node:http';
 import { URL } from 'node:url';
 import dotenv from 'dotenv';
+import {
+  buildOutgoingEmailUpdateBody,
+  emailSendConfigStatus,
+  getEmailFromAddress,
+  sendOutboundEmail,
+} from './emailSend.mjs';
 
 dotenv.config();
 
@@ -21,11 +27,15 @@ const API_VERSION = '2025-01';
 async function extractTextFromAssetBuffer(buffer) {
   if (buffer.subarray(0, 5).toString() === '%PDF-') {
     const { PDFParse } = await import('pdf-parse');
-    const data =
-      buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-    const parser = new PDFParse(data);
-    const parsed = await parser.getText();
-    return parsed.text?.trim() ?? '';
+    // pdf-parse rejects Node Buffer; always pass a plain Uint8Array copy.
+    const data = new Uint8Array(buffer);
+    const parser = new PDFParse({ data });
+    try {
+      const parsed = await parser.getText();
+      return parsed.text?.trim() ?? '';
+    } finally {
+      await parser.destroy?.();
+    }
   }
 
   return buffer.toString('utf8').trim();
@@ -192,6 +202,62 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, {
         ok: true,
         hasToken: Boolean(TOKEN),
+        email: emailSendConfigStatus(),
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && pathname === '/email/status') {
+      sendJson(res, 200, emailSendConfigStatus());
+      return;
+    }
+
+    if (req.method === 'POST' && pathname === '/email/send') {
+      const body = await readJsonBody(req);
+      const result = await sendOutboundEmail({
+        to: body.to,
+        cc: body.cc,
+        bcc: body.bcc,
+        subject: body.subject,
+        html: body.html,
+        text: body.text,
+        from: body.from,
+        replyTo: body.replyTo,
+      });
+
+      let mondayUpdateId = null;
+      const itemId = body.itemId != null ? String(body.itemId).trim() : '';
+      if (itemId && TOKEN) {
+        try {
+          const fromAddress =
+            (typeof body.from === 'string' && body.from.trim()) ||
+            getEmailFromAddress();
+          const updateBody = buildOutgoingEmailUpdateBody({
+            from: fromAddress,
+            to: body.to,
+            subject: body.subject,
+            html: body.html,
+          });
+          const logged = await mondayGraphql(
+            `mutation ($itemId: ID!, $body: String!) {
+              create_update(item_id: $itemId, body: $body) { id }
+            }`,
+            { itemId, body: updateBody },
+          );
+          mondayUpdateId = logged.data?.create_update?.id ?? null;
+        } catch (logErr) {
+          console.warn(
+            'Email sent but monday log failed:',
+            logErr instanceof Error ? logErr.message : logErr,
+          );
+        }
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        ...result,
+        mondayUpdateId,
+        from: getEmailFromAddress(),
       });
       return;
     }

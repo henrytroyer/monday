@@ -35,7 +35,9 @@ export default function OnboardingProgressPanel({
       <div className="flex w-full items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="text-lg font-semibold text-crm-heading">
-            Onboarding Progress
+            {variant === 'long-term'
+              ? 'Long-term Process'
+              : 'Onboarding Progress'}
           </h3>
           <p className="mt-1 text-sm text-crm-slate">
             {doneCount}/{totalCount} complete · {summaryLabel}

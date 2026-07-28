@@ -123,7 +123,8 @@ export default function EmailAccountsSection() {
             Linked accounts
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-crm-slate">
-            Connect the mailboxes your team sends from. monday Emails &amp;
+            CRM Send uses the proxy SMTP/Resend config (see docs/crm-send-email.md).
+            Linked accounts below are for display defaults. monday Emails &amp;
             Activities is linked automatically; Gmail and Outlook OAuth will be
             added in a future update.
           </p>

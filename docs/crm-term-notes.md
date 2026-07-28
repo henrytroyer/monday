@@ -54,20 +54,23 @@ Legacy formats `[CRM_RECRUITMENT_NOTE …]` and Applications-board `[CRM_TERM_NO
 
 ## Note review inbox
 
-Harvested monday updates that are not already CRM-tagged are matched to contacts using board relation, exact email (application column or SuperMail recipient), CRM tags, Contacts board item, or **exact full name** from the Monday item title or email body. Notes with a match are **auto-approved** on sync and appear on the contact immediately. Sync also re-evaluates notes already in the inbox. The inbox is only for unmatched notes; use **Approve all matched** to clear any pending items that already have a suggested contact from a prior harvest.
+Harvested monday **free-text** updates (not CRM-tagged) are matched to contacts using board relation, exact email, CRM tags, Contacts board item, or **exact full name** from the Monday item title or email body. **SuperMail / Outgoing Email logs and Automation-authored updates are never harvested** — email stays in Email correspondence only.
+
+Matched free-text can still be approved in the review inbox, but **approved harvest is not shown in Internal Notes**. Sync also re-evaluates notes already in the inbox. Use **Approve all matched** to clear pending items that already have a suggested contact.
 
 **Approve/dismiss sync:** decisions are written to a Contacts-board registry item (`CRM Note Review Registry`) as `[CRM_NOTE_REVIEW]` updates so local dev and production share the same queue. Requires `VITE_CONTACTS_WRITABLE=true`. Optional override: `VITE_CRM_NOTE_REVIEW_REGISTRY_ITEM_ID`.
 
 ## Contact internal notes hub
 
-On the **Contacts** detail page, all internal notes appear in one timeline:
+On the **Contacts** detail page, Internal Notes is **CRM-typed notes only** (no email correspondence):
 
 | Source | Stored on | Tag format |
 |--------|-----------|------------|
 | Contact page (new writes) | Contacts board item | `[CRM_CONTACT_NOTE source=…]` |
 | Service term (legacy read) | Applications board item | `[CRM_TERM_NOTE timeline=…]` |
 | Recruitment (legacy read) | Contacts board item | `[CRM_RECRUITMENT_NOTE prospect=…]` |
-| Approved harvest | Contacts registry item + local cache | Shown with board source pill |
+
+Email correspondence (SuperMail / Outgoing Email) appears in the separate **Email correspondence** section, not Internal Notes.
 
 **Contact-page writes go to the Contacts board only** — not Applications.
 

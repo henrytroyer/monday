@@ -2,6 +2,8 @@ export interface ItineraryLeg {
   date: string;
   time: string;
   airport: string;
+  /** Airline flight number when parsed from itinerary text (e.g. "A3 612"). */
+  flightNumber?: string;
 }
 
 export interface VolunteerItinerary {

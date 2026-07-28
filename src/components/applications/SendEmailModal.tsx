@@ -138,8 +138,12 @@ export default function SendEmailModal({
       selectedRecipient.address,
       finalEmail.subject,
       finalEmail.body,
+      {
+        cc: cc.trim() || undefined,
+        bcc: bcc.trim() || undefined,
+      },
     );
-  }, [selectedRecipient, finalEmail]);
+  }, [selectedRecipient, finalEmail, cc, bcc]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -173,6 +177,8 @@ export default function SendEmailModal({
         templateName: selectedTemplate?.name ?? 'Blank email',
         subject: finalEmail.subject,
         body: finalEmail.body,
+        cc: cc.trim() || undefined,
+        bcc: bcc.trim() || undefined,
       });
       logApplicationCompose({
         detail,

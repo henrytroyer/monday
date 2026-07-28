@@ -4,6 +4,7 @@ import {
   isPostConfirmationTermStatus,
 } from '../constants/applicationStatuses';
 import type { Volunteer } from '../types/volunteer';
+import { formatDisplayDateFromDate } from './formatDateOfBirth';
 
 export interface VolunteerTermDateRange {
   start: Date;
@@ -36,7 +37,18 @@ export function hasConfirmedTerm(
   return true;
 }
 
+/**
+ * Confirmed term label for the pipeline row.
+ * Uses the same arrival/departure (or timeline) range as TermProgressBar so
+ * the green "Confirmed:" dates always match the grey progress dates.
+ */
 export function displayConfirmedTerm(volunteer: Volunteer): string {
+  const range = resolveVolunteerTermDateRange(volunteer);
+  if (range) {
+    const start = formatDisplayDateFromDate(range.start);
+    const end = formatDisplayDateFromDate(range.end);
+    return `${start} - ${end}`;
+  }
   return displayTermOfService(volunteer);
 }
 

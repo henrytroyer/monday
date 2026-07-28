@@ -3,6 +3,7 @@ import {
   getPipelineStepDefinition,
   getPipelineStepKind,
   LONG_TERM_ONBOARDING_STEPS,
+  pipelineMatchesStepDefs,
   type OnboardingPipelineStepDefinition,
   type OnboardingStepKind,
 } from '../constants/onboardingPipelineSteps';
@@ -12,6 +13,7 @@ import {
   savePipeline,
 } from '../services/onboardingPipelineStorage';
 import type {
+  OnboardingChecklistItemState,
   OnboardingPipeline,
   OnboardingPipelineStep,
   OnboardingStepStatus,
@@ -79,6 +81,14 @@ export function deriveStepHints(
   isLongterm = true,
 ): OnboardingPipeline {
   const pipeline = createDefaultPipeline(volunteer, isLongterm);
+  if (isLongterm) {
+    const appDate = detail.itemCreatedAt
+      ? detail.itemCreatedAt.slice(0, 10)
+      : undefined;
+    if (appDate) pipeline.applicationReceivedAt = appDate;
+    return pipeline;
+  }
+
   const slots = resolveVolunteerFileSlots(detail.profilePhotoUrl, detail.files);
   const hasPastorRef =
     detail.pastorReferenceFormFields.some((f) => f.answer.trim() !== '') ||
@@ -207,14 +217,16 @@ export function mergePipelineWithStorage(
   const stepDefs = getOnboardingStepsForApplication(isLongterm);
   const stored = loadPipeline(volunteer.id);
   const base =
-    stored && stored.steps.length === stepDefs.length
+    stored && pipelineMatchesStepDefs(stored, stepDefs)
       ? stored
       : deriveStepHints(volunteer, detail, isLongterm);
 
-  const synced = syncSafeguardingStepFromDetail(base, detail);
+  const synced = isLongterm
+    ? base
+    : syncSafeguardingStepFromDetail(base, detail);
   if (synced !== base) {
     savePipeline(synced);
-  } else if (!stored || stored.steps.length !== stepDefs.length) {
+  } else if (!stored || !pipelineMatchesStepDefs(stored, stepDefs)) {
     savePipeline(synced);
   }
 
@@ -261,6 +273,111 @@ export function isEmailDue(
   return step.projectedDate <= todayIso();
 }
 
+export function isReminderDue(step: OnboardingPipelineStep): boolean {
+  if (isStepDone(step)) return false;
+  if (step.reminderDate && step.reminderDate <= todayIso()) return true;
+  const items = resolveChecklistItems(step);
+  return Object.values(items).some(
+    (item) =>
+      !item.completed &&
+      Boolean(item.reminderDate) &&
+      (item.reminderDate as string) <= todayIso(),
+  );
+}
+
+export function resolveChecklistItems(
+  step: OnboardingPipelineStep,
+): Record<string, OnboardingChecklistItemState> {
+  const fromItems = { ...(step.checklistItems ?? {}) };
+  if (step.checklistCompleted) {
+    for (const [id, completed] of Object.entries(step.checklistCompleted)) {
+      if (!fromItems[id]) {
+        fromItems[id] = { completed: Boolean(completed) };
+      } else if (fromItems[id].completed === undefined) {
+        fromItems[id] = {
+          ...fromItems[id],
+          completed: Boolean(completed),
+        };
+      }
+    }
+  }
+  return fromItems;
+}
+
+export function isChecklistItemCompleted(
+  step: OnboardingPipelineStep,
+  checklistItemId: string,
+): boolean {
+  return Boolean(resolveChecklistItems(step)[checklistItemId]?.completed);
+}
+
+export function updateStepReminderDate(
+  pipeline: OnboardingPipeline,
+  stepId: string,
+  reminderDate: string,
+): OnboardingPipeline {
+  const steps = pipeline.steps.map((step) =>
+    step.stepId === stepId
+      ? { ...step, reminderDate: reminderDate || undefined }
+      : step,
+  );
+  return { ...pipeline, steps };
+}
+
+export function updateStepChecklistItem(
+  pipeline: OnboardingPipeline,
+  stepId: string,
+  checklistItemId: string,
+  patch: Partial<OnboardingChecklistItemState>,
+): OnboardingPipeline {
+  const today = todayIso();
+  const steps = pipeline.steps.map((step) => {
+    if (step.stepId !== stepId) return step;
+    const checklistItems = resolveChecklistItems(step);
+    const previous = checklistItems[checklistItemId] ?? {};
+    const next: OnboardingChecklistItemState = { ...previous, ...patch };
+
+    if (patch.completed === true && !previous.completed) {
+      next.completedDate = previous.completedDate ?? today;
+    }
+    if (patch.completed === false) {
+      next.completedDate = undefined;
+    }
+
+    // Normalize empty date strings to undefined
+    if (next.projectedDate === '') next.projectedDate = undefined;
+    if (next.reminderDate === '') next.reminderDate = undefined;
+
+    const cleaned = { ...checklistItems };
+    const hasAny =
+      next.completed ||
+      next.projectedDate ||
+      next.reminderDate ||
+      next.completedDate;
+    if (hasAny) {
+      cleaned[checklistItemId] = next;
+    } else {
+      delete cleaned[checklistItemId];
+    }
+
+    // Keep legacy map in sync for older readers
+    const checklistCompleted: Record<string, boolean> = {};
+    for (const [id, item] of Object.entries(cleaned)) {
+      if (item.completed) checklistCompleted[id] = true;
+    }
+
+    return {
+      ...step,
+      checklistItems: Object.keys(cleaned).length > 0 ? cleaned : undefined,
+      checklistCompleted:
+        Object.keys(checklistCompleted).length > 0
+          ? checklistCompleted
+          : undefined,
+    };
+  });
+  return { ...pipeline, steps };
+}
+
 const SHORT_TERM_STEP_COUNT = getOnboardingStepsForApplication(false).length;
 
 function resolveStepDefinitions(
@@ -268,6 +385,12 @@ function resolveStepDefinitions(
   stepDefs?: readonly OnboardingPipelineStepDefinition[],
 ): readonly OnboardingPipelineStepDefinition[] {
   if (stepDefs) return stepDefs;
+  if (pipelineMatchesStepDefs(pipeline, getOnboardingStepsForApplication(false))) {
+    return getOnboardingStepsForApplication(false);
+  }
+  if (pipelineMatchesStepDefs(pipeline, LONG_TERM_ONBOARDING_STEPS)) {
+    return LONG_TERM_ONBOARDING_STEPS;
+  }
   return pipeline.steps.length === SHORT_TERM_STEP_COUNT
     ? getOnboardingStepsForApplication(false)
     : LONG_TERM_ONBOARDING_STEPS;
@@ -423,7 +546,11 @@ export function getOnboardingStepLabel(pipeline: OnboardingPipeline): string {
 export function updateStepStatus(
   pipeline: OnboardingPipeline,
   stepId: string,
-  action: 'mark_waiting' | 'mark_received' | 'mark_complete',
+  action:
+    | 'mark_waiting'
+    | 'mark_received'
+    | 'mark_complete'
+    | 'mark_incomplete',
 ): OnboardingPipeline {
   const today = todayIso();
   const steps = pipeline.steps.map((step) => {
@@ -432,6 +559,14 @@ export function updateStepStatus(
     const kind = getPipelineStepKind(stepId);
     if (action === 'mark_complete' && kind === 'simple') {
       return { ...step, status: 'complete' as OnboardingStepStatus, completedDate: today };
+    }
+    if (action === 'mark_incomplete') {
+      return {
+        ...step,
+        status: 'not_started' as OnboardingStepStatus,
+        completedDate: undefined,
+        receivedDate: undefined,
+      };
     }
     if (action === 'mark_waiting' && kind === 'async') {
       return {

@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Volunteer } from '../types/volunteer';
 import { resolveTermProgressSnapshot } from './termProgress';
-import { resolveVolunteerTermDateRange } from './volunteerTerm';
+import {
+  displayConfirmedTerm,
+  resolveVolunteerTermDateRange,
+} from './volunteerTerm';
 
 function baseVolunteer(overrides: Partial<Volunteer> = {}): Volunteer {
   return {
@@ -48,6 +51,25 @@ describe('resolveVolunteerTermDateRange', () => {
     assert.ok(range);
     assert.equal(range.start.toISOString().slice(0, 10), '2026-09-15');
     assert.equal(range.end.toISOString().slice(0, 10), '2026-11-01');
+  });
+});
+
+describe('displayConfirmedTerm', () => {
+  it('matches progress-bar dates from arrival/departure columns over stale signup timeline text', () => {
+    const volunteer = baseVolunteer({
+      timelineId: 'raw:Jun 01, 2026 - Aug 22, 2026',
+      preferredDates: 'Jun 01, 2026 - Aug 22, 2026',
+      termStart: '2026-06-01',
+      termEnd: '2026-08-12',
+    });
+    const progress = resolveTermProgressSnapshot(volunteer);
+    assert.ok(progress);
+    assert.equal(
+      displayConfirmedTerm(volunteer),
+      `${progress.startLabel} - ${progress.endLabel}`,
+    );
+    assert.match(displayConfirmedTerm(volunteer), /August 12, 2026/);
+    assert.doesNotMatch(displayConfirmedTerm(volunteer), /August 22/);
   });
 });
 

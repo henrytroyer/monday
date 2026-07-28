@@ -119,6 +119,10 @@ export interface Volunteer {
   couplePreview?: CouplePreview;
   /** Parsed arrival / departure from itinerary columns or notes. */
   itinerary?: VolunteerItinerary;
+  /** Itinerary PDF (merged when multiple) for pipeline chip preview. */
+  itineraryPreviewFile?: VolunteerFile;
+  /** monday item created_at — application date / activity log. */
+  itemCreatedAt?: string;
 }
 
 export interface OnboardingStep {
@@ -142,9 +146,25 @@ export interface OnboardingPipelineStep {
   receivedDate?: string;
   completedDate?: string;
   projectedDate?: string;
+  /** Coordinator reminder date (ISO YYYY-MM-DD). Used heavily on long-term stages. */
+  reminderDate?: string;
   quickbooksInvoiceId?: string;
   paymentStatus?: 'open' | 'paid';
   note?: string;
+  /**
+   * @deprecated Prefer checklistItems. Kept for localStorage migration.
+   * Long-term checklist ticks keyed by checklist item id.
+   */
+  checklistCompleted?: Record<string, boolean>;
+  /** Long-term checklist state (complete + dates) keyed by checklist item id. */
+  checklistItems?: Record<string, OnboardingChecklistItemState>;
+}
+
+export interface OnboardingChecklistItemState {
+  completed?: boolean;
+  projectedDate?: string;
+  reminderDate?: string;
+  completedDate?: string;
 }
 
 export interface OnboardingPipeline {
@@ -197,8 +217,6 @@ export interface VolunteerDetail extends Volunteer {
   rawUpdates?: MondayItemUpdateRaw[];
   onboardingSteps: OnboardingStep[];
   activityTimeline: ActivityTimelineEvent[];
-  /** monday item created_at — used for activity log */
-  itemCreatedAt?: string;
   applicationFormFields: ApplicationFormField[];
   pastorReferenceFormFields: ApplicationFormField[];
   /** Populated for long-term application detail from Monday reference columns */

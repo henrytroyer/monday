@@ -3,7 +3,10 @@ import { describe, it } from 'node:test';
 import type { VolunteerFile } from '../types/volunteer';
 import {
   assetIdFromVolunteerFile,
+  clearAssetTextCache,
+  forcePromoteItineraryFileNames,
   isItineraryFileCandidate,
+  selectDedicatedItineraryFiles,
   selectItineraryFileCandidates,
 } from './itineraryFromFiles';
 
@@ -76,5 +79,46 @@ describe('selectItineraryFileCandidates', () => {
     const selected = selectItineraryFileCandidates(files);
     assert.equal(selected.length, 1);
     assert.equal(selected[0]?.name, 'Travel itinerary.pdf');
+  });
+
+  it('rejects opaque filenames that are not travel-named', () => {
+    assert.equal(
+      isItineraryFileCandidate({
+        id: '9',
+        name: 'Camille Bowman.pdf',
+        isImage: false,
+      }),
+      false,
+    );
+  });
+});
+
+describe('selectDedicatedItineraryFiles', () => {
+  it('keeps opaque PDFs from the dedicated Itinerary column', () => {
+    const selected = selectDedicatedItineraryFiles([
+      { id: '1', name: 'Camille Bowman.pdf', isImage: false },
+      { id: '2', name: 'Passport.pdf', isImage: false },
+      { id: '3', name: 'photo.jpg', isImage: true },
+    ]);
+    assert.equal(selected.length, 1);
+    assert.equal(selected[0]?.name, 'Camille Bowman.pdf');
+  });
+});
+
+describe('forcePromoteItineraryFileNames', () => {
+  it('makes opaque dedicated uploads into itinerary candidates', () => {
+    const promoted = forcePromoteItineraryFileNames([
+      { id: '1', name: 'Camille Bowman.pdf', isImage: false },
+    ]);
+    assert.equal(promoted[0]?.name, 'Itinerary - Camille Bowman.pdf');
+    assert.equal(isItineraryFileCandidate(promoted[0]!), true);
+  });
+});
+
+describe('clearAssetTextCache', () => {
+  it('is safe to call (allows Refresh retries after empty extractions)', () => {
+    clearAssetTextCache();
+    clearAssetTextCache();
+    assert.ok(true);
   });
 });

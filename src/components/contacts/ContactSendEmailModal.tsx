@@ -14,16 +14,19 @@ import {
   useEmailTemplates,
 } from '../../hooks/useEmailTemplates';
 import { appendEmailComposeLogEntry } from '../../utils/emailComposeLog';
+import { sendCrmEmail } from '../../services/sendCrmEmail';
 import OverlayBackButton from '../layout/OverlayBackButton';
 
 interface ContactSendEmailModalProps {
   contact: ContactDetail;
   onClose: () => void;
+  onSent?: () => void;
 }
 
 export default function ContactSendEmailModal({
   contact,
   onClose,
+  onSent,
 }: ContactSendEmailModalProps) {
   const { templates, loading } = useEmailTemplates();
   const [templateKey, setTemplateKey] = useState(BLANK_EMAIL_TEMPLATE_ID);
@@ -32,6 +35,7 @@ export default function ContactSendEmailModal({
   const [attachments, setAttachments] = useState<EmailDraftAttachment[]>([]);
   const [cc, setCc] = useState('');
   const [bcc, setBcc] = useState('');
+  const [sending, setSending] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const selectedTemplate =
@@ -192,7 +196,14 @@ export default function ContactSendEmailModal({
             />
 
             {statusMessage && (
-              <p className="mt-4 text-sm text-amber-800" role="status">
+              <p
+                className={`mt-4 text-sm ${
+                  /sent successfully/i.test(statusMessage)
+                    ? 'text-emerald-700'
+                    : 'text-amber-800'
+                }`}
+                role="status"
+              >
                 {statusMessage}
               </p>
             )}
@@ -222,15 +233,56 @@ export default function ContactSendEmailModal({
           )}
           <button
             type="button"
-            onClick={() =>
-              setStatusMessage(
-                'Direct send is not configured yet. Use "Open in email app" to send from your mail client.',
-              )
+            onClick={() => {
+              void (async () => {
+                if (!contact.email || contact.email === '—') {
+                  setStatusMessage('This contact has no email address.');
+                  return;
+                }
+                setSending(true);
+                setStatusMessage(null);
+                try {
+                  await sendCrmEmail({
+                    to: contact.email,
+                    cc: cc.trim() || undefined,
+                    bcc: bcc.trim() || undefined,
+                    subject: finalEmail.subject,
+                    html: finalEmail.body,
+                    itemId: contact.id,
+                  });
+                  appendEmailComposeLogEntry({
+                    subject: finalEmail.subject,
+                    body: finalEmail.body,
+                    recipientEmail: contact.email,
+                    recipientName: contact.name,
+                    contactId: contact.id,
+                    itemId: contact.id,
+                    templateId: selectedTemplate?.templateId,
+                    templateName: selectedTemplate?.name,
+                    sourceLabel: 'Contact compose',
+                  });
+                  setStatusMessage('Email sent successfully.');
+                  onSent?.();
+                } catch (err) {
+                  setStatusMessage(
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not send email.',
+                  );
+                } finally {
+                  setSending(false);
+                }
+              })();
+            }}
+            disabled={
+              sending ||
+              !finalEmail.subject.trim() ||
+              !contact.email ||
+              contact.email === '—'
             }
-            disabled={!finalEmail.subject.trim()}
             className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Send email
+            {sending ? 'Sending…' : 'Send email'}
           </button>
         </div>
       </div>

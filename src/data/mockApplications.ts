@@ -278,11 +278,16 @@ const STAGE_VOLUNTEERS: Record<string, VolunteerSeed[]> = {
     {
       id: 'mock-25',
       name: 'Carlos Mendez',
-      locationPreference: 'Malakasa',
-      location: 'Malakasa',
+      locationPreference: 'Lesvos',
+      location: 'Lesvos',
       status: 'On Field',
-      timelineId: 'fall-2026',
+      timelineId: 'summer-2026-a',
       photoSeed: 'carlos',
+      // Same confirmed dates as Lily; different destination times → mismatch flag.
+      itinerary: mockItinerary(
+        { date: 'June 8, 2026', time: '3:45 PM', airport: 'ATH' },
+        { date: 'July 19, 2026', time: '11:05 AM', airport: 'ATH' },
+      ),
     },
     {
       id: 'mock-26',

@@ -112,24 +112,46 @@ Run `npm run import:communications-docs` to copy mined templates onto your Email
 | SuperMail column placeholders | `{Column Name}` syntax is not auto-mapped to CRM `{{fieldName}}` |
 | Rate limits | Script batches requests with small delays |
 
-## Phase 1 behavior
+## Send / reply (CRM proxy)
 
-- **Send email** calls `sendApplicationEmail` in `crmApi.ts`, which is **not configured** yet and shows an error message.
-- **Open in email app** opens your default mail client with To, subject, and body pre-filled (`mailto:`). The application detail view refreshes the **Email correspondence** panel shortly after to pick up new threads logged in monday Emails & Activities.
+Direct **Send** and mailbox **Reply / Reply all / Forward** go through the monday API proxy:
+
+`POST /email/send` → Resend **or** SMTP → optional monday `create_update` (Outgoing Email log)
+
+Configure **one** provider in `.env` (server-side only — never `VITE_`):
+
+```bash
+EMAIL_FROM_ADDRESS=info@i58global.org
+EMAIL_FROM_NAME=i58 Global
+
+# Option A — Resend (verify i58global.org in Resend)
+RESEND_API_KEY=re_...
+
+# Option B — Google Workspace SMTP (app password for the mailbox)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=info@i58global.org
+SMTP_PASS=your-app-password
+```
+
+Restart `npm run monday:proxy` (or `npm run dev:live`) after changing env. Check `GET /email/status` on the proxy for `{ configured: true, provider, from }`.
+
+**Open in email app** remains available as a mailto fallback.
+
+CRM sends are logged on the monday item as an **Outgoing Email** update so they appear in Email correspondence after refresh.
+
+### Production note
+
+Local/dev uses `server/monday-api-proxy.mjs`. Production Firebase Admin embed uses the i58finance Cloud Function proxy — that function needs the same `/email/send` route and secrets before Send works in production.
 
 ## Email correspondence (live)
 
-When **Emails & Activities** is enabled on your Applications board, sent and received emails logged on an item appear in the CRM **Email correspondence** panel:
+When **Emails & Activities** is enabled on your Applications board, sent and received emails logged on an item appear in the CRM mailbox UI (`EmailMailbox`):
 
-- **Application detail** — threads for that application item only (E&A timeline + SuperMail item updates).
-- **Contact profile** — all threads from linked application items plus the contact hub item, each tagged by service record (timeline label) or source.
-- **Contact → service record** — scoped to that application’s monday item.
+- **Application detail** — conversations for that application / term only (E&A + SuperMail).
+- **Contact profile** — full history across applications + general mail; search; Reply / Compose.
+- Conversations group by normalized subject + participants; newest message expands by default.
 
-**SuperMail** emails are parsed from item updates (`Outgoing SuperMail`, `Outgoing Email`) and merged with E&A timeline messages. Duplicates between the two sources are collapsed automatically.
+**SuperMail** emails are parsed from item updates (`Outgoing SuperMail`, `Outgoing Email`) and merged with E&A timeline messages.
 
-Inbound and outbound messages must be logged through monday **Emails & Activities** (Gmail/Outlook connected in monday settings) or sent via **SuperMail**. Emails sent only from an external mail client without logging will not appear until logged manually in monday.
-
-## Phase 2 (planned)
-
-- Gmail API or monday automation from `sendApplicationEmail`
-- Optional audit log as item update when an email is sent
+Inbound/outbound mail that never hits monday (or CRM send) will not appear until logged.

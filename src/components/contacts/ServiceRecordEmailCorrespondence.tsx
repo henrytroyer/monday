@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { useMockData } from '../../config/boards';
 import { buildMockContactEmailThread } from '../../data/mockContactEmailThread';
 import type { ContactEmailMessage } from '../../types/contact';
-import ContactEmailDetailModal from './ContactEmailDetailModal';
-import EmailCorrespondencePanel from '../shared/EmailCorrespondencePanel';
+import ApplicationEmailThread from '../email-correspondence/ApplicationEmailThread';
 
 interface ServiceRecordEmailCorrespondenceProps {
   serviceRecordId: string;
@@ -19,7 +17,6 @@ export default function ServiceRecordEmailCorrespondence({
   isArchived = false,
 }: ServiceRecordEmailCorrespondenceProps) {
   const isMock = useMockData();
-  const [selected, setSelected] = useState<ContactEmailMessage | null>(null);
 
   const messages: ContactEmailMessage[] = isMock
     ? buildMockContactEmailThread(serviceRecordId, {
@@ -32,27 +29,28 @@ export default function ServiceRecordEmailCorrespondence({
           source: 'recruitment' as const,
           sourceLabel: 'Recruitment',
           serviceRecordId,
+          itemId: serviceRecordId,
         }))
     : [];
 
-  const description = isArchived
-    ? `Archived recruitment service record for ${contactName}.`
-    : `Recruitment service record for ${contactName}. Live E&A sync coming later.`;
+  const timelineLabel = isArchived
+    ? `Archived recruitment · ${contactName}`
+    : `Recruitment · ${contactName}`;
 
   return (
-    <>
-      <EmailCorrespondencePanel
-        messages={messages}
-        onSelect={setSelected}
-        description={description}
-      />
-      {selected && (
-        <ContactEmailDetailModal
-          message={selected}
-          contactName={contactName}
-          onClose={() => setSelected(null)}
-        />
-      )}
-    </>
+    <ApplicationEmailThread
+      applicationId={serviceRecordId}
+      timelineLabel={timelineLabel}
+      contactId={serviceRecordId}
+      contactName={contactName}
+      contactEmail={contactEmail ?? ''}
+      messages={messages}
+      loading={false}
+      error={
+        isMock
+          ? null
+          : 'Live recruitment email sync is not configured yet.'
+      }
+    />
   );
 }

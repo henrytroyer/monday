@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useApplicationEmailCorrespondence } from '../../hooks/useApplicationEmailCorrespondence';
-import type { ContactEmailMessage } from '../../types/contact';
-import ContactEmailDetailModal from '../contacts/ContactEmailDetailModal';
-import EmailCorrespondencePanel from '../shared/EmailCorrespondencePanel';
+import ApplicationEmailThread from '../email-correspondence/ApplicationEmailThread';
 
 interface TermEmailCorrespondenceProps {
   itemId: string;
@@ -11,6 +9,7 @@ interface TermEmailCorrespondenceProps {
   contactName: string;
   contactEmail?: string;
   contactEmails?: string[];
+  contactId?: string;
   onRefetchReady?: (refetch: () => void) => void;
 }
 
@@ -21,6 +20,7 @@ export default function TermEmailCorrespondence({
   contactName,
   contactEmail,
   contactEmails,
+  contactId,
   onRefetchReady,
 }: TermEmailCorrespondenceProps) {
   const { messages, loading, error, refetch } = useApplicationEmailCorrespondence({
@@ -30,28 +30,23 @@ export default function TermEmailCorrespondence({
     contactEmail,
     contactEmails,
   });
-  const [selected, setSelected] = useState<ContactEmailMessage | null>(null);
 
   useEffect(() => {
     onRefetchReady?.(refetch);
   }, [onRefetchReady, refetch]);
 
   return (
-    <>
-      <EmailCorrespondencePanel
-        messages={messages}
-        onSelect={setSelected}
-        description={`Service record: ${timelineLabel}`}
-        loading={loading}
-        error={error}
-      />
-      {selected && (
-        <ContactEmailDetailModal
-          message={selected}
-          contactName={contactName}
-          onClose={() => setSelected(null)}
-        />
-      )}
-    </>
+    <ApplicationEmailThread
+      applicationId={itemId}
+      termOfServiceId={timelineId}
+      timelineLabel={timelineLabel}
+      contactId={contactId ?? itemId}
+      contactName={contactName}
+      contactEmail={contactEmail ?? contactEmails?.[0] ?? ''}
+      messages={messages}
+      loading={loading}
+      error={error}
+      onSent={refetch}
+    />
   );
 }

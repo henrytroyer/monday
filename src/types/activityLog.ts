@@ -16,9 +16,28 @@ export type CrmActivityEntityType =
   | 'recruitment'
   | 'board';
 
+export type CrmActivityUndoKind =
+  | 'restore_column'
+  | 'move_group'
+  | 'delete_item'
+  | 'none';
+
 export interface CrmActivityNavigateTo {
   page: PageId;
   focusId?: string;
+}
+
+export interface CrmActivityUndo {
+  kind: CrmActivityUndoKind;
+  /** Column to restore (restore_column). */
+  columnId?: string;
+  columnType?: string;
+  columnTitle?: string;
+  /** Raw previous_value from monday activity log — written back on undo. */
+  previousValueRaw?: unknown;
+  /** Group to move the item back to (move_group). */
+  sourceGroupId?: string;
+  sourceGroupName?: string;
 }
 
 export interface CrmActivityEvent {
@@ -35,6 +54,11 @@ export interface CrmActivityEvent {
   summary: string;
   detail?: string;
   navigateTo?: CrmActivityNavigateTo;
+  /** True when History can offer an Undo control. */
+  undoable?: boolean;
+  undo?: CrmActivityUndo;
+  /** True when a monday.com automation / system actor made the change. */
+  isAutomation?: boolean;
 }
 
 export interface MondayActivityLogRaw {

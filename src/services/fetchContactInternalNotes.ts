@@ -19,7 +19,6 @@ import {
   getServiceRecordNotes,
 } from './serviceRecordNoteStorage';
 import type { ServiceRecordNote } from '../types/internalNote';
-import { getApprovedNotesForApplicationItem, getApprovedNotesForContact } from './noteReviewStorage';
 import { getLocalContactHubNotes } from './contactHubNoteStorage';
 
 const FETCH_CONCURRENCY = 3;
@@ -124,36 +123,6 @@ function localContactHubNotesToContactInternal(
   }));
 }
 
-function approvedNotesToContactInternal(
-  contactId: string,
-  applicationItemIds: string[] = [],
-): ContactInternalNote[] {
-  const byKey = new Map<string, ReturnType<typeof getApprovedNotesForContact>[number]>();
-  for (const link of getApprovedNotesForContact(contactId)) {
-    byKey.set(link.noteKey, link);
-  }
-  for (const itemId of applicationItemIds) {
-    for (const link of getApprovedNotesForApplicationItem(itemId)) {
-      byKey.set(link.noteKey, link);
-    }
-  }
-
-  return [...byKey.values()].map((link) => ({
-    id: `approved-${link.noteKey}`,
-    body: link.body,
-    bodyHtml: link.bodyHtml,
-    createdAt: link.createdAt,
-    authorName: link.authorName,
-    source: link.sourceLabel.toLowerCase().includes('recruitment')
-      ? ('recruitment' as const)
-      : ('term' as const),
-    sourceLabel: link.sourceLabel,
-    mondayItemId: link.itemId,
-    applicationItemId:
-      link.boardName === 'Applications' ? link.itemId : undefined,
-  }));
-}
-
 export async function migrateLocalRecruitmentNotesToMonday(
   contactId: string,
   serviceTerms: VolunteerTerm[],
@@ -189,17 +158,19 @@ export async function migrateLocalRecruitmentNotesToMonday(
   }
 }
 
+/**
+ * Internal Notes hub: CRM-typed notes only.
+ * Email correspondence (SuperMail) and harvest approvals are not merged here.
+ */
 export async function fetchContactInternalNotes(
   contactId: string,
   serviceTerms: VolunteerTerm[],
 ): Promise<ContactInternalNote[]> {
   if (useMockData()) {
-    const applicationItemIds = serviceTerms.map((term) => term.itemId);
     return mergeContactInternalNotes(
       localContactHubNotesToContactInternal(contactId),
       localRecruitmentNotesToContactInternal(contactId, serviceTerms),
       localTermNotesToContactInternal(serviceTerms),
-      approvedNotesToContactInternal(contactId, applicationItemIds),
     );
   }
 
@@ -242,7 +213,6 @@ export async function fetchContactInternalNotes(
     hubNotes,
     recruitmentNotes,
     localRecruitmentWithAttachments,
-    approvedNotesToContactInternal(contactId, applicationItemIds),
     ...applicationNoteGroups,
   );
 }

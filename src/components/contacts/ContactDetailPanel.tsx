@@ -5,7 +5,7 @@ import { useContactEmailCorrespondence } from '../../hooks/useContactEmailCorres
 import { usePastorReferenceDrillDown } from '../../hooks/usePastorReferenceDrillDown';
 import { usePastorReferenceLinkOptions } from '../../hooks/usePastorReferenceLinkOptions';
 import type { ReactNode } from 'react';
-import type { ContactDetail, ContactEmailMessage, ContactListItem } from '../../types/contact';
+import type { ContactDetail, ContactListItem } from '../../types/contact';
 import type { VolunteerTerm } from '../../types/volunteer';
 import { isCompiledContactId } from '../../services/compileContactsFromBoards';
 import { isServiceEndedTerm } from '../../services/contactServiceRecordStorage';
@@ -14,11 +14,10 @@ import {
   formatTermDateRangeLabel,
 } from '../../utils/formatTermDateRange';
 import FormFieldsPanel from '../applications/FormFieldsPanel';
+import ContactEmailHistory from '../email-correspondence/ContactEmailHistory';
 import ContactInternalNotesSection from './ContactInternalNotesSection';
 import ChurchInfoCard from './ChurchInfoCard';
 import ContactProfileCard from './ContactProfileCard';
-import ContactEmailDetailModal from './ContactEmailDetailModal';
-import EmailCorrespondencePanel from '../shared/EmailCorrespondencePanel';
 import ContactVolunteerFiles from './ContactVolunteerFiles';
 import DonationsList from './DonationsList';
 import PastorReferencePickerPanel from './PastorReferencePickerPanel';
@@ -47,6 +46,7 @@ export default function ContactDetailPanel({
     messages: emailCorrespondence,
     loading: emailLoading,
     error: emailError,
+    refetch: refetchEmails,
   } = useContactEmailCorrespondence({
     contactId: detail && !loading ? detail.id : null,
     contactName: detail?.name ?? contact.name,
@@ -54,8 +54,6 @@ export default function ContactDetailPanel({
     serviceTerms: detail?.serviceTerms ?? [],
   });
   const [selectedTerm, setSelectedTerm] = useState<VolunteerTerm | null>(null);
-  const [selectedEmail, setSelectedEmail] =
-    useState<ContactEmailMessage | null>(null);
   const [pastorReferencePickerOpen, setPastorReferencePickerOpen] =
     useState(false);
   const [pastorReferenceDetailOpen, setPastorReferenceDetailOpen] =
@@ -123,11 +121,6 @@ export default function ContactDetailPanel({
     () => setSelectedTerm(null),
     `term-${selectedTerm?.itemId ?? 'none'}-${contact.id}`,
   );
-  const { requestClose: requestCloseEmail } = useNavLayer(
-    selectedEmail !== null,
-    () => setSelectedEmail(null),
-    `contact-email-thread-${selectedEmail?.id ?? 'none'}-${contact.id}`,
-  );
   const closePastorReferenceAll = () => {
     resetPastorReferenceFlow();
   };
@@ -146,7 +139,6 @@ export default function ContactDetailPanel({
 
   useEffect(() => {
     setSelectedTerm(null);
-    setSelectedEmail(null);
     resetPastorReferenceFlow();
   }, [contact.id]);
 
@@ -162,18 +154,13 @@ export default function ContactDetailPanel({
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key === 'Escape' &&
-        !selectedTerm &&
-        !selectedEmail &&
-        !pastorReferenceUiOpen
-      ) {
+      if (e.key === 'Escape' && !selectedTerm && !pastorReferenceUiOpen) {
         onBack();
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onBack, selectedTerm, selectedEmail, pastorReferenceUiOpen]);
+  }, [onBack, selectedTerm, pastorReferenceUiOpen]);
 
   const showDonations =
     detail &&
@@ -216,6 +203,7 @@ export default function ContactDetailPanel({
                 detail={detail}
                 saving={saving}
                 onGoToRecruitment={onGoToRecruitment}
+                onEmailSent={refetchEmails}
                 canEdit={canEdit && !isCompiledContactId(detail.id)}
                 onSave={
                   canEdit && !isCompiledContactId(detail.id)
@@ -261,27 +249,37 @@ export default function ContactDetailPanel({
                 currentApplication={detail.currentApplication}
               />
 
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-stretch">
-                <div className="min-w-0">
-                  <EmailCorrespondencePanel
-                    messages={emailCorrespondence}
-                    onSelect={setSelectedEmail}
-                    description="All communication with this contact"
-                    showSourceTags
-                    loading={loading || emailLoading}
-                    error={emailError}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <ContactVolunteerFiles
-                    volunteerName={detail.name}
-                    profilePhotoUrl={detail.profilePhotoUrl}
-                    passportFile={detail.passportFile}
-                    childSafeguardingFile={detail.childSafeguardingFile}
-                    files={detail.files}
-                  />
-                </div>
-              </div>
+              <ContactEmailHistory
+                contactId={detail.id}
+                contactName={detail.name}
+                contactEmail={detail.email}
+                messages={emailCorrespondence}
+                applications={detail.serviceTerms
+                  .filter((term) => term.itemId && !term.itemId.startsWith('mock-'))
+                  .map((term) => ({
+                    id: term.itemId,
+                    label: term.timelineLabel || term.itemId,
+                  }))}
+                loading={loading || emailLoading}
+                error={emailError}
+                onOpenApplication={onGoToApplication}
+                onSent={refetchEmails}
+                logItemId={
+                  detail.currentApplication?.itemId ??
+                  detail.serviceTerms.find(
+                    (term) => term.itemId && !term.itemId.startsWith('mock-'),
+                  )?.itemId ??
+                  detail.id
+                }
+              />
+
+              <ContactVolunteerFiles
+                volunteerName={detail.name}
+                profilePhotoUrl={detail.profilePhotoUrl}
+                passportFile={detail.passportFile}
+                childSafeguardingFile={detail.childSafeguardingFile}
+                files={detail.files}
+              />
 
               {detail.tags.includes('volunteer') && (
                 <Panel title="Current application">
@@ -446,14 +444,6 @@ export default function ContactDetailPanel({
             </div>
           )}
         </div>
-
-        {selectedEmail && detail && (
-          <ContactEmailDetailModal
-            message={selectedEmail}
-            contactName={detail.name}
-            onClose={requestCloseEmail}
-          />
-        )}
 
         {selectedTerm && detail && (
           <TermDetailPanel

@@ -12,12 +12,16 @@ function legFromParts(
   date: string,
   time: string,
   airport: string,
+  flightNumber?: string,
 ): ItineraryLeg {
-  return {
+  const leg: ItineraryLeg = {
     date: date.trim(),
     time: time.trim(),
     airport: airport.trim(),
   };
+  const flight = flightNumber?.trim();
+  if (flight) leg.flightNumber = flight;
+  return leg;
 }
 
 function parseLegFromObject(
@@ -29,8 +33,11 @@ function parseLegFromObject(
   const airport = String(
     raw.airport ?? raw.Airport ?? raw.airportCode ?? '',
   ).trim();
+  const flightNumber = String(
+    raw.flightNumber ?? raw.flight ?? raw.FlightNumber ?? '',
+  ).trim();
   if (!date && !time && !airport) return null;
-  return legFromParts(date, time, airport);
+  return legFromParts(date, time, airport, flightNumber || undefined);
 }
 
 function parseItineraryJson(text: string): VolunteerItinerary | null {
@@ -115,19 +122,59 @@ function parseLegLine(line: string): ItineraryLeg {
 const INTELE_TRAVEL_LEG_PATTERN =
   /(Arrive|Depart)\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})\s+(\d{1,2}:\d{2}\s+(?:AM|PM))[^\n]*?\b([A-Z]{3})\b/gi;
 
-function legFromInteleTravelMatch(match: RegExpExecArray): ItineraryLeg {
-  return legFromParts(match[2], match[3], match[4]);
+export type InteleTravelLegEntry = {
+  kind: 'arrive' | 'depart';
+  leg: ItineraryLeg;
+  /** Character offset of this match in the source text. */
+  index: number;
+};
+
+export type AssembleDestinationOptions = {
+  /** Field / destination IATA from confirmed location (e.g. MJT for Lesvos). */
+  fieldAirport?: string;
+};
+
+function normalizeFlightNumber(raw: string): string {
+  return raw.trim().replace(/\s+/g, ' ').toUpperCase();
 }
 
-/** Parse InteleTravel / airline traveler receipt PDFs (e.g. Gloria Hershberger). */
-export function parseInteleTravelReceiptText(
+/** Pull a flight number from text near an Arrive/Depart match. */
+export function extractFlightNumberNear(
   text: string,
-): VolunteerItinerary | null {
-  if (!/traveler\s+receipt|inteletravel|booking information/i.test(text)) {
-    return null;
-  }
+  matchIndex: number,
+  matchLength: number,
+): string | undefined {
+  const windowStart = Math.max(0, matchIndex - 40);
+  const windowEnd = Math.min(text.length, matchIndex + matchLength + 160);
+  const window = text.slice(windowStart, windowEnd);
 
-  const legs: Array<{ kind: 'arrive' | 'depart'; leg: ItineraryLeg }> = [];
+  const labeled = window.match(/\bFlight\s*([A-Z]{1,3}\s*\d{2,4})\b/i);
+  if (labeled?.[1]) return normalizeFlightNumber(labeled[1]);
+
+  const airlineDigit = window.match(/\b([A-Z]{2}\s?\d{2,4})\b/);
+  if (airlineDigit?.[1]) return normalizeFlightNumber(airlineDigit[1]);
+
+  const letterDigit = window.match(/\b([A-Z]\d\s?\d{2,4})\b/);
+  if (letterDigit?.[1]) return normalizeFlightNumber(letterDigit[1]);
+
+  return undefined;
+}
+
+function legFromInteleTravelMatch(
+  match: RegExpExecArray,
+  sourceText: string,
+): ItineraryLeg {
+  const flightNumber = extractFlightNumberNear(
+    sourceText,
+    match.index,
+    match[0].length,
+  );
+  return legFromParts(match[2], match[3], match[4], flightNumber);
+}
+
+/** Extract every Arrive/Depart leg from InteleTravel-style receipt text. */
+export function extractAllInteleTravelLegs(text: string): InteleTravelLegEntry[] {
+  const legs: InteleTravelLegEntry[] = [];
   let match: RegExpExecArray | null;
   const pattern = new RegExp(
     INTELE_TRAVEL_LEG_PATTERN.source,
@@ -136,54 +183,239 @@ export function parseInteleTravelReceiptText(
   while ((match = pattern.exec(text)) !== null) {
     legs.push({
       kind: match[1].toLowerCase() === 'arrive' ? 'arrive' : 'depart',
-      leg: legFromInteleTravelMatch(match),
+      leg: legFromInteleTravelMatch(match, text),
+      index: match.index,
     });
   }
+  return legs;
+}
 
-  if (legs.length === 0) return null;
+/** Pull a 3-letter IATA code from airport text (e.g. "Athens (ATH)"). */
+export function extractIataCode(airportText: string): string | undefined {
+  const trimmed = airportText.trim();
+  if (!trimmed) return undefined;
+  const paren = trimmed.match(/\b([A-Z]{3})\b/);
+  if (paren?.[1]) return paren[1];
+  if (/^[A-Z]{3}$/.test(trimmed)) return trimmed;
+  return undefined;
+}
 
-  const inboundIdx = text.search(/\bInbound\b/i);
+/** Parse leg date+time to epoch ms for chronological sorting / stay length. */
+export function parseLegTimestamp(leg: ItineraryLeg): number | null {
+  const date = leg.date.trim();
+  const time = leg.time.trim();
+  if (!date) return null;
 
-  let arrival =
-    legs.find((entry) => entry.kind === 'arrive' && entry.leg.airport === 'ATH')
-      ?.leg ?? null;
-  let departure =
-    legs.find((entry) => entry.kind === 'depart' && entry.leg.airport === 'ATH')
-      ?.leg ?? null;
-
-  if (!arrival) {
-    const outboundArrives =
-      inboundIdx >= 0
-        ? legs.filter(
-            (entry) =>
-              entry.kind === 'arrive' &&
-              text.indexOf(entry.leg.date) < inboundIdx,
-          )
-        : legs.filter((entry) => entry.kind === 'arrive');
-    arrival = outboundArrives.at(-1)?.leg ?? null;
+  if (time) {
+    const combined = Date.parse(`${date} ${time}`);
+    if (!Number.isNaN(combined)) return combined;
   }
 
-  if (!departure) {
-    const inboundDeparts =
-      inboundIdx >= 0
-        ? legs.filter(
-            (entry) =>
-              entry.kind === 'depart' &&
-              text.indexOf(entry.leg.date) >= inboundIdx,
-          )
-        : legs.filter((entry) => entry.kind === 'depart');
-    departure =
-      inboundDeparts.find((entry) => entry.leg.airport === 'ATH')?.leg ??
-      inboundDeparts[0]?.leg ??
-      null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const iso = Date.parse(`${date}T12:00:00`);
+    return Number.isNaN(iso) ? null : iso;
   }
 
+  const dateOnly = Date.parse(date);
+  return Number.isNaN(dateOnly) ? null : dateOnly;
+}
+
+function sortLegsChronologically(
+  legs: InteleTravelLegEntry[],
+): InteleTravelLegEntry[] {
+  return [...legs].sort((a, b) => {
+    const aMs = parseLegTimestamp(a.leg);
+    const bMs = parseLegTimestamp(b.leg);
+    if (aMs != null && bMs != null && aMs !== bMs) return aMs - bMs;
+    if (aMs != null && bMs == null) return -1;
+    if (aMs == null && bMs != null) return 1;
+    return a.index - b.index;
+  });
+}
+
+type FieldStay = {
+  airport: string;
+  arrival: InteleTravelLegEntry;
+  departure: InteleTravelLegEntry;
+  durationMs: number;
+};
+
+/** Pair each Arrive with the next later Depart at the same IATA. */
+export function findAirportStays(legs: InteleTravelLegEntry[]): FieldStay[] {
+  const sorted = sortLegsChronologically(legs);
+  const stays: FieldStay[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    const arrive = sorted[i]!;
+    if (arrive.kind !== 'arrive') continue;
+    const iata = extractIataCode(arrive.leg.airport);
+    if (!iata) continue;
+
+    const arriveMs = parseLegTimestamp(arrive.leg);
+    if (arriveMs == null) continue;
+
+    for (let j = i + 1; j < sorted.length; j++) {
+      const depart = sorted[j]!;
+      if (depart.kind !== 'depart') continue;
+      if (extractIataCode(depart.leg.airport) !== iata) continue;
+
+      const departMs = parseLegTimestamp(depart.leg);
+      if (departMs == null || departMs <= arriveMs) continue;
+
+      stays.push({
+        airport: iata,
+        arrival: arrive,
+        departure: depart,
+        durationMs: departMs - arriveMs,
+      });
+      break;
+    }
+  }
+
+  return stays;
+}
+
+function pickLongestStay(stays: FieldStay[]): FieldStay | null {
+  if (stays.length === 0) return null;
+  return stays.reduce((best, stay) =>
+    stay.durationMs > best.durationMs ? stay : best,
+  );
+}
+
+/** Ignore connection layovers when picking longest on-field stay. */
+const MIN_FIELD_STAY_MS = 6 * 60 * 60 * 1000;
+
+function itineraryFromStay(stay: FieldStay): VolunteerItinerary {
+  const result = emptyItinerary();
+  result.arrival = { ...stay.arrival.leg };
+  result.departure = { ...stay.departure.leg };
+  return result;
+}
+
+/**
+ * When a confirmed field airport appears in the PDF but there is no paired
+ * return (outbound-only receipt), use Arrive/Depart at that airport
+ * independently — never fall back to a connection layover elsewhere.
+ */
+function itineraryFromFieldAirportLegs(
+  legs: InteleTravelLegEntry[],
+  fieldIata: string,
+): VolunteerItinerary | null {
+  const sorted = sortLegsChronologically(legs);
+  const fieldArrivals = sorted.filter(
+    (entry) =>
+      entry.kind === 'arrive' &&
+      extractIataCode(entry.leg.airport) === fieldIata,
+  );
+  const fieldDepartures = sorted.filter(
+    (entry) =>
+      entry.kind === 'depart' &&
+      extractIataCode(entry.leg.airport) === fieldIata,
+  );
+
+  // Last arrival into the field; first departure leaving the field.
+  const arrival = fieldArrivals.at(-1)?.leg;
+  const departure = fieldDepartures[0]?.leg;
   if (!arrival && !departure) return null;
 
   const result = emptyItinerary();
-  if (arrival) result.arrival = arrival;
-  if (departure) result.departure = departure;
+  if (arrival) result.arrival = { ...arrival };
+  if (departure) result.departure = { ...departure };
   return result;
+}
+
+/**
+ * Pick destination arrival/departure using longest on-field stay.
+ * When fieldAirport is set and appears in legs, prefer that airport
+ * (stay pair, or outbound-only / inbound-only legs).
+ */
+export function pickDestinationFromLegs(
+  legs: InteleTravelLegEntry[],
+  options?: { fieldAirport?: string; preferredAirport?: string },
+): VolunteerItinerary | null {
+  if (legs.length === 0) return null;
+
+  const fieldIata =
+    extractIataCode(options?.fieldAirport ?? '') ??
+    extractIataCode(options?.preferredAirport ?? '');
+
+  const stays = findAirportStays(legs);
+
+  if (fieldIata) {
+    const fieldStay = pickLongestStay(
+      stays.filter((stay) => stay.airport === fieldIata),
+    );
+    if (fieldStay) return itineraryFromStay(fieldStay);
+
+    const fromFieldLegs = itineraryFromFieldAirportLegs(legs, fieldIata);
+    if (fromFieldLegs) return fromFieldLegs;
+  }
+
+  const longStays = stays.filter(
+    (stay) => stay.durationMs >= MIN_FIELD_STAY_MS,
+  );
+  const chosen = pickLongestStay(longStays);
+  if (chosen) return itineraryFromStay(chosen);
+
+  // No real field stay — prefer final Arrive (destination), do not invent a
+  // Depart from an outbound first-leg airport or a short connection.
+  const sorted = sortLegsChronologically(legs);
+  const arrival = [...sorted].reverse().find((entry) => entry.kind === 'arrive')
+    ?.leg;
+
+  if (!arrival) return null;
+
+  const result = emptyItinerary();
+  result.arrival = { ...arrival };
+  return result;
+}
+
+/** Parse InteleTravel / airline traveler receipt PDFs (e.g. Gloria Hershberger). */
+export function parseInteleTravelReceiptText(
+  text: string,
+  fieldAirport?: string,
+): VolunteerItinerary | null {
+  if (!/traveler\s+receipt|inteletravel|booking information/i.test(text)) {
+    return null;
+  }
+
+  const legs = extractAllInteleTravelLegs(text);
+  if (legs.length === 0) return null;
+
+  return pickDestinationFromLegs(legs, { fieldAirport });
+}
+
+/**
+ * Assemble destination arrival/departure from one or more itinerary texts
+ * (e.g. international + domestic field PDFs). Uses longest field stay.
+ */
+export function assembleDestinationItinerary(
+  texts: string[],
+  options?: string | AssembleDestinationOptions,
+): VolunteerItinerary | null {
+  const nonEmpty = texts.map((t) => t.trim()).filter(Boolean);
+  if (nonEmpty.length === 0) return null;
+
+  const fieldAirport =
+    typeof options === 'string' ? options : options?.fieldAirport;
+
+  const combined = nonEmpty.join('\n\n');
+  const allLegs = extractAllInteleTravelLegs(combined);
+  if (allLegs.length > 0) {
+    const fromLegs = pickDestinationFromLegs(allLegs, { fieldAirport });
+    if (fromLegs) return fromLegs;
+  }
+
+  const fromReceipt = parseInteleTravelReceiptText(combined, fieldAirport);
+  if (fromReceipt) return fromReceipt;
+
+  let merged: VolunteerItinerary | null = null;
+  for (const text of nonEmpty) {
+    const parsed = parseItineraryFreeText(text);
+    if (!parsed) continue;
+    merged = merged ? mergeVolunteerItinerary(merged, parsed) : parsed;
+  }
+  return merged;
 }
 
 export function parseItineraryFreeText(text: string): VolunteerItinerary | null {
@@ -251,6 +483,9 @@ function mergeLegFields(
     if (!result.airport.trim() && source.airport.trim()) {
       result.airport = source.airport.trim();
     }
+    if (!result.flightNumber?.trim() && source.flightNumber?.trim()) {
+      result.flightNumber = source.flightNumber.trim();
+    }
   }
   return result;
 }
@@ -270,14 +505,11 @@ function itineraryFromTimelineColumn(
   const range = getArrivalDepartureTimelineRange(columnValues);
   if (!range) return null;
 
-  const preferredAirport = getMappedColumnText(
-    columnValues,
-    'preferredItineraryAirport',
-  );
-
+  // Dates only — never use Preferred nearby airport as flight info.
+  // Destination airports come from uploaded itinerary PDFs.
   const result = emptyItinerary();
-  result.arrival = legFromParts(range.from, '', preferredAirport);
-  result.departure = legFromParts(range.to, '', preferredAirport);
+  result.arrival = legFromParts(range.from, '', '');
+  result.departure = legFromParts(range.to, '', '');
   return result;
 }
 

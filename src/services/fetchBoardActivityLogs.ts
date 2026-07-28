@@ -1,4 +1,5 @@
 import { resolveBoardRole, resolveMonitoredBoardIds } from '../config/boards';
+import { friendlyActivityBoardLabel } from '../constants/activityLabels';
 import type { CrmActivityEvent, MondayActivityLogRaw } from '../types/activityLog';
 import { formatActivityLogEvent } from './formatActivityLogEvent';
 import { mondayGraphQL } from './mondayGraphQL';
@@ -83,7 +84,11 @@ export async function fetchBoardActivityLogs(
 
   for (const board of data.boards ?? []) {
     const boardId = String(board.id);
-    const boardName = board.name?.trim() || `Board ${boardId}`;
+    const boardName = friendlyActivityBoardLabel(
+      boardId,
+      board.name,
+      resolveBoardRole(boardId),
+    );
     boardNames.set(boardId, boardName);
 
     for (const log of board.activity_logs ?? []) {
@@ -91,11 +96,12 @@ export async function fetchBoardActivityLogs(
         ...log,
         boardId,
         boardName,
+        user_id: log.user_id != null ? String(log.user_id) : '',
       });
     }
   }
 
-  const userIds = rawLogs.map((log) => log.user_id).filter(Boolean);
+  const userIds = rawLogs.map((log) => String(log.user_id ?? '')).filter(Boolean);
   const userNamesById = await resolveMondayUserNames(userIds);
 
   const events = rawLogs.map((log) =>

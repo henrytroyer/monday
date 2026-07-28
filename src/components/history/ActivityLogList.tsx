@@ -8,7 +8,9 @@ interface ActivityLogListProps {
   error?: string | null;
   hasMore?: boolean;
   isMock?: boolean;
+  undoingEventId?: string | null;
   onOpen?: (event: CrmActivityEvent) => void;
+  onUndo?: (event: CrmActivityEvent) => void;
   onLoadMore?: () => void;
 }
 
@@ -19,7 +21,9 @@ export default function ActivityLogList({
   error = null,
   hasMore = false,
   isMock = false,
+  undoingEventId = null,
   onOpen,
+  onUndo,
   onLoadMore,
 }: ActivityLogListProps) {
   if (loading) {
@@ -43,8 +47,8 @@ export default function ActivityLogList({
       <p className="rounded-2xl border border-dashed border-crm-taupe/28 bg-crm-surface p-6 text-sm text-crm-slate">
         No activity found for this date range and filters.
         {isMock
-          ? ' Try adding notes or updating recruitment prospects in mock mode.'
-          : ' Changes made in monday.com will appear here.'}
+          ? ' Try adding notes or updating prospects in demo mode.'
+          : ' Recent changes will show up here.'}
       </p>
     );
   }
@@ -52,7 +56,13 @@ export default function ActivityLogList({
   return (
     <div className="space-y-3">
       {events.map((event) => (
-        <ActivityLogRow key={event.id} event={event} onOpen={onOpen} />
+        <ActivityLogRow
+          key={event.id}
+          event={event}
+          onOpen={onOpen}
+          onUndo={onUndo}
+          undoing={undoingEventId === event.id}
+        />
       ))}
 
       {hasMore && onLoadMore && (

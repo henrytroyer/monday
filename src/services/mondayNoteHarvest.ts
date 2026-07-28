@@ -14,11 +14,6 @@ import {
   fetchItemsUpdates,
 } from './crmApi';
 import {
-  isContactHubNoteUpdate,
-  isRecruitmentNoteUpdate,
-} from './contactInternalNotes';
-import {
-  isNoteReviewRegistryUpdate,
   NOTE_REVIEW_REGISTRY_ITEM_NAME,
   persistApprovedNoteToMonday,
   syncNoteReviewFromMonday,
@@ -38,8 +33,9 @@ import {
   upsertReviewItems,
 } from './noteReviewStorage';
 import { resolveHarvestSinceIso } from './noteReviewHarvestCursors';
+import { shouldSkipNoteHarvest } from './noteHarvestSkip';
 import { mondayUpdateToNoteBody } from '../utils/formatMondayNoteBody';
-import { isTermNoteUpdate, stripHtml } from './termNotes';
+import { stripHtml } from './termNotes';
 
 const BATCH_SIZE = 25;
 const HARVEST_ITEM_LIMIT = 200;
@@ -48,15 +44,6 @@ export interface HarvestNotesOptions {
   boardIds?: string[];
   itemLimitPerBoard?: number;
   sinceIso?: string;
-}
-
-function isSkippableCrmNote(body: string): boolean {
-  return (
-    isTermNoteUpdate(body) ||
-    isRecruitmentNoteUpdate(body) ||
-    isContactHubNoteUpdate(body) ||
-    isNoteReviewRegistryUpdate(body)
-  );
 }
 
 function shouldAutoApproveMatch(match: NoteMatchResult): boolean {
@@ -260,7 +247,7 @@ export async function harvestMondayNotes(
           continue;
         }
 
-        if (isSkippableCrmNote(rawBody)) {
+        if (shouldSkipNoteHarvest(rawBody, update.creator?.name)) {
           skipped += 1;
           continue;
         }

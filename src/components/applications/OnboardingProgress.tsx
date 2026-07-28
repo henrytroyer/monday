@@ -11,13 +11,13 @@ import {
   getStatusLabel,
   isEmailDue,
   isStepDone,
-  suggestProjectedDates,
   updateStepInvoiceId,
   updateStepNote,
   updateStepProjectedDate,
   updateStepStatus,
 } from '../../utils/onboardingPipeline';
 import InvoiceDetailModal from './InvoiceDetailModal';
+import LongtermOnboardingProgress from './LongtermOnboardingProgress';
 
 interface OnboardingProgressProps {
   pipeline: OnboardingPipeline;
@@ -90,23 +90,6 @@ export default function OnboardingProgress({
     `invoice-${invoiceModal?.invoiceId ?? 'new'}-${volunteerName}`,
   );
 
-  const handleSuggestDates = () => {
-    if (
-      !window.confirm(
-        'Suggest projected dates for all incomplete steps? You can still edit them manually.',
-      )
-    ) {
-      return;
-    }
-    const updated = suggestProjectedDates(
-      pipeline,
-      volunteer.timelineId,
-      volunteer.termStart,
-      stepDefs,
-    );
-    onPipelineChange(updated);
-  };
-
   const handleStepAction = (
     stepId: string,
     action: 'mark_waiting' | 'mark_received' | 'mark_complete',
@@ -129,58 +112,42 @@ export default function OnboardingProgress({
 
   const timelineLabel = getTimelineLabel(volunteer.timelineId);
 
+  if (isLongterm) {
+    return (
+      <LongtermOnboardingProgress
+        pipeline={pipeline}
+        timelineId={volunteer.timelineId}
+        termStart={volunteer.termStart}
+        onPipelineChange={onPipelineChange}
+        onSendProgressEmail={onSendProgressEmail}
+      />
+    );
+  }
+
   return (
     <>
-      {!isLongterm && (
-        <p className="text-sm text-crm-slate">
-          Steps update from Monday emails, reference board, safeguarding, itinerary,
-          and QuickBooks.
-        </p>
-      )}
-      {isLongterm && (
-        <p className="text-sm text-crm-slate">
-          Onboarding pipeline — separate from application status
-        </p>
-      )}
+      <p className="text-sm text-crm-slate">
+        Steps update from Monday emails, reference board, safeguarding, itinerary,
+        and QuickBooks.
+      </p>
 
-      {isLongterm && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleSuggestDates}
-            className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
-          >
-            Suggest dates
-          </button>
-          <button
-            type="button"
-            onClick={() => onSendProgressEmail()}
-            className="rounded-xl border border-crm-indigo/30 bg-crm-indigo-50 px-4 py-2 text-sm font-medium text-crm-indigo transition hover:bg-crm-indigo-100"
-          >
-            Send progress update
-          </button>
-        </div>
-      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onSendProgressEmail()}
+          className="rounded-xl border border-crm-indigo/30 bg-crm-indigo-50 px-4 py-2 text-sm font-medium text-crm-indigo transition hover:bg-crm-indigo-100"
+        >
+          Send progress update
+        </button>
+      </div>
 
-      {!isLongterm && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onSendProgressEmail()}
-            className="rounded-xl border border-crm-indigo/30 bg-crm-indigo-50 px-4 py-2 text-sm font-medium text-crm-indigo transition hover:bg-crm-indigo-100"
-          >
-            Send progress update
-          </button>
-        </div>
-      )}
-
-      <div className={`space-y-3 ${isLongterm ? 'mt-4' : 'mt-4'}`}>
+      <div className="mt-4 space-y-3">
         {stepDefs.map((def) => (
           <StepCard
             key={def.id}
             def={def}
             pipeline={pipeline}
-            isLongterm={isLongterm}
+            isLongterm={false}
             timelineLabel={timelineLabel}
             volunteer={volunteer}
             housing={housing}

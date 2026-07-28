@@ -137,7 +137,12 @@ export default function ContactsPage({
 
   useEffect(() => {
     if (!focusContactId || loading) return;
-    const match = contacts.find((contact) => contact.id === focusContactId);
+    const match =
+      contacts.find((contact) => contact.id === focusContactId) ||
+      contacts.find(
+        (contact) => contact.id === `compiled:item:${focusContactId}`,
+      ) ||
+      contacts.find((contact) => contact.id.endsWith(`:${focusContactId}`));
     if (match) {
       openContact(match);
       onClearFocus?.();

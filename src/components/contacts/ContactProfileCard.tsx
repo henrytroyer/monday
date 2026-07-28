@@ -28,6 +28,7 @@ interface ContactProfileCardProps {
   canEdit?: boolean;
   onSave?: (fields: ContactCoreFields) => Promise<ContactDetail | null>;
   onGoToRecruitment?: (prospectId: string) => void;
+  onEmailSent?: () => void;
 }
 
 const inputClass =
@@ -42,6 +43,7 @@ export default function ContactProfileCard({
   canEdit = false,
   onSave,
   onGoToRecruitment,
+  onEmailSent,
 }: ContactProfileCardProps) {
   const [sendEmailOpen, setSendEmailOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
@@ -389,7 +391,11 @@ export default function ContactProfileCard({
       </div>
 
       {sendEmailOpen && (
-        <ContactSendEmailModal contact={detail} onClose={requestCloseEmail} />
+        <ContactSendEmailModal
+          contact={detail}
+          onClose={requestCloseEmail}
+          onSent={onEmailSent}
+        />
       )}
 
       {callOpen && detail.phone && (

@@ -1,6 +1,7 @@
 import type { ContactDetail } from '../types/contact';
 import type { LongtermReferenceSlot } from '../types/longtermReference';
 import type { VolunteerDetail } from '../types/volunteer';
+import { invalidateVolunteerFileItineraryCache } from './enrichPipelineItineraries';
 
 type CacheEntry<T> = {
   data: T;
@@ -28,6 +29,9 @@ export function setCachedApplicationDetail(
 }
 
 export function invalidateApplicationDetail(itemId?: string): void {
+  // Drop file-assembled destination itinerary so a new PDF upload re-parses.
+  invalidateVolunteerFileItineraryCache(itemId);
+
   if (itemId) {
     applicationDetails.delete(itemId);
     longtermReferenceSlots.delete(itemId);

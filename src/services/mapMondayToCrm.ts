@@ -13,17 +13,20 @@ import {
   resolveProfilePhotoUrl,
   type MondayGalleryAsset,
 } from './mondayFileColumns';
-import { promoteItineraryFileNames } from './itineraryFromFiles';
+import {
+  forcePromoteItineraryFileNames,
+  promoteItineraryFileNames,
+} from './itineraryFromFiles';
 import {
   buildCoupleApplication,
   buildCouplePreview,
 } from './coupleApplication';
-import { parseItineraryFromColumns } from './itinerary';
 import { getArrivalDepartureTimelineRange } from './mondayTimelineColumn';
 import {
   buildApplicationFormFields,
   buildPastorReferenceFormFields,
 } from './applicationFormFields';
+import { emptyItinerary } from '../types/itinerary';
 import {
   parseTermNotes,
   type MondayItemUpdateRaw,
@@ -59,6 +62,8 @@ export interface MondayBoardItem {
   name: string;
   group?: { id: string; title: string } | null;
   column_values: MondayColumnValue[];
+  /** Item Files-tab gallery (assets_source: all) when queried. */
+  assets?: MondayGalleryAsset[] | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -165,7 +170,8 @@ function getFileGallery(
   const columnFiles = getAllFilesFromColumnValues(columnValues);
 
   const dedicatedItineraryCol = findColumn(columnValues, 'itineraryFiles');
-  const dedicatedItineraryFiles = promoteItineraryFileNames(
+  // Always slot dedicated Itinerary-column uploads (any filename).
+  const dedicatedItineraryFiles = forcePromoteItineraryFileNames(
     parseMondayFileColumn(dedicatedItineraryCol),
   );
 
@@ -226,7 +232,6 @@ export function mapItemToVolunteer(item: MondayBoardItem): Volunteer {
   const timelineLabel = getColumnText(item.column_values, 'signupTimeline');
   const timelineId = resolveTimelineId(timelineLabel);
   const couplePreview = buildCouplePreview(item.name, item.column_values);
-  const itinerary = parseItineraryFromColumns(item.column_values);
   const termRange = getArrivalDepartureTimelineRange(item.column_values);
 
   return {
@@ -248,7 +253,8 @@ export function mapItemToVolunteer(item: MondayBoardItem): Volunteer {
     pipelineStage: item.group?.title || undefined,
     profilePhotoUrl: getProfilePhotoUrl(item.column_values),
     couplePreview,
-    itinerary,
+    itemCreatedAt: item.created_at || undefined,
+    // Flight info only after itinerary PDFs are parsed (enrich / detail).
   };
 }
 
@@ -279,7 +285,6 @@ export function mapBoardToPipeline(board: MondayBoardPipeline): PipelineSection[
 export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetail {
   const base = mapItemToVolunteer(item);
   const housing = getColumnText(item.column_values, 'housing') || '—';
-  const itinerary = parseItineraryFromColumns(item.column_values);
   const coordinator = getColumnText(item.column_values, 'coordinator') || '—';
   const stepFields: Array<{ key: keyof typeof columnMap; title: string }> = [
     { key: 'applicationSubmitted', title: 'Application Submitted' },
@@ -337,8 +342,8 @@ export function mapItemToVolunteerDetail(item: MondayItemDetail): VolunteerDetai
     demographics,
     couple,
     housing,
-    itinerary,
     coordinator,
+    itinerary: emptyItinerary(),
     termNotes,
     rawUpdates: item.updates,
     onboardingSteps,

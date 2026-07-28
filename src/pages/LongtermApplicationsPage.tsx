@@ -24,7 +24,15 @@ import {
   readWorkspaceState,
 } from '../services/crmNavigationStorage';
 
-export default function LongtermApplicationsPage() {
+interface LongtermApplicationsPageProps {
+  focusApplicationId?: string | null;
+  onClearFocus?: () => void;
+}
+
+export default function LongtermApplicationsPage({
+  focusApplicationId = null,
+  onClearFocus,
+}: LongtermApplicationsPageProps) {
   const savedNav = readCrmNavigationState();
   const savedWorkspace = readWorkspaceState('longterm-applications');
 
@@ -75,6 +83,21 @@ export default function LongtermApplicationsPage() {
     (id: string) => findLongtermVolunteer(volunteers, id),
     [volunteers],
   );
+
+  useEffect(() => {
+    if (!focusApplicationId || loading) return;
+    const match = findLongtermVolunteer(volunteers, focusApplicationId);
+    if (match) {
+      openApplication(match);
+      onClearFocus?.();
+    }
+  }, [
+    focusApplicationId,
+    loading,
+    volunteers,
+    onClearFocus,
+    openApplication,
+  ]);
 
   usePersistedPageWorkspace({
     page: 'longterm-applications',

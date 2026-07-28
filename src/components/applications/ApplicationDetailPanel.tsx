@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { slotLabelForIndex } from '../../constants/longtermReferenceSlots';
 import { useApplicationDetail } from '../../hooks/useApplicationDetail';
@@ -16,14 +16,8 @@ import {
   displayConfirmedLocation,
   hasConfirmedLocation,
 } from '../../utils/volunteerLocation';
-import {
-  displayConfirmedTerm,
-  displayPreferredDates,
-  displayTermOfService,
-  hasConfirmedTerm,
-} from '../../utils/volunteerTerm';
+import { displayTermOfService } from '../../utils/volunteerTerm';
 import FormFieldsPanel, { findFormPdf } from './FormFieldsPanel';
-import ItineraryBubbles from './ItineraryBubbles';
 import LongtermReferenceAnswersPanel from './LongtermReferenceAnswersPanel';
 import LongtermReferenceCommandCenter from './LongtermReferenceCommandCenter';
 import OnboardingProgress from './OnboardingProgress';
@@ -328,49 +322,6 @@ export default function ApplicationDetailPanel({
                 </OnboardingProgressPanel>
               )}
 
-              <Panel title="Placement Details">
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <InfoCard
-                    label="Location preference"
-                    value={displayLocationPreferenceOnly(display)}
-                  />
-                  {hasConfirmedLocation(display) && (
-                    <InfoCard
-                      label="Confirmed location"
-                      value={displayConfirmedLocation(display)}
-                    />
-                  )}
-                  {hasConfirmedTerm(display) ? (
-                    <InfoCard
-                      label="Term of service"
-                      value={`Confirmed: ${displayConfirmedTerm(display)}`}
-                      valueClassName="text-green-800"
-                    />
-                  ) : (
-                    <>
-                      <InfoCard
-                        label="Preferred dates"
-                        value={displayPreferredDates(display)}
-                      />
-                      <InfoCard
-                        label="Term of service"
-                        value={displayTermOfService(display)}
-                      />
-                    </>
-                  )}
-                  <InfoCard label="Coordinator" value={display.coordinator} />
-                  <InfoCard label="Housing" value={display.housing} />
-                </div>
-                <div className="mt-6">
-                  <h4 className="text-sm font-semibold text-crm-heading">
-                    Itinerary
-                  </h4>
-                  <div className="mt-3">
-                    <ItineraryBubbles itinerary={display.itinerary} />
-                  </div>
-                </div>
-              </Panel>
-
               <TermNotesChat
                 itemId={display.id}
                 timelineId={display.timelineId}
@@ -562,15 +513,6 @@ function ApplicationIdentityBar({
   );
 }
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
-      <h3 className="text-lg font-semibold text-crm-heading">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
 function ActionButton({
   label,
   onClick,
@@ -586,22 +528,5 @@ function ActionButton({
     >
       {label}
     </button>
-  );
-}
-
-function InfoCard({
-  label,
-  value,
-  valueClassName,
-}: {
-  label: string;
-  value: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="rounded-2xl bg-crm-surface p-4 ring-1 ring-crm-taupe/20">
-      <div className="text-sm text-crm-slate">{label}</div>
-      <div className={`mt-2 font-semibold ${valueClassName ?? ''}`}>{value}</div>
-    </div>
   );
 }

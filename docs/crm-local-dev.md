@@ -53,6 +53,10 @@ When `VITE_MONDAY_WATCH_ENABLED=true`, the short-term onboarding panel updates f
 
 Optional: `VITE_PASTOR_REFERENCE_BOARD_ID` if you want an explicit board id (otherwise discovered from Contact link).
 
+### Long-term process stages
+
+Long-term applications use the **Long Term Volunteer Process** (9 stages): Connection → Application → Interview → Approval → Clearances → Preparation → Deployment → Support → Departure. Each stage supports projected date, reminder date, notes, and a key checklist (not every diagram bullet). Progress is stored in browser localStorage (`crm-onboarding-pipeline`).
+
 ## Live monday boards
 
 Turn mock mode off in `.env` and configure board IDs. See [COLLABORATOR_SETUP.md](../COLLABORATOR_SETUP.md).

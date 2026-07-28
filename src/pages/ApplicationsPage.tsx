@@ -19,6 +19,7 @@ import {
   findVolunteerInPipeline,
   hasActiveFilters,
 } from '../utils/filterApplications';
+import type { ApplicationSortOption } from '../utils/organizePipelineVolunteers';
 import { syncAllContactsFromPipeline } from '../services/contactApplicationSync';
 import { registerWatchedApplicationItemIds } from '../services/emailTimelineWatcher';
 import { readWorkspaceState } from '../services/crmNavigationStorage';
@@ -31,6 +32,8 @@ export default function ApplicationsPage({
   onClearFocus?: () => void;
 }) {
   const [filters, setFilters] = useState<ApplicationFilterState>(emptyFilters);
+  const [sortBy, setSortBy] =
+    useState<ApplicationSortOption>('confirmed-dates');
   const [selectedApplication, setSelectedApplication] =
     useState<Volunteer | null>(null);
   const [detailVisible, setDetailVisible] = useState(
@@ -278,6 +281,8 @@ export default function ApplicationsPage({
                 filtersActive={filtersActive}
                 onToggleFilters={() => setFiltersVisible((open) => !open)}
                 onClearFilters={() => setFilters({ ...emptyFilters })}
+                sortBy={sortBy}
+                onSortByChange={setSortBy}
               />
             </div>
 
@@ -312,6 +317,7 @@ export default function ApplicationsPage({
                       statusOptions={statusOptions}
                       onStatusChange={handleStatusChange}
                       statusSelectDisabled={!applicationsEditable}
+                      sortBy={sortBy}
                     />
                   ))}
                 </div>

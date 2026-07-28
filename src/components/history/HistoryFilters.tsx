@@ -1,14 +1,5 @@
+import { ACTIVITY_CATEGORY_LABELS } from '../../constants/activityLabels';
 import type { CrmActivityCategory } from '../../types/activityLog';
-
-const CATEGORY_LABELS: Record<CrmActivityCategory, string> = {
-  created: 'Created',
-  updated: 'Updated',
-  deleted: 'Deleted',
-  moved: 'Moved',
-  comment: 'Comment',
-  email: 'Email',
-  other: 'Other',
-};
 
 interface HistoryFiltersProps {
   searchQuery: string;
@@ -58,7 +49,7 @@ export default function HistoryFilters({
             type="search"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search summary, person, or item…"
+            placeholder="Search by person or description…"
             className="w-full rounded-2xl border border-crm-taupe/20 bg-crm-white px-4 py-2.5 text-sm text-crm-heading outline-none ring-crm-indigo/20 focus:ring-2"
           />
         </label>
@@ -89,14 +80,14 @@ export default function HistoryFilters({
 
         <label>
           <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-crm-slate">
-            User
+            Person
           </span>
           <select
             value={actorUserId ?? ''}
             onChange={(e) => onActorChange(e.target.value || null)}
             className="min-w-[10rem] rounded-2xl border border-crm-taupe/20 bg-crm-white px-4 py-2.5 text-sm text-crm-heading outline-none ring-crm-indigo/20 focus:ring-2"
           >
-            <option value="">All users</option>
+            <option value="">Anyone</option>
             {actors.map((actor) => (
               <option key={actor.id} value={actor.id}>
                 {actor.name}
@@ -107,14 +98,14 @@ export default function HistoryFilters({
 
         <label>
           <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-crm-slate">
-            Board
+            Area
           </span>
           <select
             value={boardId ?? ''}
             onChange={(e) => onBoardChange(e.target.value || null)}
             className="min-w-[10rem] rounded-2xl border border-crm-taupe/20 bg-crm-white px-4 py-2.5 text-sm text-crm-heading outline-none ring-crm-indigo/20 focus:ring-2"
           >
-            <option value="">All boards</option>
+            <option value="">All areas</option>
             {boards.map((board) => (
               <option key={board.id} value={board.id}>
                 {board.name}
@@ -135,11 +126,13 @@ export default function HistoryFilters({
             className="min-w-[10rem] rounded-2xl border border-crm-taupe/20 bg-crm-white px-4 py-2.5 text-sm text-crm-heading outline-none ring-crm-indigo/20 focus:ring-2"
           >
             <option value="">All types</option>
-            {(Object.keys(CATEGORY_LABELS) as CrmActivityCategory[]).map((key) => (
-              <option key={key} value={key}>
-                {CATEGORY_LABELS[key]}
-              </option>
-            ))}
+            {(Object.keys(ACTIVITY_CATEGORY_LABELS) as CrmActivityCategory[]).map(
+              (key) => (
+                <option key={key} value={key}>
+                  {ACTIVITY_CATEGORY_LABELS[key]}
+                </option>
+              ),
+            )}
           </select>
         </label>
 

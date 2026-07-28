@@ -13,6 +13,7 @@ interface CouplePipelineRowProps {
   pipelineStage: string;
   showTermProgress: boolean;
   termProgressBar?: ReactNode;
+  destinationItinerary?: ReactNode;
 }
 
 export default function CouplePipelineRow({
@@ -20,6 +21,7 @@ export default function CouplePipelineRow({
   pipelineStage,
   showTermProgress,
   termProgressBar,
+  destinationItinerary,
 }: CouplePipelineRowProps) {
   const preview = volunteer.couplePreview;
   const displayName = preview?.displayName ?? volunteer.name;
@@ -54,6 +56,12 @@ export default function CouplePipelineRow({
               pipelineStage={pipelineStage}
             />
           </div>
+          {destinationItinerary ? (
+            <>
+              <span className="text-crm-taupe/50">·</span>
+              {destinationItinerary}
+            </>
+          ) : null}
         </div>
       </div>
     </>

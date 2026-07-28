@@ -8,20 +8,9 @@ interface OnboardingTimelineBarProps {
   compact?: boolean;
 }
 
-const STEP_SHORT_LABELS: Record<string, string> = {
-  application_received: 'App',
-  pastor_reference: 'Pastor',
-  in_review: 'Review',
-  background_check: 'Background',
-  child_safeguarding: 'Safeguard',
-  approved: 'Approved',
-  flight_info: 'Flight',
-  invoice: 'Invoice',
-  sent_to_field: 'Field',
-};
-
-function stepShortLabel(stepId: string): string {
-  return STEP_SHORT_LABELS[stepId] ?? stepId;
+function stepShortLabel(def: OnboardingPipelineStepDefinition): string {
+  if (def.shortLabel) return def.shortLabel;
+  return def.title.split(' ')[0] ?? def.id;
 }
 
 function stepNodeClass(
@@ -58,7 +47,7 @@ export default function OnboardingTimelineBar({
         const step = pipeline.steps.find((s) => s.stepId === def.id);
         const isFocus = focus?.step.stepId === def.id;
         const nodeSize = compact ? 'h-2.5 w-2.5' : 'h-3 w-3';
-        const label = stepShortLabel(def.id);
+        const label = stepShortLabel(def);
 
         return (
           <div key={def.id} className="flex min-w-0 flex-1 items-start">

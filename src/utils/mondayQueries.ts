@@ -75,7 +75,9 @@ export const queries = {
             ... on BoardRelationValue {
               linked_item_ids
             }
+            ${fileValueFieldsFragment}
           }
+          ${itemGalleryAssetsFragment}
           group {
             id
             title
@@ -492,6 +494,15 @@ export const mutations = {
    */
   deleteItem: `mutation ($itemId: ID!) {
     delete_item(item_id: $itemId) {
+      id
+    }
+  }`,
+
+  /**
+   * Move an item to a different group (used by History undo).
+   */
+  moveItemToGroup: `mutation ($itemId: ID!, $groupId: String!) {
+    move_item_to_group(item_id: $itemId, group_id: $groupId) {
       id
     }
   }`,

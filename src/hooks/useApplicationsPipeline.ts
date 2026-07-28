@@ -13,6 +13,7 @@ import {
   fetchApplicationsPipeline,
   updateApplicationStatus,
 } from '../services/crmApi';
+import { invalidateVolunteerFileItineraryCache } from '../services/enrichPipelineItineraries';
 import type { PipelineSection } from '../types/volunteer';
 import { LOCATION_OPTIONS } from '../types/volunteer';
 import { updateVolunteerStatusInPipeline } from '../utils/filterApplications';
@@ -48,6 +49,8 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
   const applicationsEditable = canEditApplications();
 
   const refetch = useCallback(() => {
+    // Allow PDF text re-extraction and destination re-assembly after new uploads.
+    invalidateVolunteerFileItineraryCache();
     setFetchKey((k) => k + 1);
   }, []);
 

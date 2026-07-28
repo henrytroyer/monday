@@ -28,6 +28,7 @@ export default function Dashboard() {
     null,
   );
   const [contactFocusId, setContactFocusId] = useState<string | null>(null);
+  const [longtermFocusId, setLongtermFocusId] = useState<string | null>(null);
   const { closeSidebar } = useLayout();
   useMondayBoardWatcher();
 
@@ -42,27 +43,38 @@ export default function Dashboard() {
     });
   }, [activePage]);
 
-  const handleNavigate = (id: PageId) => {
+  const goToPage = (id: PageId) => {
+    // Mount before switching so focus effects can run on first visit.
+    setMountedPages((prev) => {
+      if (prev.has(id)) return prev;
+      return new Set(prev).add(id);
+    });
     setActivePage(id);
     closeSidebar();
   };
 
+  const handleNavigate = (id: PageId) => {
+    goToPage(id);
+  };
+
   const handleGoToRecruitment = (prospectId: string) => {
     setRecruitmentFocusId(prospectId);
-    setActivePage('recruitment');
-    closeSidebar();
+    goToPage('recruitment');
   };
 
   const handleGoToApplication = (applicationId: string) => {
     setApplicationFocusId(applicationId);
-    setActivePage('applications');
-    closeSidebar();
+    goToPage('applications');
   };
 
   const handleGoToContact = (contactId: string) => {
     setContactFocusId(contactId);
-    setActivePage('contacts');
-    closeSidebar();
+    goToPage('contacts');
+  };
+
+  const handleGoToLongtermApplication = (applicationId: string) => {
+    setLongtermFocusId(applicationId);
+    goToPage('longterm-applications');
   };
 
   return (
@@ -106,6 +118,7 @@ export default function Dashboard() {
               onFocusApplication={handleGoToApplication}
               onFocusRecruitment={handleGoToRecruitment}
               onFocusContact={handleGoToContact}
+              onFocusLongtermApplication={handleGoToLongtermApplication}
             />
           </Suspense>
         </KeepAlivePage>
@@ -139,7 +152,10 @@ export default function Dashboard() {
           mounted={mountedPages.has('longterm-applications')}
         >
           <Suspense fallback={<PageLoadFallback label="Long-term applications" />}>
-            <LongtermApplicationsPage />
+            <LongtermApplicationsPage
+              focusApplicationId={longtermFocusId}
+              onClearFocus={() => setLongtermFocusId(null)}
+            />
           </Suspense>
         </KeepAlivePage>
 
