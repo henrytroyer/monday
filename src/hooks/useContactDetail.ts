@@ -20,6 +20,7 @@ import {
 import type { ContactCoreFields, ContactPastorFields } from '../services/contactStorage';
 import type { ContactDetail } from '../types/contact';
 import { useMondayContext } from './useMondayContext';
+import { useRefetchOnWindowFocus } from './useRefetchOnWindowFocus';
 
 export function useContactDetail(contactId: string | null) {
   const { context } = useMondayContext();
@@ -163,6 +164,10 @@ export function useContactDetail(contactId: string | null) {
       detail,
     ],
   );
+
+  useRefetchOnWindowFocus(() => {
+    void load();
+  }, Boolean(contactId) && !isMock);
 
   return {
     detail,

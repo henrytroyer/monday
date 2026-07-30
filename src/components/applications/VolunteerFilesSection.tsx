@@ -13,6 +13,10 @@ import {
 import BackgroundCheckPasswordModal from './BackgroundCheckPasswordModal';
 import DownloadFileModal from './DownloadFileModal';
 import FilePreviewModal from './FilePreviewModal';
+import {
+  uploadFileToApplicationColumn,
+  type MondayFileSlot,
+} from '../../services/uploadMondayFile';
 
 interface VolunteerFilesSectionProps {
   volunteerName?: string;
@@ -23,6 +27,11 @@ interface VolunteerFilesSectionProps {
   showOtherFiles?: boolean;
   variant?: 'panel' | 'inline';
   embeddedInGrid?: boolean;
+  /** When set with boardId, allow uploading into Monday file columns. */
+  itemId?: string;
+  boardId?: string | null;
+  canUpload?: boolean;
+  onUploaded?: () => void;
 }
 
 type FileAction = 'preview' | 'download';
@@ -58,8 +67,14 @@ export default function VolunteerFilesSection({
   showOtherFiles = false,
   variant = 'inline',
   embeddedInGrid = false,
+  itemId,
+  boardId,
+  canUpload = false,
+  onUploaded,
 }: VolunteerFilesSectionProps) {
   const [previewFile, setPreviewFile] = useState<VolunteerFile | null>(null);
+  const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [passwordFile, setPasswordFile] = useState<VolunteerFile | null>(null);
   const [passwordAction, setPasswordAction] = useState<FileAction>('preview');
   const [downloadPrompt, setDownloadPrompt] = useState<DownloadPrompt | null>(
@@ -127,8 +142,61 @@ export default function VolunteerFilesSection({
     setPreviewFile(file);
   };
 
+  const handleUpload = async (slot: MondayFileSlot, fileList: FileList | null) => {
+    const file = fileList?.[0];
+    if (!file || !itemId || !boardId || !canUpload) return;
+    setUploadError(null);
+    setUploadingSlot(slot);
+    try {
+      await uploadFileToApplicationColumn(boardId, itemId, slot, file);
+      onUploaded?.();
+    } catch (err) {
+      setUploadError(
+        err instanceof Error ? err.message : 'Could not upload file',
+      );
+    } finally {
+      setUploadingSlot(null);
+    }
+  };
+
   const content = (
     <>
+      {canUpload && boardId && itemId && (
+        <div className="mb-3 space-y-2 rounded-xl border border-dashed border-crm-taupe/40 bg-crm-taupe-50/60 p-3">
+          <p className="text-xs font-medium text-crm-heading">
+            Upload to Monday
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ['passport', 'Passport'],
+                ['releaseForms', 'Release forms'],
+                ['itineraryFiles', 'Itinerary'],
+                ['profilePhoto', 'Profile photo'],
+              ] as const
+            ).map(([slot, label]) => (
+              <label
+                key={slot}
+                className="cursor-pointer rounded-lg border border-crm-taupe/30 bg-crm-white px-2.5 py-1 text-xs text-crm-heading hover:bg-crm-taupe-50"
+              >
+                {uploadingSlot === slot ? 'Uploading…' : label}
+                <input
+                  type="file"
+                  className="hidden"
+                  disabled={Boolean(uploadingSlot)}
+                  onChange={(e) => {
+                    void handleUpload(slot, e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+          {uploadError && (
+            <p className="text-xs text-amber-800">{uploadError}</p>
+          )}
+        </div>
+      )}
       <ul className={embeddedInGrid ? 'space-y-1.5' : 'space-y-3'}>
         <FileRow
           label="Profile photo"

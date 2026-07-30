@@ -11,12 +11,7 @@ import {
   buildReferenceSlotsFromMonday,
   type MondayReferenceItem,
 } from './mapMondayToLongtermReference';
-import {
-  formatSentTimestamp,
-  writeReferenceEmailSentAt,
-  writeReferenceReviewStatus,
-  clearReferenceReviewStatus,
-} from './longtermReferenceStorage';
+import { formatSentTimestamp } from './longtermReferenceStorage';
 import { fetchApplicationItem } from './crmApi';
 import { mondayGraphQL as api } from './mondayGraphQL';
 import { queries } from '../utils/mondayQueries';
@@ -25,6 +20,13 @@ import {
   invalidateLongtermReferenceSlots,
   setCachedLongtermReferenceSlots,
 } from './sessionDetailCache';
+import {
+  parseLtRefMarkersFromUpdates,
+  persistClearReferenceReviewToMonday,
+  persistReferenceEmailSentToMonday,
+  persistReferenceReviewToMonday,
+} from './longtermReferenceMondaySync';
+import { canEditLongtermReferences } from '../config/boards';
 
 async function fetchBoardItems(boardId: string): Promise<MondayReferenceItem[]> {
   const limit = 500;
@@ -119,6 +121,22 @@ export async function fetchLongtermReferenceSlots(
     applicantEmail,
     item.name,
   );
+
+  // Overlay Monday update markers (shared across CRM browsers).
+  const itemWithUpdates = item as typeof item & {
+    updates?: Array<{ body?: string; text_body?: string }>;
+  };
+  const updateBodies = (itemWithUpdates.updates ?? []).map((u) =>
+    String(u.text_body ?? u.body ?? ''),
+  );
+  const markers = parseLtRefMarkersFromUpdates(updateBodies);
+  for (const slot of slots) {
+    const sentAt = markers.sentAtBySlot.get(slot.slotIndex);
+    if (sentAt) slot.emailSentAt = sentAt;
+    const review = markers.reviewBySlot.get(slot.slotIndex);
+    if (review) slot.reviewStatus = review;
+  }
+
   setCachedLongtermReferenceSlots(applicationId, slots);
   return slots;
 }
@@ -128,7 +146,17 @@ export async function recordReferenceEmailSent(
   slotIndex: number,
   sentAt = formatSentTimestamp(),
 ): Promise<string> {
-  writeReferenceEmailSentAt(applicationId, slotIndex, sentAt);
+  if (!useMockData() && !canEditLongtermReferences()) {
+    throw new Error('Long-term references are read-only.');
+  }
+  if (useMockData()) {
+    const { writeReferenceEmailSentAt } = await import(
+      './longtermReferenceStorage'
+    );
+    writeReferenceEmailSentAt(applicationId, slotIndex, sentAt);
+    return sentAt;
+  }
+  await persistReferenceEmailSentToMonday(applicationId, slotIndex, sentAt);
   return sentAt;
 }
 
@@ -137,14 +165,34 @@ export async function updateLongtermReferenceReview(
   slotIndex: number,
   reviewStatus: 'approved' | 'needs_review',
 ): Promise<void> {
-  writeReferenceReviewStatus(applicationId, slotIndex, reviewStatus);
+  if (!useMockData() && !canEditLongtermReferences()) {
+    throw new Error('Long-term references are read-only.');
+  }
+  if (useMockData()) {
+    const { writeReferenceReviewStatus } = await import(
+      './longtermReferenceStorage'
+    );
+    writeReferenceReviewStatus(applicationId, slotIndex, reviewStatus);
+    return;
+  }
+  await persistReferenceReviewToMonday(applicationId, slotIndex, reviewStatus);
 }
 
 export async function clearLongtermReferenceReview(
   applicationId: string,
   slotIndex: number,
 ): Promise<void> {
-  clearReferenceReviewStatus(applicationId, slotIndex);
+  if (!useMockData() && !canEditLongtermReferences()) {
+    throw new Error('Long-term references are read-only.');
+  }
+  if (useMockData()) {
+    const { clearReferenceReviewStatus } = await import(
+      './longtermReferenceStorage'
+    );
+    clearReferenceReviewStatus(applicationId, slotIndex);
+    return;
+  }
+  await persistClearReferenceReviewToMonday(applicationId, slotIndex);
 }
 
 /** Cache reference board items for watcher polling. */

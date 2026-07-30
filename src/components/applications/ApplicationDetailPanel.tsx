@@ -6,6 +6,9 @@ import { useLongtermReferences } from '../../hooks/useLongtermReferences';
 import { useShortTermOnboardingPipeline } from '../../hooks/useShortTermOnboardingPipeline';
 import { openItem } from '../../utils/mondayHelpers';
 import { savePipeline } from '../../services/onboardingPipelineStorage';
+import ApplicationFieldsEditor from './ApplicationFieldsEditor';
+import { syncOnboardingStepToMonday } from '../../services/crmApi';
+import { useMockData } from '../../config/boards';
 import type { OnboardingPipeline, Volunteer, VolunteerDetail } from '../../types/volunteer';
 import {
   buildOnboardingMergeContext,
@@ -111,16 +114,42 @@ export default function ApplicationDetailPanel({
     ? longtermPipeline
     : shortTermOnboarding.pipeline;
 
+  const isMock = useMockData();
+
   const handlePipelineChange = (next: OnboardingPipeline) => {
+    const previous = pipeline;
     if (quickActionsBeforeFiles) {
       setLongtermPipeline(next);
       savePipeline(next, {
         actorName: displayName,
         volunteerName: volunteer.name,
       });
-      return;
+    } else {
+      shortTermOnboarding.handlePipelineChange(next);
     }
-    shortTermOnboarding.handlePipelineChange(next);
+
+    // Mirror mapped step completions onto Monday columns (bidirectional SoT).
+    if (
+      !isMock &&
+      applicationsEditable &&
+      boardId &&
+      previous
+    ) {
+      for (const step of next.steps) {
+        const before = previous.steps.find((s) => s.stepId === step.stepId);
+        const wasComplete = before?.status === 'complete';
+        const isComplete = step.status === 'complete';
+        if (wasComplete === isComplete) continue;
+        void syncOnboardingStepToMonday(
+          boardId,
+          volunteer.id,
+          step.stepId,
+          isComplete,
+        ).catch(() => {
+          /* column may be missing on this board */
+        });
+      }
+    }
   };
 
   const handleSendProgressEmail = (_stepId?: string) => {
@@ -289,6 +318,9 @@ export default function ApplicationDetailPanel({
                   sharedContent={quickActions}
                   splitFilesRow={quickActionsBeforeFiles}
                   besideFiles={referencesPanel}
+                  boardId={boardId}
+                  canUploadFiles={applicationsEditable}
+                  onFilesUploaded={() => refetch()}
                 />
               ) : (
                 <VolunteerContactCard
@@ -298,6 +330,19 @@ export default function ApplicationDetailPanel({
                   beforeFiles={quickActions}
                   splitFilesRow={quickActionsBeforeFiles}
                   besideFiles={referencesPanel}
+                  boardId={boardId}
+                  canUploadFiles={applicationsEditable}
+                  onFilesUploaded={() => refetch()}
+                />
+              )}
+
+              {boardId && (
+                <ApplicationFieldsEditor
+                  detail={display}
+                  boardId={boardId}
+                  canEdit={applicationsEditable}
+                  longterm={quickActionsBeforeFiles}
+                  onSaved={() => refetch()}
                 />
               )}
 

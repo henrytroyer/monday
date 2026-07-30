@@ -1,7 +1,7 @@
 import type { ContactDetail } from '../types/contact';
 import { useMockData } from '../config/boards';
 import {
-  createContactFromProspect,
+  createContactFromProspectAsync,
   ensureContactTag,
   findContactByEmail,
   getContactListItem,
@@ -91,12 +91,12 @@ function saveProspects(prospects: RecruitmentProspect[]): void {
   localStorage.setItem(PROSPECTS_KEY, JSON.stringify(prospects));
 }
 
-export function createRecruitmentProspect(
+export async function createRecruitmentProspect(
   input: RecruitmentProspectInput & {
     sourceContactId?: string | null;
     priorServiceTerms?: RecruitmentPriorTerm[];
   },
-): RecruitmentProspect {
+): Promise<RecruitmentProspect> {
   const now = new Date().toISOString();
   const prospect: RecruitmentProspect = {
     id: `recruit-${Date.now()}`,
@@ -119,9 +119,9 @@ export function createRecruitmentProspect(
   return linkManualProspectToContact(prospect);
 }
 
-function linkManualProspectToContact(
+async function linkManualProspectToContact(
   prospect: RecruitmentProspect,
-): RecruitmentProspect {
+): Promise<RecruitmentProspect> {
   let contactId: string;
   const byEmail = prospect.email ? findContactByEmail(prospect.email) : undefined;
 
@@ -129,7 +129,7 @@ function linkManualProspectToContact(
     contactId = byEmail.id;
     ensureContactTag(contactId, 'recruitment');
   } else {
-    contactId = createContactFromProspect(prospect).id;
+    contactId = (await createContactFromProspectAsync(prospect)).id;
   }
 
   const linked = linkProspectToContact(prospect.id, contactId);
@@ -191,10 +191,10 @@ function migrationLogNote(created: boolean): string {
     : `Updated from Contacts (${when}).`;
 }
 
-export function migrateContactToRecruitment(detail: ContactDetail): {
+export async function migrateContactToRecruitment(detail: ContactDetail): Promise<{
   prospect: RecruitmentProspect;
   created: boolean;
-} {
+}> {
   ensureContactTag(detail.id, 'recruitment');
   const email = normalizeContactEmail(detail.email);
   const phone = detail.phone?.trim() ?? '';
@@ -221,7 +221,7 @@ export function migrateContactToRecruitment(detail: ContactDetail): {
     return { prospect, created: false };
   }
 
-  const prospect = createRecruitmentProspect({
+  const prospect = await createRecruitmentProspect({
     name: detail.name,
     email,
     phone,

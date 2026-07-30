@@ -120,6 +120,7 @@ export default function LongtermApplicationsPage({
 
   const handleStatusChange = useCallback(
     async (volunteerId: string, status: string) => {
+      if (!applicationsEditable) return;
       setStatusError(null);
       try {
         await updateVolunteerStatus(volunteerId, status);
@@ -132,7 +133,7 @@ export default function LongtermApplicationsPage({
         );
       }
     },
-    [updateVolunteerStatus],
+    [applicationsEditable, updateVolunteerStatus],
   );
 
   useEffect(() => {
@@ -270,6 +271,7 @@ export default function LongtermApplicationsPage({
               }}
               statusOptions={statusOptions}
               onStatusChange={handleStatusChange}
+              statusSelectDisabled={!applicationsEditable}
             />
           ))}
         </div>

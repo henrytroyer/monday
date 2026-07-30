@@ -273,6 +273,88 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Upload a file to a monday.com file column (CRM ↔ Monday bidirectional files).
+    if (req.method === 'POST' && pathname === '/assets/upload') {
+      if (!TOKEN) {
+        sendJson(res, 500, { error: 'Set MONDAY_API_TOKEN in environment' });
+        return;
+      }
+      const body = await readJsonBody(req);
+      const itemId = body.itemId != null ? String(body.itemId).trim() : '';
+      const columnId = body.columnId != null ? String(body.columnId).trim() : '';
+      const fileName =
+        (typeof body.fileName === 'string' && body.fileName.trim()) ||
+        'upload.bin';
+      const contentType =
+        (typeof body.contentType === 'string' && body.contentType.trim()) ||
+        'application/octet-stream';
+      const base64 =
+        typeof body.base64 === 'string' ? body.base64.replace(/^data:[^;]+;base64,/, '') : '';
+      if (!itemId || !columnId || !base64) {
+        sendJson(res, 400, {
+          error: 'itemId, columnId, and base64 are required',
+        });
+        return;
+      }
+      const fileBuffer = Buffer.from(base64, 'base64');
+      if (fileBuffer.length === 0) {
+        sendJson(res, 400, { error: 'Empty file' });
+        return;
+      }
+      if (fileBuffer.length > 25 * 1024 * 1024) {
+        sendJson(res, 400, { error: 'File too large (max 25MB)' });
+        return;
+      }
+
+      const query = `mutation ($file: File!) {
+        add_file_to_column(item_id: ${JSON.stringify(itemId)}, column_id: ${JSON.stringify(columnId)}, file: $file) {
+          id
+          name
+          url
+        }
+      }`;
+      const form = new FormData();
+      form.append('query', query);
+      form.append('map', JSON.stringify({ file: 'variables.file' }));
+      form.append(
+        'file',
+        new Blob([fileBuffer], { type: contentType }),
+        fileName,
+      );
+
+      const upstream = await fetch(`${MONDAY_API}/file`, {
+        method: 'POST',
+        headers: {
+          Authorization: TOKEN,
+          'API-Version': API_VERSION,
+        },
+        body: form,
+      });
+      const text = await upstream.text();
+      let payload;
+      try {
+        payload = text ? JSON.parse(text) : {};
+      } catch {
+        sendJson(res, 502, { error: text || 'Invalid monday file response' });
+        return;
+      }
+      if (!upstream.ok || payload.errors?.length) {
+        sendJson(res, upstream.ok ? 400 : upstream.status, {
+          error:
+            payload.errors?.[0]?.message ||
+            payload.error_message ||
+            text ||
+            'File upload failed',
+        });
+        return;
+      }
+      sendJson(res, 200, {
+        ok: true,
+        asset: payload.data?.add_file_to_column ?? null,
+      });
+      return;
+    }
+
     const assetMatch = pathname.match(/^\/assets\/(\d+)$/);
     const assetTextMatch = pathname.match(/^\/assets\/(\d+)\/text$/);
     const assetMergePathMatch = pathname.match(/^\/assets\/merge\/([\d,]+)$/);

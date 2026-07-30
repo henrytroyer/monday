@@ -92,6 +92,23 @@ export async function fetchEmailSendStatus(): Promise<EmailSendStatus> {
 export async function sendCrmEmail(
   params: SendCrmEmailParams,
 ): Promise<SendCrmEmailResult> {
+  try {
+    const status = await fetchEmailSendStatus();
+    if (!status.configured) {
+      throw new Error(
+        'Outbound email is not configured on the monday API proxy. Set RESEND_API_KEY or SMTP_* on the proxy, then retry.',
+      );
+    }
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.message.includes('Outbound email is not configured')
+    ) {
+      throw err;
+    }
+    // Status endpoint may be unavailable on older proxies — continue to /email/send.
+  }
+
   const res = await proxyFetch('/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -110,7 +127,13 @@ export async function sendCrmEmail(
 
   const body = (await res.json()) as SendCrmEmailResult & { error?: string };
   if (!res.ok || body.error) {
-    throw new Error(body.error || `Send failed (${res.status})`);
+    const message = body.error || `Send failed (${res.status})`;
+    if (/not configured|RESEND|SMTP/i.test(message)) {
+      throw new Error(
+        `${message} Configure RESEND_API_KEY or SMTP_* on the monday API proxy (local + Cloud Function).`,
+      );
+    }
+    throw new Error(message);
   }
   return body;
 }

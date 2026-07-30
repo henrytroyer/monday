@@ -23,11 +23,20 @@ export default function ContactMigrationActions({
   );
 
   const handleCreateInRecruitment = () => {
-    const { prospect } = migrateContactToRecruitment(detail);
-    setLastProspectId(prospect.id);
-    setMessage(
-      `${detail.name} was added to Recruitment with contact info prefilled.`,
-    );
+    void migrateContactToRecruitment(detail)
+      .then(({ prospect }) => {
+        setLastProspectId(prospect.id);
+        setMessage(
+          `${detail.name} was added to Recruitment with contact info prefilled.`,
+        );
+      })
+      .catch((err) => {
+        setMessage(
+          err instanceof Error
+            ? err.message
+            : 'Could not add contact to Recruitment.',
+        );
+      });
   };
 
   return (

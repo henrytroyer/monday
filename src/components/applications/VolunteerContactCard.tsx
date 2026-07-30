@@ -23,6 +23,9 @@ interface VolunteerContactCardProps {
   beforeFiles?: ReactNode;
   besideFiles?: ReactNode;
   splitFilesRow?: boolean;
+  boardId?: string | null;
+  canUploadFiles?: boolean;
+  onFilesUploaded?: () => void;
 }
 
 export default function VolunteerContactCard({
@@ -32,6 +35,9 @@ export default function VolunteerContactCard({
   beforeFiles,
   besideFiles,
   splitFilesRow = false,
+  boardId = null,
+  canUploadFiles = false,
+  onFilesUploaded,
 }: VolunteerContactCardProps) {
   const formattedAddress = detail.demographics
     ? formatContactAddress(detail.demographics)
@@ -165,6 +171,10 @@ export default function VolunteerContactCard({
             files={detail.files}
             showOtherFiles
             embeddedInGrid
+            itemId={detail.id}
+            boardId={boardId}
+            canUpload={canUploadFiles}
+            onUploaded={onFilesUploaded}
           />
           {besideFiles}
         </div>
@@ -177,6 +187,10 @@ export default function VolunteerContactCard({
             childSafeguardingFile={detail.childSafeguardingFile}
             files={detail.files}
             showOtherFiles
+            itemId={detail.id}
+            boardId={boardId}
+            canUpload={canUploadFiles}
+            onUploaded={onFilesUploaded}
           />
         </div>
       )}

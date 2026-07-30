@@ -14,6 +14,7 @@ import {
 import { mergeLongtermCouples } from '../services/mergeLongtermCouples';
 import type { LongtermVolunteer } from '../types/longtermVolunteer';
 import type { LongtermStatus } from '../constants/longtermApplicationStatuses';
+import { useRefetchOnWindowFocus } from './useRefetchOnWindowFocus';
 import {
   buildFieldSections,
   buildPipelineSections,
@@ -49,6 +50,8 @@ export function useLongtermApplicationsPipeline(): UseLongtermApplicationsPipeli
   const refetch = useCallback(() => {
     setFetchKey((k) => k + 1);
   }, []);
+
+  useRefetchOnWindowFocus(refetch, !isMock);
 
   useEffect(() => {
     if (

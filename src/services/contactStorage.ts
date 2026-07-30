@@ -177,6 +177,27 @@ export function createContactFromProspect(
   });
 }
 
+/** Live path: create Contacts board item on Monday (or local mock). */
+export async function createContactFromProspectAsync(
+  prospect: RecruitmentProspect,
+): Promise<ContactListItem> {
+  const existing = prospect.email
+    ? findContactByEmail(prospect.email)
+    : undefined;
+  if (existing) {
+    ensureContactTag(existing.id, 'recruitment');
+    return getContactListItem(existing.id)!;
+  }
+
+  const { createContactOnMonday } = await import('./createContactOnMonday');
+  return createContactOnMonday({
+    name: prospect.name.trim(),
+    email: prospect.email.trim() || '—',
+    phone: normalizeStoredPhone(prospect.phone.trim()),
+    tags: ['recruitment'],
+  });
+}
+
 export function createContact(input: {
   name: string;
   email: string;

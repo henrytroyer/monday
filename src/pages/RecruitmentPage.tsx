@@ -83,15 +83,22 @@ export default function RecruitmentPage({
       return;
     }
     setAddError(null);
-    const created = addProspect({
+    void addProspect({
       name: trimmedName,
       email: email.trim(),
       phone: phone.trim(),
-    });
-    setName('');
-    setEmail('');
-    setPhone('');
-    setSelected(created);
+    })
+      .then((created) => {
+        setName('');
+        setEmail('');
+        setPhone('');
+        setSelected(created);
+      })
+      .catch((err) => {
+        setAddError(
+          err instanceof Error ? err.message : 'Could not create prospect',
+        );
+      });
   };
 
   return (

@@ -689,7 +689,34 @@ export async function ingestDonation(
   input: DonationSyncInput,
 ): Promise<ContactListItem> {
   if (!useMockData()) {
-    throw new Error('Donation ingest is only available in mock mode.');
+    const { createDonationOnMonday } = await import('./createDonationOnMonday');
+    await createDonationOnMonday({
+      donorName: input.donorName,
+      donorEmail: input.donorEmail,
+      amount:
+        input.record?.amount != null ? String(input.record.amount) : undefined,
+      date: input.record?.date,
+      program: input.record?.projectLabel,
+      details: input.record?.description,
+    });
+    // Prefer returning the contact list item when we can resolve by email.
+    if (input.donorEmail) {
+      const match = await fetchContactsList().catch(() => []);
+      const found = match.find(
+        (c) =>
+          c.email.trim().toLowerCase() ===
+          input.donorEmail!.trim().toLowerCase(),
+      );
+      if (found) return found;
+    }
+    return {
+      id: `donation-pending-${Date.now()}`,
+      name: input.donorName,
+      email: input.donorEmail || '—',
+      phone: '',
+      tags: ['donor'],
+      createdAt: new Date().toISOString(),
+    };
   }
   return syncContactFromDonation(input);
 }

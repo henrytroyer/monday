@@ -3,10 +3,71 @@
  * Restores previous column values, moves items back to prior groups,
  * or deletes newly created items when the activity log allows it.
  */
-import { useMockData } from '../config/boards';
+import {
+  canEditApplications,
+  canEditContacts,
+  canEditDonations,
+  isMondayReadOnly,
+  resolveApplicationsBoardId,
+  resolveContactsBoardId,
+  resolveDonationsBoardId,
+  resolveLongtermApplicationsBoardId,
+  useMockData,
+} from '../config/boards';
 import type { CrmActivityEvent } from '../types/activityLog';
 import { mutations } from '../utils/mondayQueries';
 import { mondayGraphQL } from './mondayGraphQL';
+
+function assertUndoAllowed(event: CrmActivityEvent): void {
+  if (isMondayReadOnly() && !canEditContacts() && !canEditApplications()) {
+    throw new Error('CRM is read-only: cannot undo monday.com changes.');
+  }
+
+  const boardId = event.boardId ? String(event.boardId) : '';
+  const contactsId = resolveContactsBoardId();
+  const appsId = resolveApplicationsBoardId();
+  const ltAppsId = resolveLongtermApplicationsBoardId();
+  const donationsId = resolveDonationsBoardId();
+
+  if (contactsId && boardId === String(contactsId)) {
+    if (!canEditContacts()) {
+      throw new Error('Contacts are read-only: cannot undo this change.');
+    }
+    return;
+  }
+
+  if (
+    (appsId && boardId === String(appsId)) ||
+    (ltAppsId && boardId === String(ltAppsId))
+  ) {
+    if (!canEditApplications()) {
+      throw new Error('Applications are read-only: cannot undo this change.');
+    }
+    return;
+  }
+
+  if (donationsId && boardId === String(donationsId)) {
+    if (!canEditDonations()) {
+      throw new Error('Donations are read-only: cannot undo this change.');
+    }
+    return;
+  }
+
+  if (event.entityType === 'contact' && !canEditContacts()) {
+    throw new Error('Contacts are read-only: cannot undo this change.');
+  }
+  if (event.entityType === 'application' && !canEditApplications()) {
+    throw new Error('Applications are read-only: cannot undo this change.');
+  }
+  if (event.entityType === 'donation' && !canEditDonations()) {
+    throw new Error('Donations are read-only: cannot undo this change.');
+  }
+
+  // Unknown board — require global writable (not master read-only without overrides).
+  if (isMondayReadOnly()) {
+    throw new Error('CRM is read-only: cannot undo this change.');
+  }
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -150,6 +211,7 @@ export async function undoActivityEvent(event: CrmActivityEvent): Promise<void> 
   if (!event.undoable || !event.undo || !event.boardId || !event.entityId) {
     throw new Error('This change cannot be undone from History.');
   }
+  assertUndoAllowed(event);
 
   const { undo } = event;
   const boardId = event.boardId;

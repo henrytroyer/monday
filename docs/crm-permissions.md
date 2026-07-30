@@ -1,28 +1,24 @@
-# CRM permissions (planned)
+# CRM permissions
 
-Role-based access is **not implemented yet**. This doc captures the intended model for a later slice.
+Soft role-based access is available via `VITE_CRM_ROLE` (`viewer` | `coordinator` | `admin`). Default is `admin`.
 
-## Goals
+| Role | Behavior |
+|------|----------|
+| `viewer` | All `canEdit*` helpers return false (read-only CRM UI) |
+| `coordinator` / `admin` | Same as today — gated by `VITE_*_WRITABLE` and `VITE_MONDAY_READ_ONLY` |
 
-- Some users can **view** volunteer profiles, notes, and files only.
-- Others can **edit** (add term notes, change status, etc.) based on role or team.
+Board-level write flags (see [`.env.example`](../.env.example) and [crm-bidirectional-sync.md](./crm-bidirectional-sync.md)):
 
-## Suggested approach
+- `VITE_CONTACTS_WRITABLE`
+- `VITE_APPLICATIONS_WRITABLE`
+- `VITE_APPLICATION_NOTES_WRITABLE`
+- `VITE_LONGTERM_REFERENCES_WRITABLE`
+- `VITE_DONATIONS_WRITABLE`
+- `VITE_SAFEGUARDING_WRITABLE`
+- `VITE_EMAIL_TEMPLATES_WRITABLE`
 
-1. **monday.com account roles** — Map monday user / team membership to CRM roles via Board View context (`monday.get('context')` + optional config board or env).
-2. **UI gates** — Wrap edit actions (`TermNotesChat` composer, Quick Actions, future status changes) in a `canEdit` check; show read-only UI when `canView` only.
-3. **API** — monday OAuth scopes already limit what the app token can do; per-user edit rights should align with monday item/board permissions where possible.
+History undo uses the same board write gates as the entity being undone.
 
-## Types (future)
+## Future (not implemented)
 
-```ts
-export type CrmRole = 'viewer' | 'coordinator' | 'admin';
-
-export interface CrmPermissions {
-  canViewApplications: boolean;
-  canEditApplications: boolean;
-  canAddTermNotes: boolean;
-}
-```
-
-Implement when you define who on your team gets view vs edit access.
+Map monday.com account / team membership to CRM roles via Board View context (`monday.get('context')`) so per-user rights align with monday item permissions without env-only roles.

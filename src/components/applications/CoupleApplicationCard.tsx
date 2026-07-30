@@ -25,6 +25,9 @@ interface CoupleApplicationCardProps {
   sharedContent?: ReactNode;
   splitFilesRow?: boolean;
   besideFiles?: ReactNode;
+  boardId?: string | null;
+  canUploadFiles?: boolean;
+  onFilesUploaded?: () => void;
 }
 
 export default function CoupleApplicationCard({
@@ -34,6 +37,9 @@ export default function CoupleApplicationCard({
   sharedContent,
   splitFilesRow = false,
   besideFiles,
+  boardId = null,
+  canUploadFiles = false,
+  onFilesUploaded,
 }: CoupleApplicationCardProps) {
   const couple = detail.couple!;
   const [activeTab, setActiveTab] = useState<CoupleTab>('shared');
@@ -114,6 +120,9 @@ export default function CoupleApplicationCard({
             sharedContent={sharedContent}
             splitFilesRow={splitFilesRow}
             besideFiles={besideFiles}
+            boardId={boardId}
+            canUploadFiles={canUploadFiles}
+            onFilesUploaded={onFilesUploaded}
           />
         )}
         {activeTab === 'primary' && (
@@ -154,11 +163,17 @@ function SharedTab({
   sharedContent,
   splitFilesRow,
   besideFiles,
+  boardId,
+  canUploadFiles,
+  onFilesUploaded,
 }: {
   detail: VolunteerDetail;
   sharedContent?: ReactNode;
   splitFilesRow?: boolean;
   besideFiles?: ReactNode;
+  boardId?: string | null;
+  canUploadFiles?: boolean;
+  onFilesUploaded?: () => void;
 }) {
   return (
     <div className="space-y-5">
@@ -170,6 +185,10 @@ function SharedTab({
             files={detail.files}
             showOtherFiles
             embeddedInGrid
+            itemId={detail.id}
+            boardId={boardId}
+            canUpload={canUploadFiles}
+            onUploaded={onFilesUploaded}
           />
           {besideFiles}
         </div>
@@ -179,6 +198,10 @@ function SharedTab({
             volunteerName={detail.name}
             files={detail.files}
             showOtherFiles
+            itemId={detail.id}
+            boardId={boardId}
+            canUpload={canUploadFiles}
+            onUploaded={onFilesUploaded}
           />
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMockData } from '../config/boards';
+import { useRefetchOnWindowFocus } from './useRefetchOnWindowFocus';
 import {
   MOCK_APPLICATION_FORM_FIELDS,
   MOCK_APPLICATION_FORM_FIELDS_RACHEL,
@@ -324,6 +325,8 @@ export function useApplicationDetail(
   const isMock = useMockData();
 
   const refetch = () => setReloadKey((k) => k + 1);
+
+  useRefetchOnWindowFocus(refetch, Boolean(volunteer) && !isMock);
 
   useEffect(() => {
     const selected = volunteer;

@@ -93,6 +93,11 @@ VITE_USE_MOCK_DATA=false
 VITE_MONDAY_READ_ONLY=true
 VITE_CONTACTS_WRITABLE=true
 VITE_APPLICATION_NOTES_WRITABLE=true
+VITE_APPLICATIONS_WRITABLE=true
+VITE_LONGTERM_REFERENCES_WRITABLE=true
+VITE_DONATIONS_WRITABLE=true
+VITE_SAFEGUARDING_WRITABLE=true
+VITE_CRM_ROLE=admin
 VITE_CONTACTS_BOARD_ID=2463183745
 VITE_APPLICATIONS_BOARD_ID=2473000031
 VITE_MONDAY_API_PROXY_URL=/api/monday
@@ -100,6 +105,8 @@ MONDAY_API_TOKEN=<your token>
 ```
 
 Restart after changing env. Contacts page shows a live board banner.
+
+See [crm-bidirectional-sync.md](./crm-bidirectional-sync.md) for the CRM ↔ monday.com sync contract.
 
 **Internal notes hub:** Contact detail aggregates notes from Contacts board, harvested notes, and legacy Applications term notes.
 

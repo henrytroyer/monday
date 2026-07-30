@@ -22,8 +22,8 @@ export function useRecruitmentProspects() {
   }, [reload]);
 
   const addProspect = useCallback(
-    (input: RecruitmentProspectInput) => {
-      const created = createRecruitmentProspect(input);
+    async (input: RecruitmentProspectInput) => {
+      const created = await createRecruitmentProspect(input);
       setProspects((prev) => [created, ...prev]);
       return created;
     },

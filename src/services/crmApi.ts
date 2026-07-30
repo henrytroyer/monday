@@ -1022,6 +1022,158 @@ export async function updateApplicationStatus(
   invalidateApplicationDetail(itemId);
 }
 
+/** Editable application fields that map 1:1 to Monday columns (short-term board). */
+export interface ApplicationEditableFields {
+  email?: string;
+  phone?: string;
+  housing?: string;
+  coordinator?: string;
+  locationPreference?: string;
+  location?: string;
+  parentEmail?: string;
+  pastorEmail?: string;
+  spouseName?: string;
+  spouseEmail?: string;
+  spousePhone?: string;
+  arrivalDate?: string;
+  departureDate?: string;
+  name?: string;
+}
+
+const APPLICATION_FIELD_COLUMNS: Array<{
+  fieldKey: keyof ApplicationEditableFields;
+  mapKey: keyof typeof columnMap;
+}> = [
+  { fieldKey: 'email', mapKey: 'email' },
+  { fieldKey: 'phone', mapKey: 'phone' },
+  { fieldKey: 'housing', mapKey: 'housing' },
+  { fieldKey: 'coordinator', mapKey: 'coordinator' },
+  { fieldKey: 'locationPreference', mapKey: 'locationPreference' },
+  { fieldKey: 'location', mapKey: 'location' },
+  { fieldKey: 'parentEmail', mapKey: 'parentEmail' },
+  { fieldKey: 'pastorEmail', mapKey: 'pastorEmail' },
+  { fieldKey: 'spouseName', mapKey: 'spouseName' },
+  { fieldKey: 'spouseEmail', mapKey: 'spouseEmail' },
+  { fieldKey: 'spousePhone', mapKey: 'spousePhone' },
+  { fieldKey: 'arrivalDate', mapKey: 'arrivalDate' },
+  { fieldKey: 'departureDate', mapKey: 'departureDate' },
+];
+
+export async function updateApplicationFieldsOnMonday(
+  boardId: string,
+  itemId: string,
+  fields: ApplicationEditableFields,
+  options?: { longterm?: boolean },
+): Promise<void> {
+  assertApplicationsWritable('update application fields');
+
+  const trimmedName = fields.name?.trim();
+  if (trimmedName) {
+    try {
+      await api(mutations.updateItemName, {
+        boardId,
+        itemId,
+        itemName: trimmedName,
+      });
+    } catch (err) {
+      throw columnWriteError('Name', 'name', err);
+    }
+  }
+
+  const columns = await fetchBoardColumns(boardId);
+  const titleFor = (mapKey: keyof typeof columnMap): string => {
+    if (options?.longterm) {
+      if (mapKey === 'email') return longtermColumnMap.email;
+      if (mapKey === 'phone') return longtermColumnMap.phone;
+      if (mapKey === 'locationPreference') {
+        return longtermColumnMap.locationPreference;
+      }
+      if (mapKey === 'location') return longtermColumnMap.assignedLocation;
+      if (mapKey === 'status') return longtermColumnMap.status;
+    }
+    return columnMap[mapKey];
+  };
+
+  for (const { fieldKey, mapKey } of APPLICATION_FIELD_COLUMNS) {
+    const raw = fields[fieldKey];
+    if (raw === undefined) continue;
+    const value = String(raw).trim();
+    if (!value || value === '—') continue;
+
+    const target = normalizeColumnTitle(titleFor(mapKey));
+    const column = columns.find(
+      (entry) => normalizeColumnTitle(entry.title) === target,
+    );
+    if (!column) continue;
+
+    const writeValue =
+      fieldKey === 'phone'
+        ? phoneForMondayColumn(value)
+        : value;
+
+    await writeMondayColumnValue(
+      boardId,
+      itemId,
+      column,
+      formatColumnValue(writeValue, column.type),
+      { createLabelsIfMissing: true },
+    );
+  }
+
+  invalidateApplicationDetail(itemId);
+}
+
+/** Persist onboarding legacy step completions to Monday status/date columns. */
+export async function syncOnboardingStepToMonday(
+  boardId: string,
+  itemId: string,
+  stepId: string,
+  complete: boolean,
+): Promise<void> {
+  assertApplicationsWritable('update onboarding step');
+
+  const stepToColumn: Record<string, keyof typeof columnMap> = {
+    application_received: 'applicationSubmitted',
+    pastor_reference: 'pastorReference',
+    invoice: 'invoicePaid',
+    sent_to_field: 'sentToField',
+    // Long-term ids that share legacy titles when columns exist
+    lt_application: 'applicationSubmitted',
+  };
+
+  const mapKey = stepToColumn[stepId];
+  if (!mapKey) return;
+
+  const columns = await fetchBoardColumns(boardId);
+  const target = normalizeColumnTitle(columnMap[mapKey]);
+  const column = columns.find(
+    (c) => normalizeColumnTitle(c.title) === target,
+  );
+  if (!column) return;
+
+  const value =
+    column.type === 'date'
+      ? complete
+        ? new Date().toISOString().slice(0, 10)
+        : ''
+      : complete
+        ? 'Done'
+        : '';
+
+  if (!value && column.type !== 'date') {
+    await writeMondayColumnValue(boardId, itemId, column, '{}');
+  } else if (value) {
+    await writeMondayColumnValue(
+      boardId,
+      itemId,
+      column,
+      formatColumnValue(value, column.type),
+      { createLabelsIfMissing: true },
+    );
+  }
+  invalidateApplicationDetail(itemId);
+}
+
 const CONTACT_UPDATE_COLUMNS: Array<{
   fieldKey: keyof typeof contactMap;
   getValue: (

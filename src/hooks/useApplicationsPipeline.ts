@@ -18,6 +18,7 @@ import type { PipelineSection } from '../types/volunteer';
 import { LOCATION_OPTIONS } from '../types/volunteer';
 import { updateVolunteerStatusInPipeline } from '../utils/filterApplications';
 import { useMondayContext } from './useMondayContext';
+import { useRefetchOnWindowFocus } from './useRefetchOnWindowFocus';
 
 interface UseApplicationsPipelineReturn {
   pipeline: PipelineSection[];
@@ -53,6 +54,8 @@ export function useApplicationsPipeline(): UseApplicationsPipelineReturn {
     invalidateVolunteerFileItineraryCache();
     setFetchKey((k) => k + 1);
   }, []);
+
+  useRefetchOnWindowFocus(refetch, !isMock);
 
   useEffect(() => {
     if (contextLoading && !isMock && !standalone && !import.meta.env.VITE_APPLICATIONS_BOARD_ID) {
