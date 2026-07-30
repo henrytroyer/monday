@@ -196,7 +196,7 @@ export default function ContactDetailPanel({
                 <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                   This person was found on Applications, Service Ended, or
                   Donations but is not yet an item on the Contacts board. Profile
-                  edits and monday writes are limited until they are added there.
+                  edits are limited until they are added there.
                 </div>
               )}
               <ContactProfileCard
@@ -423,8 +423,8 @@ export default function ContactDetailPanel({
                 <Panel title="Donations & payments">
                   <p className="mt-2 text-sm text-crm-slate">
                     {import.meta.env.VITE_QBO_INCOME_SYNC_ENABLED === 'true'
-                      ? 'From Monday Donations board (includes QuickBooks income sync)'
-                      : `From Monday Donations board${
+                      ? 'From Donations (includes QuickBooks income sync)'
+                      : `From Donations${
                           detail.quickbooksCustomerId
                             ? ` and QuickBooks · Customer ${detail.quickbooksCustomerId}`
                             : import.meta.env.VITE_QUICKBOOKS_PROXY_URL

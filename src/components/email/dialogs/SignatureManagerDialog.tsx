@@ -36,14 +36,26 @@ export default function SignatureManagerDialog({
 
   useEffect(() => {
     if (!open) return;
-    const next = refresh();
-    const initial = next.find((entry) => entry.isDefault) ?? next[0];
-    if (initial) {
-      setSelectedId(initial.id);
-      setName(initial.name);
-      setHtml(initial.html);
-      setIsDefault(initial.isDefault);
-    }
+    let cancelled = false;
+    void import('../../../services/portalEmailSignaturesSync')
+      .then(({ syncEmailSignaturesFromPortal }) =>
+        syncEmailSignaturesFromPortal(),
+      )
+      .catch(() => listEmailSignatures())
+      .then(() => {
+        if (cancelled) return;
+        const next = refresh();
+        const initial = next.find((entry) => entry.isDefault) ?? next[0];
+        if (initial) {
+          setSelectedId(initial.id);
+          setName(initial.name);
+          setHtml(initial.html);
+          setIsDefault(initial.isDefault);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   const selectSignature = (signature: EmailSignature) => {

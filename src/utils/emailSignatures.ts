@@ -21,6 +21,12 @@ export function listEmailSignatures(): EmailSignature[] {
   return readAll();
 }
 
+/** Replace entire local cache (e.g. after Monday Portal Things sync). */
+export function replaceEmailSignatures(signatures: EmailSignature[]): EmailSignature[] {
+  writeAll(Array.isArray(signatures) ? signatures : []);
+  return readAll();
+}
+
 export function getDefaultEmailSignature(): EmailSignature | null {
   return readAll().find((entry) => entry.isDefault) ?? readAll()[0] ?? null;
 }
@@ -44,12 +50,22 @@ export function saveEmailSignature(signature: EmailSignature): EmailSignature[] 
   }
 
   writeAll(next);
+  void import('../services/portalEmailSignaturesSync')
+    .then(({ persistEmailSignaturesToPortal }) =>
+      persistEmailSignaturesToPortal(next),
+    )
+    .catch(() => undefined);
   return next;
 }
 
 export function deleteEmailSignature(id: string): EmailSignature[] {
   const next = readAll().filter((entry) => entry.id !== id);
   writeAll(next);
+  void import('../services/portalEmailSignaturesSync')
+    .then(({ persistEmailSignaturesToPortal }) =>
+      persistEmailSignaturesToPortal(next),
+    )
+    .catch(() => undefined);
   return next;
 }
 

@@ -281,7 +281,7 @@ export async function fetchContactsList(
   const boardId = options?.contactsBoardId;
   if (!boardId) {
     throw new Error(
-      'Contacts board ID is required. Set VITE_CONTACTS_BOARD_ID or open the app from your Contacts board in monday.com.',
+      'Contacts board ID is required. Set VITE_CONTACTS_BOARD_ID in .env.',
     );
   }
 

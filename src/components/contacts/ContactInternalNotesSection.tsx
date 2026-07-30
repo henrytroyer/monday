@@ -87,7 +87,7 @@ export default function ContactInternalNotesSection({
               Internal notes
             </h3>
             <p className="mt-1 text-sm text-crm-slate">
-              Notes for this contact save to your Contacts board on monday.com.
+              Notes for this contact save to their contact record.
             </p>
           </div>
           <button
@@ -104,8 +104,8 @@ export default function ContactInternalNotesSection({
       {pendingReview.length > 0 && (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {pendingReview.length === 1
-            ? '1 note from monday needs review.'
-            : `${pendingReview.length} notes from monday need review.`}{' '}
+            ? '1 note needs review.'
+            : `${pendingReview.length} notes need review.`}{' '}
           <button
             type="button"
             onClick={openNoteReviewInbox}

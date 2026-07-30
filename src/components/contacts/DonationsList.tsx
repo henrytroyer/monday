@@ -40,8 +40,8 @@ export default function DonationsList({
     return (
       <p className="text-sm text-crm-slate">
         {import.meta.env.VITE_QBO_INCOME_SYNC_ENABLED === 'true'
-          ? 'No donations found for this contact on the Monday Donations board.'
-          : 'No donations found for this contact on Monday or QuickBooks.'}
+          ? 'No donations found for this contact.'
+          : 'No donations found for this contact in Donations or QuickBooks.'}
       </p>
     );
   }

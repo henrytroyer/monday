@@ -124,8 +124,7 @@ export default function EmailTemplatesSection() {
         <div>
           <h2 className="text-xl font-semibold text-crm-heading">Templates</h2>
           <p className="mt-1 max-w-2xl text-sm text-crm-slate">
-            Imported from the monday.com Communications docs folder and stored on{' '}
-            <strong>{emailTemplateMap.boardName}</strong>. Use{' '}
+            Stored on <strong>{emailTemplateMap.boardName}</strong>. Use{' '}
             <code className="text-crm-text">{'{{fieldName}}'}</code> merge fields
             when sending from applications or contacts.
           </p>

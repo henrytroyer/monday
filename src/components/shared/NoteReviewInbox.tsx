@@ -107,7 +107,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
   async function runClearInbox() {
     if (
       !window.confirm(
-        'Clear all pending notes from the inbox? Older board history will not be re-queued. This syncs to Monday.',
+        'Clear all pending notes from the inbox? Older board history will not be re-queued.',
       )
     ) {
       return;
@@ -194,7 +194,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
             </h2>
             <p className="mt-1 text-sm text-crm-slate">
               {pendingCount} note{pendingCount === 1 ? '' : 's'} need review.
-              Approve/dismiss syncs via Monday so local and production stay aligned.
+              Approve/dismiss syncs across local and production.
               Sync only pulls recent updates, not full board history.
             </p>
           </div>
@@ -215,7 +215,7 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
               disabled={harvesting || isMock}
               className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
             >
-              {harvesting ? 'Syncing from monday…' : 'Sync new notes'}
+              {harvesting ? 'Syncing…' : 'Sync new notes'}
             </button>
             {pendingCount > 0 && (
               <button

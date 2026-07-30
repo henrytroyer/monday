@@ -25,15 +25,15 @@ function useMondayApiProxy(): boolean {
 function proxyFetchError(err: unknown): Error {
   if (err instanceof DOMException && err.name === 'TimeoutError') {
     return new Error(
-      'Could not reach monday API proxy. Run `npm run monday:proxy` in a second terminal.',
+      'Could not reach the API proxy. Run `npm run monday:proxy` in a second terminal.',
     );
   }
   if (err instanceof TypeError) {
     return new Error(
-      'Could not reach monday API proxy. Run `npm run monday:proxy` in a second terminal.',
+      'Could not reach the API proxy. Run `npm run monday:proxy` in a second terminal.',
     );
   }
-  return err instanceof Error ? err : new Error('monday API proxy request failed');
+  return err instanceof Error ? err : new Error('API proxy request failed');
 }
 
 type ProxyErrorBody = MondayResponse<unknown> & { error?: string };
@@ -46,7 +46,7 @@ function messageFromProxyBody(
   if (body.errors?.length) {
     return body.errors.map((e) => e.message).join(', ');
   }
-  return `monday API proxy ${status}`;
+  return `API proxy ${status}`;
 }
 
 export async function mondayGraphQL<T>(
@@ -105,7 +105,7 @@ export async function mondayGraphQL<T>(
     }
 
     if (!response.data) {
-      throw new Error('No data returned from monday.com API');
+      throw new Error('No data returned from the API');
     }
 
     return response.data as T;
@@ -119,7 +119,7 @@ export async function mondayGraphQL<T>(
   }
 
   if (!response.data) {
-    throw new Error('No data returned from monday.com API');
+    throw new Error('No data returned from the API');
   }
 
   return response.data;

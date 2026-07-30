@@ -15,7 +15,8 @@ export default function ItineraryBubbles({ itinerary }: ItineraryBubblesProps) {
     return (
       <p className="text-sm text-crm-slate">
         Itinerary not added yet. Add dates in the Arrival/Departure Date column
-        on monday.com (or separate arrival and departure fields).
+        on the Arrival/Departure Date column (or separate arrival and departure
+        fields).
       </p>
     );
   }

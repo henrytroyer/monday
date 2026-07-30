@@ -28,7 +28,7 @@ export default function EmailOverviewSection({
     {
       label: 'Templates',
       value: templatesLoading ? '…' : String(templates.length),
-      hint: 'Editable templates synced with monday.com',
+      hint: 'Editable templates synced with the portal',
       tab: 'templates' as const,
     },
     {

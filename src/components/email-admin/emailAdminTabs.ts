@@ -18,7 +18,7 @@ export const EMAIL_ADMIN_TABS: { id: EmailAdminTab; label: string; description: 
   {
     id: 'templates',
     label: 'Templates',
-    description: 'Create and edit email templates synced with monday.com.',
+    description: 'Create and edit email templates synced with the portal.',
   },
   {
     id: 'accounts',

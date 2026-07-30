@@ -44,7 +44,7 @@ function resolveProxyBase(): string {
     .replace(/\/$/, '');
   if (fromEnv) return fromEnv;
   throw new Error(
-    'Monday API proxy is not configured (VITE_MONDAY_API_PROXY_URL).',
+    'API proxy is not configured (VITE_MONDAY_API_PROXY_URL).',
   );
 }
 
@@ -68,12 +68,12 @@ async function proxyFetch(
   } catch (err) {
     if (err instanceof DOMException && err.name === 'TimeoutError') {
       throw new Error(
-        'Could not reach monday API proxy. Run `npm run monday:proxy` (or `npm run dev:live`).',
+        'Could not reach the API proxy. Run `npm run monday:proxy` (or `npm run dev:live`).',
       );
     }
     if (err instanceof TypeError) {
       throw new Error(
-        'Could not reach monday API proxy. Run `npm run monday:proxy` (or `npm run dev:live`).',
+        'Could not reach the API proxy. Run `npm run monday:proxy` (or `npm run dev:live`).',
       );
     }
     throw err;
@@ -96,7 +96,7 @@ export async function sendCrmEmail(
     const status = await fetchEmailSendStatus();
     if (!status.configured) {
       throw new Error(
-        'Outbound email is not configured on the monday API proxy. Set RESEND_API_KEY or SMTP_* on the proxy, then retry.',
+        'Outbound email is not configured on the API proxy. Set RESEND_API_KEY or SMTP_* on the proxy, then retry.',
       );
     }
   } catch (err) {
@@ -130,7 +130,7 @@ export async function sendCrmEmail(
     const message = body.error || `Send failed (${res.status})`;
     if (/not configured|RESEND|SMTP/i.test(message)) {
       throw new Error(
-        `${message} Configure RESEND_API_KEY or SMTP_* on the monday API proxy (local + Cloud Function).`,
+        `${message} Configure RESEND_API_KEY or SMTP_* on the API proxy (local + Cloud Function).`,
       );
     }
     throw new Error(message);

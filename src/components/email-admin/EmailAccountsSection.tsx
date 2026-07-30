@@ -87,7 +87,7 @@ export default function EmailAccountsSection() {
     setShowForm(false);
     setMessage(
       account.provider === 'monday'
-        ? 'monday account added.'
+        ? 'Item activity account added.'
         : `${emailAccountProviderLabel(account.provider)} account saved — OAuth connection coming soon.`,
     );
   };
@@ -106,7 +106,7 @@ export default function EmailAccountsSection() {
   const handleConnect = (account: LinkedEmailAccount) => {
     if (account.provider === 'monday') {
       markSynced(account.id);
-      setMessage('monday Emails & Activities is already linked through your board items.');
+      setMessage('Item activity mail is already linked through application records.');
       return;
     }
     setMessage(
@@ -124,9 +124,9 @@ export default function EmailAccountsSection() {
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-crm-slate">
             CRM Send uses the proxy SMTP/Resend config (see docs/crm-send-email.md).
-            Linked accounts below are for display defaults. monday Emails &amp;
-            Activities is linked automatically; Gmail and Outlook OAuth will be
-            added in a future update.
+            Linked accounts below are for display defaults. Item activity mail
+            is linked automatically; Gmail and Outlook OAuth will be added in a
+            future update.
           </p>
         </div>
         <button

@@ -224,7 +224,7 @@ export default function ApplicationsPage({
             <p>Loading short-term applications…</p>
           ) : (
             <>
-              <p>Loading short-term applications from monday.com…</p>
+              <p>Loading short-term applications…</p>
               <p className="mt-2 text-sm text-crm-slate/80">
                 Pipeline stages appear as soon as the first batch loads.
               </p>

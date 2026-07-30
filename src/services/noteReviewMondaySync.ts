@@ -1,10 +1,11 @@
 /**
- * Persists note review approve/dismiss decisions on a Contacts-board registry item
- * so local dev and production share the same inbox state via Monday.com.
+ * Persists note review approve/dismiss decisions on a registry item
+ * (Portal Things Config preferred; Contacts board fallback) so browsers share state.
  */
 
 import {
   canEditContacts,
+  canEditPortalThings,
   resolveContactsBoardId,
   useMockData,
 } from '../config/boards';
@@ -24,6 +25,7 @@ import {
   parseNoteReviewRegistryUpdates,
   type NoteReviewRegistryEntry,
 } from './noteReviewRegistryFormat';
+import { ensureNoteReviewRegistryOnPortal } from './portalThingsBoard';
 
 export {
   isNoteReviewRegistryUpdate,
@@ -51,6 +53,17 @@ export async function resolveNoteReviewRegistryItemId(): Promise<string | null> 
 
   const fromEnv = import.meta.env.VITE_CRM_NOTE_REVIEW_REGISTRY_ITEM_ID?.trim();
   if (fromEnv) return fromEnv;
+
+  // Prefer Portal Things Config → Note Review Registry
+  try {
+    const portalId = await ensureNoteReviewRegistryOnPortal();
+    if (portalId) {
+      cacheRegistryItemId(portalId);
+      return portalId;
+    }
+  } catch {
+    // Fall through to Contacts board registry
+  }
 
   const cached = localStorage.getItem(REGISTRY_ITEM_ID_KEY);
   if (cached) return cached;
@@ -125,7 +138,8 @@ export async function syncNoteReviewFromMonday(): Promise<{
 }
 
 async function writeRegistryEntry(entry: NoteReviewRegistryEntry): Promise<void> {
-  if (useMockData() || !canEditContacts()) return;
+  if (useMockData()) return;
+  if (!canEditPortalThings() && !canEditContacts()) return;
 
   const itemId = await getRegistryItemId();
   if (!itemId) return;

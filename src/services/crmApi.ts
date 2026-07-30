@@ -1037,6 +1037,13 @@ export interface ApplicationEditableFields {
   spousePhone?: string;
   arrivalDate?: string;
   departureDate?: string;
+  /** YYYY-MM-DD for monday date columns. */
+  dateOfBirth?: string;
+  addressStreet?: string;
+  addressCity?: string;
+  addressState?: string;
+  addressZip?: string;
+  addressCountry?: string;
   name?: string;
 }
 
@@ -1057,6 +1064,12 @@ const APPLICATION_FIELD_COLUMNS: Array<{
   { fieldKey: 'spousePhone', mapKey: 'spousePhone' },
   { fieldKey: 'arrivalDate', mapKey: 'arrivalDate' },
   { fieldKey: 'departureDate', mapKey: 'departureDate' },
+  { fieldKey: 'dateOfBirth', mapKey: 'dateOfBirth' },
+  { fieldKey: 'addressStreet', mapKey: 'addressStreet' },
+  { fieldKey: 'addressCity', mapKey: 'addressCity' },
+  { fieldKey: 'addressState', mapKey: 'addressState' },
+  { fieldKey: 'addressZip', mapKey: 'addressZip' },
+  { fieldKey: 'addressCountry', mapKey: 'addressCountry' },
 ];
 
 export async function updateApplicationFieldsOnMonday(
@@ -1090,6 +1103,7 @@ export async function updateApplicationFieldsOnMonday(
       }
       if (mapKey === 'location') return longtermColumnMap.assignedLocation;
       if (mapKey === 'status') return longtermColumnMap.status;
+      if (mapKey === 'dateOfBirth') return longtermColumnMap.birthDate;
     }
     return columnMap[mapKey];
   };
@@ -1097,14 +1111,26 @@ export async function updateApplicationFieldsOnMonday(
   for (const { fieldKey, mapKey } of APPLICATION_FIELD_COLUMNS) {
     const raw = fields[fieldKey];
     if (raw === undefined) continue;
-    const value = String(raw).trim();
-    if (!value || value === '—') continue;
+    // Empty string overwrites/clears the Monday column; skip only "—".
+    const value = String(raw).trim() === '—' ? '' : String(raw).trim();
 
     const target = normalizeColumnTitle(titleFor(mapKey));
     const column = columns.find(
       (entry) => normalizeColumnTitle(entry.title) === target,
     );
     if (!column) continue;
+
+    // Long-term board uses a single Home Address column — skip split parts.
+    if (
+      options?.longterm &&
+      (mapKey === 'addressStreet' ||
+        mapKey === 'addressCity' ||
+        mapKey === 'addressState' ||
+        mapKey === 'addressZip' ||
+        mapKey === 'addressCountry')
+    ) {
+      continue;
+    }
 
     const writeValue =
       fieldKey === 'phone'
@@ -1118,6 +1144,44 @@ export async function updateApplicationFieldsOnMonday(
       formatColumnValue(writeValue, column.type),
       { createLabelsIfMissing: true },
     );
+  }
+
+  if (options?.longterm) {
+    const addressParts = [
+      fields.addressStreet,
+      fields.addressCity,
+      fields.addressState,
+      fields.addressZip,
+      fields.addressCountry,
+    ];
+    if (addressParts.some((part) => part !== undefined)) {
+      const combined = [
+        fields.addressStreet?.trim(),
+        [
+          fields.addressCity?.trim(),
+          fields.addressState?.trim(),
+          fields.addressZip?.trim(),
+        ]
+          .filter(Boolean)
+          .join(' '),
+        fields.addressCountry?.trim(),
+      ]
+        .filter(Boolean)
+        .join(', ');
+      const homeTarget = normalizeColumnTitle(longtermColumnMap.homeAddress);
+      const homeColumn = columns.find(
+        (entry) => normalizeColumnTitle(entry.title) === homeTarget,
+      );
+      if (homeColumn) {
+        await writeMondayColumnValue(
+          boardId,
+          itemId,
+          homeColumn,
+          formatColumnValue(combined, homeColumn.type),
+          { createLabelsIfMissing: true },
+        );
+      }
+    }
   }
 
   invalidateApplicationDetail(itemId);

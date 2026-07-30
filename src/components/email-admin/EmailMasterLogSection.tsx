@@ -81,9 +81,9 @@ export default function EmailMasterLogSection({
         <div>
           <h2 className="text-xl font-semibold text-crm-heading">Master log</h2>
           <p className="mt-1 max-w-2xl text-sm text-crm-slate">
-            Central record of email across monday Emails &amp; Activities,
-            SuperMail updates, and CRM compose actions. Showing {entries.length}{' '}
-            of {totalCount} loaded entries.
+            Central record of email across item activity, SuperMail updates, and
+            CRM compose actions. Showing {entries.length} of {totalCount} loaded
+            entries.
           </p>
         </div>
         <button
@@ -139,7 +139,7 @@ export default function EmailMasterLogSection({
             className="mt-2 w-full rounded-xl border border-crm-taupe/20 px-3 py-2.5 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
           >
             <option value="all">All sources</option>
-            <option value="monday">monday.com</option>
+            <option value="monday">Item activity</option>
             <option value="supermail">SuperMail</option>
             <option value="crm-compose">CRM compose</option>
           </select>

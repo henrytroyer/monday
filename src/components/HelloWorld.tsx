@@ -1,6 +1,5 @@
 /**
- * Hello World component demonstrating monday.com SDK integration
- * This component listens for context events and displays monday.com data
+ * HelloWorld.tsx — Demo SDK context screen (not used in main portal nav).
  */
 
 import { useMondayContext } from '../hooks/useMondayContext';
@@ -16,7 +15,6 @@ const HelloWorld: React.FC<HelloWorldProps> = () => {
   const { context, isLoading, error } = useMondayContext();
 
   useEffect(() => {
-    // Load settings (for future use)
     getSettings().then(() => {
       // Settings loaded, can be used as needed
     });
@@ -26,7 +24,7 @@ const HelloWorld: React.FC<HelloWorldProps> = () => {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
-        <p className="loading-text">Loading monday.com context...</p>
+        <p className="loading-text">Loading…</p>
         <p className="loading-subtext">
           If this takes too long, the app will continue without context.
         </p>
@@ -37,7 +35,9 @@ const HelloWorld: React.FC<HelloWorldProps> = () => {
   if (error) {
     return (
       <div className="error-container">
-        <p><strong>Error:</strong> {error}</p>
+        <p>
+          <strong>Error:</strong> {error}
+        </p>
       </div>
     );
   }
@@ -45,12 +45,12 @@ const HelloWorld: React.FC<HelloWorldProps> = () => {
   return (
     <div className="app">
       <div className="main-header">
-        <h1 className="main-title">Hello monday.com!</h1>
+        <h1 className="main-title">Volunteer Portal</h1>
         <p className="main-subtitle">
-          Welcome to your monday.com app built with React and TypeScript.
+          Welcome to the volunteer operations portal.
         </p>
       </div>
-      
+
       {context ? (
         <div className="context-card">
           <div className="context-header">
@@ -63,8 +63,8 @@ const HelloWorld: React.FC<HelloWorldProps> = () => {
       ) : (
         <div className="warning-card">
           <p className="warning-text">
-            <strong>Note:</strong> Running without monday.com context. This is normal when testing standalone. 
-            Context will be available when the app runs inside monday.com.
+            <strong>Note:</strong> Running without workspace context. This is
+            normal in standalone local development.
           </p>
         </div>
       )}
@@ -72,10 +72,16 @@ const HelloWorld: React.FC<HelloWorldProps> = () => {
       <div className="info-card">
         <h3 className="info-title">Next Steps</h3>
         <ul className="info-list">
-          <li>Build dashboard widgets in <code>src/components/dashboard-widgets/</code></li>
-          <li>Create custom forms in <code>src/components/forms/</code></li>
-          <li>Develop integrations in <code>src/components/integrations/</code></li>
-          <li>Use the monday.com GraphQL API for data operations</li>
+          <li>
+            Build dashboard widgets in{' '}
+            <code>src/components/dashboard-widgets/</code>
+          </li>
+          <li>
+            Create custom forms in <code>src/components/forms/</code>
+          </li>
+          <li>
+            Develop integrations in <code>src/components/integrations/</code>
+          </li>
         </ul>
       </div>
     </div>
@@ -83,4 +89,3 @@ const HelloWorld: React.FC<HelloWorldProps> = () => {
 };
 
 export default HelloWorld;
-

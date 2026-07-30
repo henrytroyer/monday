@@ -75,7 +75,7 @@ const OAuthCallback: React.FC = () => {
             </h2>
             <p className="main-subtitle">{message}</p>
             <p style={{ marginTop: 'var(--spacing-lg)', fontSize: 'var(--font-size-sm)', color: 'var(--monday-gray-500)' }}>
-              You can close this window and return to monday.com
+              You can close this window and return to the portal
             </p>
           </>
         )}

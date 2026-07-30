@@ -5,7 +5,7 @@ const STORAGE_KEY = 'crm-linked-email-accounts-v1';
 const PROVIDER_LABELS: Record<EmailAccountProvider, string> = {
   gmail: 'Google Gmail',
   outlook: 'Microsoft Outlook',
-  monday: 'monday.com Emails & Activities',
+  monday: 'Item activity mail',
   smtp: 'SMTP / Custom',
   other: 'Other',
 };
@@ -14,12 +14,33 @@ export function emailAccountProviderLabel(provider: EmailAccountProvider): strin
   return PROVIDER_LABELS[provider];
 }
 
+function sanitizeStoredAccounts(
+  accounts: LinkedEmailAccount[],
+): LinkedEmailAccount[] {
+  return accounts.map((account) => {
+    if (account.provider !== 'monday') return account;
+    const labelLooksLegacy = /monday/i.test(account.label);
+    const emailLooksLegacy = /monday/i.test(account.email);
+    if (!labelLooksLegacy && !emailLooksLegacy) return account;
+    return {
+      ...account,
+      label: labelLooksLegacy ? 'Item activity mail' : account.label,
+      email: emailLooksLegacy ? 'via portal' : account.email,
+      notes:
+        account.notes && /monday/i.test(account.notes)
+          ? 'Inbound and outbound mail logged on application items.'
+          : account.notes,
+    };
+  });
+}
+
 function readAll(): LinkedEmailAccount[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return seedDefaultAccounts();
     const parsed = JSON.parse(raw) as LinkedEmailAccount[];
-    return Array.isArray(parsed) && parsed.length ? parsed : seedDefaultAccounts();
+    if (!Array.isArray(parsed) || !parsed.length) return seedDefaultAccounts();
+    return sanitizeStoredAccounts(parsed);
   } catch {
     return seedDefaultAccounts();
   }
@@ -34,13 +55,13 @@ function seedDefaultAccounts(): LinkedEmailAccount[] {
   const seeded: LinkedEmailAccount[] = [
     {
       id: 'acct-monday-ea',
-      label: 'monday Emails & Activities',
-      email: 'via monday.com',
+      label: 'Item activity mail',
+      email: 'via portal',
       provider: 'monday',
       status: 'connected',
       isDefault: true,
       connectedAt: new Date().toISOString(),
-      notes: 'Inbound and outbound mail logged on application items through monday E&A.',
+      notes: 'Inbound and outbound mail logged on application items.',
     },
   ];
   writeAll(seeded);

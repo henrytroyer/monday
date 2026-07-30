@@ -11,7 +11,7 @@ export const EMAIL_MERGE_FIELDS: EmailMergeFieldDefinition[] = [
   { key: 'name', label: 'Full name', description: 'Volunteer or contact full name', group: 'person' },
   { key: 'firstName', label: 'First name', description: 'First word of name', group: 'person' },
   { key: 'email', label: 'Email', description: 'Recipient email address', group: 'person' },
-  { key: 'phone', label: 'Phone', description: 'Phone number from monday', group: 'person' },
+  { key: 'phone', label: 'Phone', description: 'Phone number from the record', group: 'person' },
   { key: 'recipientLabel', label: 'Recipient role', description: 'e.g. Parents, Pastor, Volunteer', group: 'person' },
   { key: 'locationPreference', label: 'Location preference', description: 'Preferred field location', group: 'application' },
   { key: 'location', label: 'Assigned location', description: 'Assigned location on the board', group: 'application' },

@@ -254,7 +254,7 @@ export default function ContactsPage({
     if (ids.length === 0) return;
 
     const label = ids.length === 1 ? '1 contact' : `${ids.length} contacts`;
-    const target = isMock ? 'the mock contact list' : 'monday.com';
+    const target = isMock ? 'the mock contact list' : 'the portal';
     if (
       !window.confirm(
         `Delete ${label}? This removes the item(s) from ${target} and cannot be undone.`,
@@ -325,7 +325,7 @@ export default function ContactsPage({
             )}
             {isMock && (
               <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
-                Showing mock data — not your monday.com Contacts board. Set{' '}
+                Showing mock data — not your live Contacts list. Set{' '}
                 <code className="rounded bg-amber-100 px-1">
                   VITE_USE_MOCK_DATA=false
                 </code>{' '}
@@ -392,7 +392,7 @@ export default function ContactsPage({
             <p>Loading contacts…</p>
           ) : (
             <>
-              <p>Loading contacts from monday.com…</p>
+              <p>Loading contacts…</p>
               <p className="mt-2 text-sm text-crm-slate/80">
                 First batch appears in a few seconds; large boards keep loading
                 in the background.

@@ -27,7 +27,7 @@ function mapMondayMessage(message: ContactEmailMessage): EmailLogEntry {
     recipientEmail: message.recipientEmail,
     sentAt: message.sentAt,
     source,
-    sourceLabel: message.sourceLabel || 'monday.com',
+    sourceLabel: message.sourceLabel || 'Item activity',
     itemId: message.itemId,
     contactId: message.contactId,
     accountId: account?.id,

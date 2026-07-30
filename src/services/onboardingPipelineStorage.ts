@@ -24,7 +24,13 @@ export function loadPipeline(volunteerId: string): OnboardingPipeline | undefine
 
 export function savePipeline(
   pipeline: OnboardingPipeline,
-  options?: { actorName?: string; volunteerName?: string },
+  options?: {
+    actorName?: string;
+    volunteerName?: string;
+    longterm?: boolean;
+    /** Skip Portal Things sync (internal use when loading from Monday). */
+    skipPortalSync?: boolean;
+  },
 ): OnboardingPipeline {
   const all = readAll();
   const previous = all[pipeline.volunteerId];
@@ -49,6 +55,18 @@ export function savePipeline(
         focusId: pipeline.volunteerId,
       },
     });
+
+    if (!options?.skipPortalSync) {
+      void import('./portalOnboardingSync')
+        .then(({ savePipelineToPortal }) =>
+          savePipelineToPortal(pipeline, {
+            actorName: options?.actorName,
+            volunteerName: options?.volunteerName,
+            longterm: options?.longterm,
+          }),
+        )
+        .catch(() => undefined);
+    }
   }
 
   return pipeline;

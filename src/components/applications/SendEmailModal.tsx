@@ -231,7 +231,7 @@ export default function SendEmailModal({
           {recipients.length === 0 ? (
             <p className="text-sm text-amber-700">
               No email addresses on this application. Add Email, Parent Email,
-              Pastor Email, or Other Reference Emails on the monday.com item.
+              Pastor Email, or Other Reference Emails on this application.
             </p>
           ) : templatesLoading ? (
             <p className="text-sm text-crm-slate">Loading templates…</p>

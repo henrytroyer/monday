@@ -1,5 +1,5 @@
 /**
- * navItems.ts — Monday Project internal sidebar navigation (not i58-finance menus).
+ * navItems.ts — Volunteer Portal internal sidebar navigation (not i58-finance menus).
  */
 
 export const PRIMARY_NAV_ITEMS = [

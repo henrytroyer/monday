@@ -90,19 +90,33 @@ export function useShortTermOnboardingPipeline({
       return;
     }
 
-    const base = mergePipelineWithStorage(volunteer, detail, false);
-    const synced = syncShortTermOnboarding(base, {
-      volunteer,
-      detail,
-      messages,
-      pastorReference,
-      quickBooksInvoice,
-    });
-    setPipeline(synced);
-    savePipeline(synced, {
-      actorName,
-      volunteerName: volunteer.name,
-    });
+    let cancelled = false;
+    void import('../services/portalOnboardingSync')
+      .then(({ loadPipelineFromPortal }) =>
+        loadPipelineFromPortal(volunteer.id),
+      )
+      .catch(() => null)
+      .then(() => {
+        if (cancelled) return;
+        const base = mergePipelineWithStorage(volunteer, detail, false);
+        const synced = syncShortTermOnboarding(base, {
+          volunteer,
+          detail,
+          messages,
+          pastorReference,
+          quickBooksInvoice,
+        });
+        setPipeline(synced);
+        savePipeline(synced, {
+          actorName,
+          volunteerName: volunteer.name,
+          longterm: false,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     volunteer,
     detail,
@@ -118,6 +132,7 @@ export function useShortTermOnboardingPipeline({
       savePipeline(next, {
         actorName,
         volunteerName: volunteer.name,
+        longterm: false,
       });
     },
     [actorName, volunteer.name],

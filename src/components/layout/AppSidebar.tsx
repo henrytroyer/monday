@@ -1,5 +1,5 @@
 /**
- * AppSidebar.tsx — Monday Project sidebar with Settings dropdown (CRM-only nav).
+ * AppSidebar.tsx — Volunteer Portal sidebar with Settings dropdown (CRM-only nav).
  */
 
 import { useEffect, useState } from 'react';
@@ -126,7 +126,7 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold text-crm-heading">Monday Project</h1>
+              <h1 className="text-2xl font-semibold text-crm-heading">Volunteer Portal</h1>
               <p className="mt-2 text-sm text-crm-slate">
                 Volunteer operations dashboard
               </p>

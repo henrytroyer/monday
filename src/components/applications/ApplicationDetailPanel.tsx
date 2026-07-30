@@ -6,7 +6,6 @@ import { useLongtermReferences } from '../../hooks/useLongtermReferences';
 import { useShortTermOnboardingPipeline } from '../../hooks/useShortTermOnboardingPipeline';
 import { openItem } from '../../utils/mondayHelpers';
 import { savePipeline } from '../../services/onboardingPipelineStorage';
-import ApplicationFieldsEditor from './ApplicationFieldsEditor';
 import { syncOnboardingStepToMonday } from '../../services/crmApi';
 import { useMockData } from '../../config/boards';
 import type { OnboardingPipeline, Volunteer, VolunteerDetail } from '../../types/volunteer';
@@ -99,9 +98,20 @@ export default function ApplicationDetailPanel({
   );
 
   useEffect(() => {
-    if (detail && quickActionsBeforeFiles) {
-      setLongtermPipeline(mergePipelineWithStorage(volunteer, detail, true));
-    }
+    if (!detail || !quickActionsBeforeFiles) return;
+    let cancelled = false;
+    void import('../../services/portalOnboardingSync')
+      .then(({ loadPipelineFromPortal }) =>
+        loadPipelineFromPortal(volunteer.id),
+      )
+      .catch(() => null)
+      .then(() => {
+        if (cancelled) return;
+        setLongtermPipeline(mergePipelineWithStorage(volunteer, detail, true));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [volunteer.id, volunteer.timelineId, detail, quickActionsBeforeFiles]);
 
   const shortTermOnboarding = useShortTermOnboardingPipeline({
@@ -123,6 +133,7 @@ export default function ApplicationDetailPanel({
       savePipeline(next, {
         actorName: displayName,
         volunteerName: volunteer.name,
+        longterm: true,
       });
     } else {
       shortTermOnboarding.handlePipelineChange(next);
@@ -240,7 +251,7 @@ export default function ApplicationDetailPanel({
       <h3 className="text-sm font-semibold text-crm-heading">Quick Actions</h3>
       <div className="mt-3 flex flex-wrap gap-2.5">
         <ActionButton
-          label="Open in monday.com"
+          label="Open linked record"
           onClick={handleOpenInMonday}
         />
         <ActionButton
@@ -333,16 +344,9 @@ export default function ApplicationDetailPanel({
                   boardId={boardId}
                   canUploadFiles={applicationsEditable}
                   onFilesUploaded={() => refetch()}
-                />
-              )}
-
-              {boardId && (
-                <ApplicationFieldsEditor
-                  detail={display}
-                  boardId={boardId}
                   canEdit={applicationsEditable}
                   longterm={quickActionsBeforeFiles}
-                  onSaved={() => refetch()}
+                  onContactSaved={() => refetch()}
                 />
               )}
 

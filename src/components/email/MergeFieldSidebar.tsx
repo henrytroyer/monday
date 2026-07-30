@@ -57,7 +57,7 @@ export default function MergeFieldSidebar({
   if (collapsed) {
     return (
       <div className="email-merge-compact">
-        <p className="email-merge-compact__title">Monday fields</p>
+        <p className="email-merge-compact__title">Merge fields</p>
         <div className="email-merge-compact__chips">
           {EMAIL_MERGE_FIELDS.slice(0, 10).map((field) => (
             <button
@@ -79,7 +79,7 @@ export default function MergeFieldSidebar({
   return (
     <aside className="email-merge-sidebar">
       <div className="email-merge-sidebar__header">
-        <h4 className="email-merge-sidebar__title">Monday board data</h4>
+        <h4 className="email-merge-sidebar__title">Record data</h4>
         <p className="email-merge-sidebar__subtitle">
           Click to insert at cursor.
           {hasLiveValues

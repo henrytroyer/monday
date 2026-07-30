@@ -91,6 +91,20 @@ function saveProspects(prospects: RecruitmentProspect[]): void {
   localStorage.setItem(PROSPECTS_KEY, JSON.stringify(prospects));
 }
 
+function syncProspectToPortal(prospect: RecruitmentProspect): void {
+  if (useMockData()) return;
+  void import('./portalRecruitmentSync')
+    .then(({ upsertProspectOnPortal }) => upsertProspectOnPortal(prospect))
+    .catch(() => undefined);
+}
+
+function syncProspectDeleteToPortal(prospectId: string): void {
+  if (useMockData()) return;
+  void import('./portalRecruitmentSync')
+    .then(({ deleteProspectOnPortal }) => deleteProspectOnPortal(prospectId))
+    .catch(() => undefined);
+}
+
 export async function createRecruitmentProspect(
   input: RecruitmentProspectInput & {
     sourceContactId?: string | null;
@@ -114,9 +128,12 @@ export async function createRecruitmentProspect(
   saveProspects([prospect, ...existing]);
   if (prospect.sourceContactId) {
     upsertRecruitmentServiceRecord(prospect.sourceContactId, prospect);
+    syncProspectToPortal(prospect);
     return prospect;
   }
-  return linkManualProspectToContact(prospect);
+  const linked = await linkManualProspectToContact(prospect);
+  syncProspectToPortal(linked);
+  return linked;
 }
 
 async function linkManualProspectToContact(
@@ -275,6 +292,7 @@ export function updateRecruitmentProspect(
   ) {
     syncProspectCoreFieldsToContact(updated);
   }
+  syncProspectToPortal(updated);
   return updated;
 }
 
@@ -284,6 +302,7 @@ export function deleteRecruitmentProspect(id: string): void {
   if (prospect?.sourceContactId) {
     archiveRecruitmentServiceRecord(prospect.sourceContactId, id);
   }
+  syncProspectDeleteToPortal(id);
 }
 
 function reactivateRecruitmentProspect(

@@ -164,7 +164,7 @@ export default function VolunteerFilesSection({
       {canUpload && boardId && itemId && (
         <div className="mb-3 space-y-2 rounded-xl border border-dashed border-crm-taupe/40 bg-crm-taupe-50/60 p-3">
           <p className="text-xs font-medium text-crm-heading">
-            Upload to Monday
+            Upload
           </p>
           <div className="flex flex-wrap gap-2">
             {(

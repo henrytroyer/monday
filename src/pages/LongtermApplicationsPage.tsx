@@ -174,7 +174,7 @@ export default function LongtermApplicationsPage({
                 {viewMode === 'pipeline'
                   ? `${pipelineCount} in pipeline · ${onFieldCount} on field · ${totalCount} total`
                   : `${onFieldCount} on field · ${totalCount} total`}
-                {!isMock && boardId ? ' · Live from monday.com' : ''}
+                {!isMock && boardId ? ' · Live' : ''}
               </p>
             </div>
             {!isMock && (
@@ -217,7 +217,7 @@ export default function LongtermApplicationsPage({
           {isMock ? (
             <p>Loading long-term applications…</p>
           ) : (
-            <p>Loading long-term applications from monday.com…</p>
+            <p>Loading long-term applications…</p>
           )}
         </div>
       )}

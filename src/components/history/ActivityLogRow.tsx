@@ -118,7 +118,7 @@ export default function ActivityLogRow({
       window.open(details.openUrl, '_blank', 'noopener,noreferrer');
     } catch {
       setResolveError(
-        'Could not open monday.com. Search Automate for the name shown above.',
+        'Could not open automations. Search Automate for the name shown above.',
       );
     } finally {
       setOpeningAutomation(false);
@@ -207,7 +207,7 @@ export default function ActivityLogRow({
               </p>
               {resolved.automationId && (
                 <p className="mt-1 text-xs text-crm-slate">
-                  monday id: {resolved.automationId}
+                  automation id: {resolved.automationId}
                 </p>
               )}
               {resolved.stepTitles.length > 1 && (
@@ -225,7 +225,7 @@ export default function ActivityLogRow({
             </p>
           )}
           <p className="mt-2 text-xs text-crm-slate">
-            Opens this automation in monday.com. The name is also copied so you
+            Opens this automation in Automate. The name is also copied so you
             can paste/search if the page does not jump to it.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -239,7 +239,7 @@ export default function ActivityLogRow({
                 ? 'Opening…'
                 : resolved?.name
                   ? `Open “${resolved.name.length > 42 ? `${resolved.name.slice(0, 42)}…` : resolved.name}”`
-                  : 'Open automation in monday.com'}
+                  : 'Open automation'}
             </button>
           </div>
           {resolveError && (

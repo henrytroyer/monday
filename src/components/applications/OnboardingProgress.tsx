@@ -127,7 +127,7 @@ export default function OnboardingProgress({
   return (
     <>
       <p className="text-sm text-crm-slate">
-        Steps update from Monday emails, reference board, safeguarding, itinerary,
+        Steps update from emails, reference board, safeguarding, itinerary,
         and QuickBooks.
       </p>
 

@@ -1,11 +1,14 @@
 /**
- * uploadMondayFile.ts — Upload a file into a Monday file column via the API proxy.
+ * uploadMondayFile.ts — Upload a file into the item's Monday Files column via the API proxy.
+ * Slot labels only affect the stored filename so the CRM can categorize after refresh.
  */
 
 import { canEditApplications, useMockData } from '../config/boards';
 import { columnMap } from '../config/columnMap';
 import {
+  fetchWriteBoardColumns,
   findBoardColumnByTitle,
+  type MondayWriteColumn,
 } from './mondayColumnWrite';
 import {
   getCachedMondayProxyAuthToken,
@@ -20,12 +23,12 @@ export type MondayFileSlot =
   | 'profilePhoto'
   | 'files';
 
-const SLOT_TO_MAP: Record<MondayFileSlot, keyof typeof columnMap> = {
-  passport: 'passport',
-  releaseForms: 'releaseForms',
-  itineraryFiles: 'itineraryFiles',
-  profilePhoto: 'profilePhoto',
-  files: 'files',
+/** Filename hints so Files-column uploads still categorize in the CRM UI. */
+const SLOT_NAME_PREFIX: Partial<Record<MondayFileSlot, string>> = {
+  passport: 'Passport',
+  releaseForms: 'Release Forms',
+  itineraryFiles: 'Itinerary',
+  profilePhoto: 'Profile',
 };
 
 function proxyBase(): string {
@@ -36,7 +39,7 @@ function proxyBase(): string {
     ?.trim()
     .replace(/\/$/, '');
   if (!base) {
-    throw new Error('Monday API proxy URL is not configured.');
+    throw new Error('API proxy URL is not configured.');
   }
   return base;
 }
@@ -54,6 +57,28 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+function ensureSlotFileName(slot: MondayFileSlot, originalName: string): string {
+  const prefix = SLOT_NAME_PREFIX[slot];
+  if (!prefix) return originalName;
+  if (new RegExp(prefix, 'i').test(originalName)) return originalName;
+  return `${prefix} - ${originalName}`;
+}
+
+async function resolveFilesColumn(boardId: string): Promise<MondayWriteColumn> {
+  const filesCol = await findBoardColumnByTitle(boardId, columnMap.files);
+  if (filesCol?.type === 'file') return filesCol;
+
+  const columns = await fetchWriteBoardColumns(boardId);
+  const anyFiles = columns.find(
+    (c) => c.type === 'file' && /^files?$/i.test(c.title.trim()),
+  );
+  if (anyFiles) return anyFiles;
+
+  throw new Error(
+    `No Files column found on this board (looked for "${columnMap.files}"). Add a Files column or set VITE_COL_FILES.`,
+  );
+}
+
 export async function uploadFileToApplicationColumn(
   boardId: string,
   itemId: string,
@@ -61,19 +86,14 @@ export async function uploadFileToApplicationColumn(
   file: File,
 ): Promise<{ assetId: string | null }> {
   if (useMockData()) {
-    throw new Error('File upload requires live monday.com data.');
+    throw new Error('File upload requires live portal data.');
   }
   if (!canEditApplications()) {
     throw new Error('Applications are read-only: cannot upload files.');
   }
 
-  const columnTitle = columnMap[SLOT_TO_MAP[slot]];
-  const column = await findBoardColumnByTitle(boardId, columnTitle);
-  if (!column) {
-    throw new Error(
-      `Column "${columnTitle}" not found. Add it on Monday or set the matching VITE_COL_* override.`,
-    );
-  }
+  const column = await resolveFilesColumn(boardId);
+  const fileName = ensureSlotFileName(slot, file.name);
 
   const base64 = await fileToBase64(file);
   const headers: Record<string, string> = {
@@ -88,7 +108,7 @@ export async function uploadFileToApplicationColumn(
     body: JSON.stringify({
       itemId,
       columnId: column.id,
-      fileName: file.name,
+      fileName,
       contentType: file.type || 'application/octet-stream',
       base64,
     }),

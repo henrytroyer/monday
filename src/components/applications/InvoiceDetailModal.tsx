@@ -213,8 +213,8 @@ export default function InvoiceDetailModal({
               </h2>
               <p className="mt-1 text-sm text-crm-slate">
                 {isCreateMode
-                  ? `New invoice for ${volunteerName} · monday status: ${mondayStatus}`
-                  : `Linked to Invoice Paid · monday status: ${mondayStatus}`}
+                  ? `New invoice for ${volunteerName} · invoice status: ${mondayStatus}`
+                  : `Linked to Invoice Paid · status: ${mondayStatus}`}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -308,7 +308,7 @@ export default function InvoiceDetailModal({
                     {volunteerName}
                   </span>
                   . Add line items below, then create the invoice. The invoice
-                  id can be saved to the monday item when linked.
+                  id can be saved on this application when linked.
                 </p>
               )}
 

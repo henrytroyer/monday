@@ -192,6 +192,21 @@ export function canEditSafeguarding(): boolean {
   return !isMondayReadOnly();
 }
 
+/** Portal Things board (CRM infrastructure: onboarding, recruitment, signatures). */
+export function resolvePortalThingsBoardId(): string | null {
+  if (useMockData()) return null;
+  const envBoardId = import.meta.env.VITE_PORTAL_THINGS_BOARD_ID;
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+  return null;
+}
+
+export function canEditPortalThings(): boolean {
+  if (useMockData()) return true;
+  if (!crmRoleAllowsWrite()) return false;
+  if (import.meta.env.VITE_PORTAL_THINGS_WRITABLE === 'true') return true;
+  return !isMondayReadOnly();
+}
+
 export type CrmRole = 'viewer' | 'coordinator' | 'admin';
 
 /** Soft CRM role from env (password-gated Admin still applies). Default admin. */
@@ -231,6 +246,7 @@ export function resolveMonitoredBoardIds(): string[] {
   const eosReviewId = import.meta.env.VITE_EOS_REVIEW_BOARD_ID;
   const longtermAppsId = import.meta.env.VITE_LONGTERM_APPLICATIONS_BOARD_ID;
   const longtermRefsId = import.meta.env.VITE_LONGTERM_REFERENCES_BOARD_ID;
+  const portalThingsId = import.meta.env.VITE_PORTAL_THINGS_BOARD_ID;
   if (contactsId) ids.push(String(contactsId));
   if (applicationsId) ids.push(String(applicationsId));
   if (donationsId) ids.push(String(donationsId));
@@ -238,6 +254,7 @@ export function resolveMonitoredBoardIds(): string[] {
   if (eosReviewId) ids.push(String(eosReviewId));
   if (longtermAppsId) ids.push(String(longtermAppsId));
   if (longtermRefsId) ids.push(String(longtermRefsId));
+  if (portalThingsId) ids.push(String(portalThingsId));
   return [...new Set(ids)];
 }
 

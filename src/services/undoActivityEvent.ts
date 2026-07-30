@@ -20,7 +20,7 @@ import { mondayGraphQL } from './mondayGraphQL';
 
 function assertUndoAllowed(event: CrmActivityEvent): void {
   if (isMondayReadOnly() && !canEditContacts() && !canEditApplications()) {
-    throw new Error('CRM is read-only: cannot undo monday.com changes.');
+    throw new Error('CRM is read-only: cannot undo changes.');
   }
 
   const boardId = event.boardId ? String(event.boardId) : '';
@@ -206,7 +206,7 @@ export function describeUndo(event: CrmActivityEvent): string {
 
 export async function undoActivityEvent(event: CrmActivityEvent): Promise<void> {
   if (useMockData()) {
-    throw new Error('Undo is only available with live monday.com data.');
+    throw new Error('Undo is only available with live portal data.');
   }
   if (!event.undoable || !event.undo || !event.boardId || !event.entityId) {
     throw new Error('This change cannot be undone from History.');
