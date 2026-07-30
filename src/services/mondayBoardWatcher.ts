@@ -7,8 +7,10 @@ import {
 import { harvestMondayNotes } from './mondayNoteHarvest';
 import {
   readWatchCursors,
+  resolveHarvestSinceIso,
   writeWatchCursors,
 } from './noteReviewHarvestCursors';
+import { seedWatchCursorIfUnset } from './noteReviewFloodGuard';
 
 export interface WatchPollResult {
   ranAt: string;
@@ -19,9 +21,12 @@ export async function pollMondayBoardUpdates(): Promise<WatchPollResult | null> 
   if (useMockData() || !isMondayWatchEnabled()) return null;
   if (resolveMonitoredBoardIds().length === 0) return null;
 
+  // Never treat an unset cursor as "scan the last 30 days" — that floods Note review.
+  seedWatchCursorIfUnset();
   const cursors = readWatchCursors();
+  const sinceIso = resolveHarvestSinceIso(cursors.lastRunAt);
   const harvest = await harvestMondayNotes({
-    sinceIso: cursors.lastRunAt,
+    sinceIso,
     itemLimitPerBoard: 100,
   });
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { resolveMonitoredBoardIds, useMockData } from '../config/boards';
 import { harvestMondayNotes } from '../services/mondayNoteHarvest';
+import { seedNoteReviewWithoutHistoricalHarvest } from '../services/noteReviewBootstrap';
 import { notifyContactNotesChanged, pollMondayBoardUpdates, watchIntervalMs, watchIsEnabled } from '../services/mondayBoardWatcher';
 import { pollEmailTimelineUpdates } from '../services/emailTimelineWatcher';
 import { pollReferenceBoardUpdates } from '../services/referenceBoardWatcher';
@@ -24,21 +25,22 @@ function notifyHarvestResult(
 
 export function useMondayBoardWatcher() {
   const running = useRef(false);
-  const initialHarvestStarted = useRef(false);
+  const bootstrapStarted = useRef(false);
 
+  // Sync/prune/auto-clear flooded local inbox on every session — never
+  // backfill months of board history into Note review.
   useEffect(() => {
-    if (useMockData() || initialHarvestStarted.current) return;
+    if (useMockData() || bootstrapStarted.current) return;
     if (resolveMonitoredBoardIds().length === 0) return;
-    if (localStorage.getItem(INITIAL_HARVEST_KEY)) return;
 
-    initialHarvestStarted.current = true;
-    void harvestMondayNotes()
-      .then((result) => {
+    bootstrapStarted.current = true;
+    void seedNoteReviewWithoutHistoricalHarvest()
+      .then(() => {
         localStorage.setItem(INITIAL_HARVEST_KEY, 'true');
-        notifyHarvestResult(result);
+        notifyNoteReviewChanged();
       })
       .catch(() => {
-        initialHarvestStarted.current = false;
+        bootstrapStarted.current = false;
       });
   }, []);
 

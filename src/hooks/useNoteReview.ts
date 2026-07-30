@@ -12,12 +12,37 @@ import {
   persistDismissedNoteToMonday,
   syncNoteReviewFromMonday,
 } from '../services/noteReviewMondaySync';
+import { bootstrapNoteReviewInbox } from '../services/noteReviewBootstrap';
+import {
+  clearFloodedInboxLocally,
+  seedWatchCursorIfUnset,
+} from '../services/noteReviewFloodGuard';
 import { notifyContactNotesChanged } from '../services/mondayBoardWatcher';
+import { useMockData } from '../config/boards';
 import type { NoteReviewItem } from '../types/noteReview';
 
+function initialPendingCount(): number {
+  try {
+    seedWatchCursorIfUnset();
+    clearFloodedInboxLocally();
+    return getPendingReviewCount();
+  } catch {
+    return getPendingReviewCount();
+  }
+}
+
 export function useNoteReview() {
-  const [items, setItems] = useState<NoteReviewItem[]>([]);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [items, setItems] = useState<NoteReviewItem[]>(() => {
+    try {
+      seedWatchCursorIfUnset();
+      clearFloodedInboxLocally();
+      return getPendingReviewItems();
+    } catch {
+      return getPendingReviewItems();
+    }
+  });
+  const [pendingCount, setPendingCount] = useState(initialPendingCount);
+  const isMock = useMockData();
 
   const refresh = useCallback(() => {
     setItems(getPendingReviewItems());
@@ -34,6 +59,23 @@ export function useNoteReview() {
       window.removeEventListener('crm-note-review-changed', onStorage);
     };
   }, [refresh]);
+
+  // Bell mounts before the inbox — sync/prune here so the badge never sticks at 1400.
+  useEffect(() => {
+    if (isMock) return;
+    let cancelled = false;
+    void bootstrapNoteReviewInbox()
+      .then(() => {
+        if (!cancelled) {
+          refresh();
+          window.dispatchEvent(new Event('crm-note-review-changed'));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isMock, refresh]);
 
   const approve = useCallback(
     async (noteKey: string, contactId: string, contactName: string) => {
