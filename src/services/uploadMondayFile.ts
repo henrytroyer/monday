@@ -10,6 +10,7 @@ import {
   findBoardColumnByTitle,
   type MondayWriteColumn,
 } from './mondayColumnWrite';
+import { archiveCurrentSlotFilesBeforeUpload } from './archiveMondaySlotFiles';
 import {
   getCachedMondayProxyAuthToken,
   getMondayProxyBaseOverride,
@@ -94,6 +95,9 @@ export async function uploadFileToApplicationColumn(
 
   const column = await resolveFilesColumn(boardId);
   const fileName = ensureSlotFileName(slot, file.name);
+
+  // Keep prior slot files on the item as "Old - …", then upload the new current file.
+  await archiveCurrentSlotFilesBeforeUpload(boardId, itemId, slot, column);
 
   const base64 = await fileToBase64(file);
   const headers: Record<string, string> = {

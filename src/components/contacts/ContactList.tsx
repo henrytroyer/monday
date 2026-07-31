@@ -1,3 +1,7 @@
+/**
+ * ContactList.tsx — Alphabetized contacts list with optional couple merge rows.
+ */
+
 import type { ContactListItem } from '../../types/contact';
 import { CONTACT_TAG_LABELS } from '../../types/contact';
 import { contactTagListPillClass } from '../../utils/contactTagStyles';
@@ -5,6 +9,10 @@ import {
   getContactSortLetter,
   letterAnchorId,
 } from '../../utils/contactSortLetter';
+import {
+  isContactCoupleUnit,
+  mergeContactsIntoCoupleUnits,
+} from '../../utils/contactCoupleMerge';
 import VolunteerAvatar from '../applications/VolunteerAvatar';
 
 interface ContactListProps {
@@ -31,22 +39,34 @@ export default function ContactList({
     );
   }
 
+  const entries = mergeContactsIntoCoupleUnits(contacts);
   const seenLetters = new Set<string>();
 
   return (
     <ul className="divide-y divide-crm-taupe/20 rounded-3xl border border-crm-taupe/20 bg-crm-surface shadow-sm">
-      {contacts.map((contact) => {
-        const letter = getContactSortLetter(contact.name);
+      {entries.map((entry) => {
+        const contact = isContactCoupleUnit(entry) ? entry.primary : entry;
+        const spouse = isContactCoupleUnit(entry) ? entry.spouse : undefined;
+        const displayName = isContactCoupleUnit(entry)
+          ? entry.label
+          : contact.name;
+        const letter = getContactSortLetter(displayName);
         const isFirstForLetter = !seenLetters.has(letter);
         if (isFirstForLetter) {
           seenLetters.add(letter);
         }
 
         const isSelected = selectedIds.has(contact.id);
+        const tags = [
+          ...new Set([
+            ...contact.tags,
+            ...(spouse?.tags ?? []),
+          ]),
+        ];
 
         return (
           <li
-            key={contact.id}
+            key={isContactCoupleUnit(entry) ? entry.key : contact.id}
             id={isFirstForLetter ? letterAnchorId(letter) : undefined}
             className={isSelected ? 'bg-crm-indigo-50/80' : undefined}
           >
@@ -57,36 +77,51 @@ export default function ContactList({
                   checked={isSelected}
                   onChange={() => onToggleSelect(contact)}
                   onClick={(event) => event.stopPropagation()}
-                  aria-label={`Select ${contact.name}`}
+                  aria-label={`Select ${displayName}`}
                   className="h-4 w-4 rounded border-crm-taupe/40 text-crm-indigo focus:ring-crm-indigo/30"
                 />
               </label>
 
-              <button
-                type="button"
-                onClick={() => onSelect(contact)}
-                className="flex min-w-0 flex-1 items-center gap-4 py-4 pr-5 text-left transition hover:bg-crm-taupe-50"
-              >
-                <VolunteerAvatar
-                  name={contact.name}
-                  profilePhotoUrl={contact.profilePhotoUrl}
-                  size="sm"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-crm-heading">{contact.name}</div>
-                  <div className="truncate text-sm text-crm-slate">
-                    {contact.email}
+              <div className="flex min-w-0 flex-1 items-center gap-4 py-4 pr-5">
+                <button
+                  type="button"
+                  onClick={() => onSelect(contact)}
+                  className="flex min-w-0 flex-1 items-center gap-4 text-left transition hover:opacity-90"
+                >
+                  <VolunteerAvatar
+                    name={displayName}
+                    profilePhotoUrl={contact.profilePhotoUrl}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-crm-heading">
+                      {displayName}
+                    </div>
+                    <div className="truncate text-sm text-crm-slate">
+                      {spouse
+                        ? `${contact.email} · ${spouse.email}`
+                        : contact.email}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {tags.map((tag) => (
+                        <span key={tag} className={contactTagListPillClass(tag)}>
+                          {CONTACT_TAG_LABELS[tag]}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {contact.tags.map((tag) => (
-                      <span key={tag} className={contactTagListPillClass(tag)}>
-                        {CONTACT_TAG_LABELS[tag]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <span className="shrink-0 text-crm-slate">→</span>
-              </button>
+                  <span className="shrink-0 text-crm-slate">→</span>
+                </button>
+                {spouse && (
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs font-medium text-crm-indigo hover:underline"
+                    onClick={() => onSelect(spouse)}
+                  >
+                    Open {spouse.name}
+                  </button>
+                )}
+              </div>
             </div>
           </li>
         );

@@ -71,6 +71,54 @@ describe('resolveVolunteerFileSlots childSafeguardingFile', () => {
     assert.equal(slots.otherFiles[0]?.name, 'Application-form.pdf');
   });
 
+  it('puts archived Old- files in oldFiles and keeps newer slot file current', () => {
+    const files: VolunteerFile[] = [
+      {
+        id: '1',
+        name: 'Old - Profile - previous.jpg',
+        url: '/api/monday/assets/1',
+        isImage: true,
+      },
+      {
+        id: '2',
+        name: 'Profile - current.jpg',
+        url: '/api/monday/assets/2',
+        isImage: true,
+      },
+    ];
+
+    const slots = resolveVolunteerFileSlots(undefined, files);
+
+    assert.equal(slots.profilePhoto?.url, '/api/monday/assets/2');
+    assert.equal(slots.oldFiles.length, 1);
+    assert.equal(slots.oldFiles[0]?.id, '1');
+    assert.equal(slots.otherFiles.length, 0);
+  });
+
+  it('keeps one itinerary screenshot current and moves earlier ones to Files', () => {
+    const files: VolunteerFile[] = [
+      {
+        id: 'a',
+        name: 'Itinerary - Screenshot older.png',
+        url: '/api/monday/assets/a',
+        isImage: true,
+      },
+      {
+        id: 'b',
+        name: 'Itinerary - Screenshot newer.png',
+        url: '/api/monday/assets/b',
+        isImage: true,
+      },
+    ];
+
+    const slots = resolveVolunteerFileSlots(undefined, files);
+
+    assert.equal(slots.itineraryFiles.length, 1);
+    assert.equal(slots.itineraryFiles[0]?.id, 'b');
+    assert.equal(slots.oldFiles.length, 1);
+    assert.equal(slots.oldFiles[0]?.id, 'a');
+  });
+
   it('excludes gallery copies of profile, passport, and itinerary from other documents', () => {
     const profileUrl = '/api/monday/assets/2872738376';
     const passportUrl = '/api/monday/assets/2872738348';

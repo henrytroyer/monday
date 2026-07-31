@@ -27,6 +27,8 @@ import {
 } from '../utils/contactSortLetter';
 import { sortContacts } from '../utils/sortContacts';
 import { ingestPendingDonations, deleteContacts } from '../services/contactsApi';
+import { runContactIngest } from '../services/contactUpsert/runContactIngest';
+import { countPendingContactMatchReviews } from '../services/contactUpsert/contactMatchReviewStorage';
 import { readWorkspaceState } from '../services/crmNavigationStorage';
 
 export default function ContactsPage({
@@ -51,6 +53,8 @@ export default function ContactsPage({
   const [batchEmailOpen, setBatchEmailOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [syncingContacts, setSyncingContacts] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [filterPanelTop, setFilterPanelTop] = useState(0);
@@ -278,6 +282,35 @@ export default function ContactsPage({
     }
   };
 
+  const handleSyncContacts = async (full = false) => {
+    setSyncingContacts(true);
+    setSyncMessage(null);
+    try {
+      const summary = await runContactIngest({ full });
+      const parts = [
+        `ST ${summary.scanned.shortTerm}`,
+        `LT ${summary.scanned.longTerm}`,
+        `CSE ${summary.scanned.serviceEnded}`,
+        `Donations ${summary.scanned.donations}`,
+      ];
+      setSyncMessage(
+        `Synced ${parts.join(' · ')} — created ${summary.created}, updated ${summary.updated}, review ${summary.queuedReview}${
+          summary.errors.length ? ` · ${summary.errors.length} error(s)` : ''
+        }.`,
+      );
+      if (summary.pendingReviews > 0 || countPendingContactMatchReviews() > 0) {
+        window.dispatchEvent(new Event('crm-contact-match-review'));
+      }
+      refetch();
+    } catch (err) {
+      setSyncMessage(
+        err instanceof Error ? err.message : 'Contact sync failed',
+      );
+    } finally {
+      setSyncingContacts(false);
+    }
+  };
+
   const scrollToLetter = (letter: string) => {
     const container = listScrollRef.current;
     if (!container) return;
@@ -334,14 +367,32 @@ export default function ContactsPage({
             )}
           </div>
           {!isMock && (
-            <button
-              type="button"
-              onClick={refetch}
-              disabled={loading || loadingMore}
-              className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-            >
-              Refresh
-            </button>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleSyncContacts(false)}
+                  disabled={syncingContacts || loading || !contactsEditable}
+                  className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                  title="Upsert volunteers, parents, pastors, spouses, and donors onto the Contacts board"
+                >
+                  {syncingContacts ? 'Syncing…' : 'Sync contacts'}
+                </button>
+                <button
+                  type="button"
+                  onClick={refetch}
+                  disabled={loading || loadingMore || syncingContacts}
+                  className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                >
+                  Refresh
+                </button>
+              </div>
+              {syncMessage && (
+                <p className="max-w-md text-right text-xs text-crm-slate">
+                  {syncMessage}
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

@@ -248,6 +248,17 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
     relationTags.push('donor');
   }
   const tags = [...new Set([...storedTags, ...relationTags])];
+  const spouseName =
+    getColumnText(item.column_values, 'spouseName') || undefined;
+  const connectedTo =
+    getColumnText(item.column_values, 'connectedTo') || undefined;
+  const pastorName =
+    getColumnText(item.column_values, 'pastorName') || undefined;
+  const parentName =
+    getColumnText(item.column_values, 'parentName') || undefined;
+  const searchHints = [spouseName, connectedTo, pastorName, parentName]
+    .filter(Boolean)
+    .join(' ');
 
   return {
     id: item.id,
@@ -258,6 +269,10 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
     createdAt: item.created_at ?? undefined,
     tags,
     demographics: mapListDemographics(item.column_values),
+    ...(spouseName ? { spouseName } : {}),
+    ...(connectedTo ? { connectedTo } : {}),
+    ...(pastorName ? { pastorName } : {}),
+    ...(searchHints ? { searchHints } : {}),
   };
 }
 

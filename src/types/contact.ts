@@ -50,6 +50,17 @@ export interface ContactListItem {
   tags: ContactTag[];
   /** Address columns when present on the Contacts board list fetch. */
   demographics?: ContactListDemographics;
+  /** Spouse name from Contacts board (couple merge / search). */
+  spouseName?: string;
+  /** Free-text Connected to: (couple partners, linked pastors, parents). */
+  connectedTo?: string;
+  /** Current pastor name snapshot on volunteer (search boost). */
+  pastorName?: string;
+  /**
+   * Extra tokens for list search — spouse, pastors, parents, Connected to:.
+   * Populated when mapping from Monday Contacts.
+   */
+  searchHints?: string;
 }
 
 export interface ContactPastorReference {
@@ -170,6 +181,9 @@ export interface ContactDetail extends ContactListItem {
   pastorReference?: ContactPastorReference;
   /** Linked donation items on the Donations board (Contacts board_relation column). */
   linkedDonationItemIds?: string[];
+  /** Emergency fields stored on the volunteer contact (not a separate Contacts item). */
+  emergencyContact?: string;
+  emergencyPhone?: string;
 }
 
 export type ContactSortOption =

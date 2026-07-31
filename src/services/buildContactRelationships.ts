@@ -215,7 +215,15 @@ export function enrichContactDetail(
   endOfServiceReviewItems: MondayBoardItem[] = [],
 ): Omit<
   ContactDetail,
-  | Exclude<keyof ContactListItem, 'demographics' | 'tags'>
+  | Exclude<
+      keyof ContactListItem,
+      | 'demographics'
+      | 'tags'
+      | 'spouseName'
+      | 'connectedTo'
+      | 'pastorName'
+      | 'searchHints'
+    >
   | 'donations'
   | 'emailCorrespondence'
 > {
@@ -378,6 +386,16 @@ export function enrichContactDetail(
   const linkedDonationItemIds = parseLinkedDonationItemIds(
     contactItem.column_values,
   );
+  const spouseName =
+    getContactColumnText(contactItem.column_values, 'spouseName') || undefined;
+  const connectedTo =
+    getContactColumnText(contactItem.column_values, 'connectedTo') || undefined;
+  const emergencyContact =
+    getContactColumnText(contactItem.column_values, 'emergencyContact') ||
+    undefined;
+  const emergencyPhone =
+    getContactColumnText(contactItem.column_values, 'emergencyPhone') ||
+    undefined;
   const tags = deriveDetailRoleTags({
     existingTags: base.tags,
     hasVolunteerService: serviceTermsWithReviews.length > 0,
@@ -401,5 +419,12 @@ export function enrichContactDetail(
     linkedVolunteers,
     pastorReference,
     ...(linkedDonationItemIds.length > 0 ? { linkedDonationItemIds } : {}),
+    ...(spouseName ? { spouseName } : {}),
+    ...(connectedTo ? { connectedTo } : {}),
+    ...(emergencyContact ? { emergencyContact } : {}),
+    ...(emergencyPhone ? { emergencyPhone } : {}),
+    searchHints: [spouseName, connectedTo, pastorReference?.name]
+      .filter(Boolean)
+      .join(' '),
   };
 }

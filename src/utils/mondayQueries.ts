@@ -31,6 +31,27 @@ export const fileValueFieldsFragment = `
     }
   }`;
 
+/** Item updates used for CRM internal notes (ownership + reply threads). */
+export const itemUpdatesWithRepliesFragment = `
+  updates(limit: 100) {
+    id
+    text_body
+    created_at
+    creator {
+      id
+      name
+    }
+    replies {
+      id
+      text_body
+      created_at
+      creator {
+        id
+        name
+      }
+    }
+  }`;
+
 export const queries = {
   /**
    * Get basic board information
@@ -234,14 +255,7 @@ export const queries = {
         name
         email
       }
-      updates(limit: 100) {
-        id
-        text_body
-        created_at
-        creator {
-          name
-        }
-      }
+      ${itemUpdatesWithRepliesFragment}
       ${itemGalleryAssetsFragment}
     }
   }`,
@@ -250,14 +264,7 @@ export const queries = {
     items(ids: $itemIds) {
       id
       name
-      updates(limit: 100) {
-        id
-        text_body
-        created_at
-        creator {
-          name
-        }
-      }
+      ${itemUpdatesWithRepliesFragment}
     }
   }`,
 
@@ -433,6 +440,20 @@ export const mutations = {
   }`,
 
   /**
+   * Replace the set of files on a file column (omit an asset to remove it).
+   */
+  updateAssetsOnItem: `mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $files: [FileInput!]!) {
+    update_assets_on_item(
+      board_id: $boardId,
+      item_id: $itemId,
+      column_id: $columnId,
+      files: $files
+    ) {
+      id
+    }
+  }`,
+
+  /**
    * Update column with a simple string value (text columns, item name, etc.)
    */
   updateSimpleColumnValue: `mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $value: String!, $createLabelsIfMissing: Boolean) {
@@ -469,13 +490,31 @@ export const mutations = {
   }`,
 
   /**
-   * Create update (comment) on item
+   * Create update (comment) on item. Pass parentId to reply in a thread.
    */
-  createUpdate: `mutation ($itemId: ID!, $body: String!) {
-    create_update(item_id: $itemId, body: $body) {
+  createUpdate: `mutation ($itemId: ID!, $body: String!, $parentId: ID) {
+    create_update(item_id: $itemId, body: $body, parent_id: $parentId) {
       id
       body
       created_at
+    }
+  }`,
+
+  /**
+   * Edit an existing update / reply body.
+   */
+  editUpdate: `mutation ($id: ID!, $body: String!) {
+    edit_update(id: $id, body: $body) {
+      id
+    }
+  }`,
+
+  /**
+   * Delete an update / reply.
+   */
+  deleteUpdate: `mutation ($id: ID!) {
+    delete_update(id: $id) {
+      id
     }
   }`,
 

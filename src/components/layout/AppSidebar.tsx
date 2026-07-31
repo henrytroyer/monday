@@ -11,6 +11,7 @@ import {
 } from '../../constants/navItems';
 import { useLayout } from '../../context/LayoutContext';
 import ReviewNotificationBell from './ReviewNotificationBell';
+import ContactMatchReviewBell from './ContactMatchReviewBell';
 
 export type { PageId };
 
@@ -193,6 +194,7 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
           </nav>
 
           <ReviewNotificationBell />
+          <ContactMatchReviewBell />
         </aside>
       )}
     </>

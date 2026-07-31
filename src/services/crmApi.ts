@@ -795,6 +795,73 @@ export async function addTermNote(
   invalidateApplicationDetail(itemId);
 }
 
+export async function editTermNote(
+  itemId: string,
+  updateId: string,
+  timelineId: string,
+  body: string,
+): Promise<void> {
+  assertApplicationNotesWritable('edit term notes');
+  const trimmed = body.trim();
+  if (!trimmed) {
+    throw new Error('Note cannot be empty');
+  }
+
+  await api<{ edit_update: { id: string } }>(mutations.editUpdate, {
+    id: updateId,
+    body: encodeTermNoteBody(timelineId, trimmed),
+  });
+  invalidateApplicationDetail(itemId);
+}
+
+export async function deleteTermNote(
+  itemId: string,
+  updateId: string,
+): Promise<void> {
+  assertApplicationNotesWritable('delete term notes');
+  await api<{ delete_update: { id: string } }>(mutations.deleteUpdate, {
+    id: updateId,
+  });
+  invalidateApplicationDetail(itemId);
+}
+
+export async function replyToTermNote(
+  itemId: string,
+  parentUpdateId: string,
+  body: string,
+): Promise<void> {
+  assertApplicationNotesWritable('reply to term notes');
+  const trimmed = body.trim();
+  if (!trimmed) {
+    throw new Error('Reply cannot be empty');
+  }
+
+  await api<{ create_update: { id: string } }>(mutations.createUpdate, {
+    itemId,
+    parentId: parentUpdateId,
+    body: trimmed,
+  });
+  invalidateApplicationDetail(itemId);
+}
+
+export async function editTermNoteReply(
+  itemId: string,
+  replyId: string,
+  body: string,
+): Promise<void> {
+  assertApplicationNotesWritable('edit term note reply');
+  const trimmed = body.trim();
+  if (!trimmed) {
+    throw new Error('Reply cannot be empty');
+  }
+
+  await api<{ edit_update: { id: string } }>(mutations.editUpdate, {
+    id: replyId,
+    body: trimmed,
+  });
+  invalidateApplicationDetail(itemId);
+}
+
 export async function addRecruitmentNoteOnContact(
   contactItemId: string,
   prospectId: string,

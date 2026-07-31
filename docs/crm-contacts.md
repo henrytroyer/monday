@@ -148,6 +148,56 @@ VITE_CONTACT_COL_DONATIONS_LINK_ID=link_to_donations
 
 **Project field:** Monday uses the **Program** column; QuickBooks uses line description or memo when present.
 
+## Native contact upsert (replaces Monday automations + Make)
+
+The CRM can **create and update Contacts board items** from source boards without monday.com create-automations or Make.com file copy.
+
+### Match tiers
+
+1. **Email exact** → auto-update  
+2. **Phone + last name** → auto-update  
+3. **Exact full name** (unique) → auto-update  
+4. **Fuzzy first + exact last** → **Contact match review** inbox (sidebar)  
+5. Address can boost confidence, never sole auto-merge  
+6. Else create  
+
+Updates **fill gaps + union tags**; empty values never wipe non-empty fields.
+
+### Sources
+
+| Source | Contacts created / updated |
+|--------|----------------------------|
+| Short-term application | Volunteer, Parents, Pastor, New Pastor (kept separately), Spouse |
+| Long-term application | Volunteer, Parents, Pastor (not friend / mentor / employer) |
+| Current Service Ended | Refresh volunteer (+ spouse/parents/pastors) with latest fields/files |
+| Donations board / CRM donation ingest | Donor |
+| Recruitment prospect → contact | Recruitment tag via same upsert engine |
+| QBO income watcher | Email match then create Donor (`server/mondayDonorSync.mjs`) |
+
+**Not created as Contacts:** Person You Are Accountable To; Emergency contact people (emergency name/phone are copied onto the **volunteer** contact only).
+
+### Couples & pastors
+
+- Married / spouse present → upsert both people; write `Couple: A & B` into **Connected  to:** so the list can show a merged couple row (open either person).
+- New pastor → new Pastor contact; old pastor kept; volunteer’s current pastor fields point at the new pastor; **Connected  to:** lists both so search finds the volunteer from either pastor name.
+
+### File sync
+
+Profile / Passport (and spouse slots) copy onto Contacts file columns through the Monday API proxy (`src/services/contactUpsert/syncContactFiles.ts`). Skip when the target slot already has a file. **Retire Make.com** file-copy scenarios once this path is verified in production.
+
+### UI
+
+- Contacts page → **Sync contacts** (recently updated items; cursor in `localStorage`)
+- Sidebar → **Contact matches** for fuzzy/ambiguous approvals
+- After a full backfill, disable monday contact-create automations and Make file recipes
+
+### Code map
+
+- `src/services/contactUpsert/contactMatch.ts` — match tiers  
+- `src/services/contactUpsert/contactUpsert.ts` — create/update/queue review  
+- `src/services/contactUpsert/ingestApplicationBundle.ts` — ST/LT/CSE people + files  
+- `src/services/contactUpsert/runContactIngest.ts` — board orchestrator  
+
 ## OAuth
 
 Same Board View app as Applications; read items on Contacts and Applications boards. Tag updates need column write permission on the Contacts board.

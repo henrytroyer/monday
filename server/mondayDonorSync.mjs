@@ -764,6 +764,8 @@ export async function syncIncomeTransaction(txn) {
     };
   }
 
+  // Donor upsert: email exact match (same primary tier as CRM contactUpsert),
+  // then create with Donor tag. Full fuzzy Match Review lives in the CRM UI.
   let contact = await findContactByEmail(txn.customerEmail);
   let contactCreated = false;
 

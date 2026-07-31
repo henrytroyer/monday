@@ -281,6 +281,61 @@ export default function ContactDetailPanel({
                 files={detail.files}
               />
 
+              {(detail.spouseName ||
+                detail.connectedTo ||
+                detail.emergencyContact ||
+                detail.emergencyPhone) && (
+                <Panel title="Connected people">
+                  <dl className="mt-4 space-y-3 text-sm">
+                    {detail.spouseName && (
+                      <div>
+                        <dt className="text-crm-slate">Spouse</dt>
+                        <dd className="font-medium text-crm-heading">
+                          {detail.spouseName}
+                        </dd>
+                      </div>
+                    )}
+                    {detail.connectedTo && (
+                      <div>
+                        <dt className="text-crm-slate">
+                          Connected to (pastors, family, couple)
+                        </dt>
+                        <dd className="mt-1 flex flex-wrap gap-2">
+                          {detail.connectedTo
+                            .split(/[,;]/)
+                            .map((part) => part.trim())
+                            .filter(Boolean)
+                            .map((label) => (
+                              <span
+                                key={label}
+                                className="rounded-full bg-crm-taupe-50 px-2.5 py-1 text-crm-heading"
+                              >
+                                {label}
+                              </span>
+                            ))}
+                        </dd>
+                        <p className="mt-2 text-xs text-crm-slate">
+                          Search Contacts by a pastor or spouse name to open
+                          their record — both old and new pastors stay linked.
+                        </p>
+                      </div>
+                    )}
+                    {(detail.emergencyContact || detail.emergencyPhone) && (
+                      <div>
+                        <dt className="text-crm-slate">
+                          Emergency (on this contact only)
+                        </dt>
+                        <dd className="font-medium text-crm-heading">
+                          {[detail.emergencyContact, detail.emergencyPhone]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                </Panel>
+              )}
+
               {detail.tags.includes('volunteer') && (
                 <Panel title="Current application">
                   {detail.currentApplication ? (

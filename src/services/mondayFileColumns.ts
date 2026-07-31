@@ -1,4 +1,5 @@
 import type { VolunteerFile } from '../types/volunteer';
+import { isArchivedVolunteerFileName } from '../utils/archivedVolunteerFiles';
 import { inferVolunteerFileIsImage } from '../utils/inferVolunteerFileIsImage';
 import { assetIdFromVolunteerFileUrl } from '../utils/condenseItineraryPdfFiles';
 import {
@@ -213,14 +214,21 @@ export function resolveProfilePhotoUrl(
   const fromProfile =
     resolveColumnFileUrl(profileCol, proxyBase) ||
     parseMondayFileColumn(profileCol, proxyBase).find(
-      (file) => file.isImage && file.url,
+      (file) =>
+        file.isImage &&
+        file.url &&
+        !isArchivedVolunteerFileName(file.name),
     )?.url;
   if (fromProfile) return fromProfile;
 
-  const fromGallery = parseMondayFileColumn(filesCol, proxyBase).find(
-    (file) => file.isImage && file.url,
+  const gallery = parseMondayFileColumn(filesCol, proxyBase).filter(
+    (file) =>
+      file.isImage &&
+      file.url &&
+      !isArchivedVolunteerFileName(file.name),
   );
-  return fromGallery?.url;
+  const namedProfile = gallery.filter((file) => /profile/i.test(file.name));
+  return (namedProfile.at(-1) ?? gallery.at(-1))?.url;
 }
 
 function passportFileFromColumn(

@@ -699,24 +699,13 @@ export async function ingestDonation(
       program: input.record?.projectLabel,
       details: input.record?.description,
     });
-    // Prefer returning the contact list item when we can resolve by email.
-    if (input.donorEmail) {
-      const match = await fetchContactsList().catch(() => []);
-      const found = match.find(
-        (c) =>
-          c.email.trim().toLowerCase() ===
-          input.donorEmail!.trim().toLowerCase(),
-      );
-      if (found) return found;
-    }
-    return {
-      id: `donation-pending-${Date.now()}`,
-      name: input.donorName,
-      email: input.donorEmail || '—',
-      phone: '',
-      tags: ['donor'],
-      createdAt: new Date().toISOString(),
-    };
+    const { upsertDonorViaEngine } = await import(
+      './contactUpsert/runContactIngest'
+    );
+    return upsertDonorViaEngine({
+      donorName: input.donorName,
+      donorEmail: input.donorEmail,
+    });
   }
   return syncContactFromDonation(input);
 }

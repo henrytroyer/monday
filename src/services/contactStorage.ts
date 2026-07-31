@@ -177,25 +177,55 @@ export function createContactFromProspect(
   });
 }
 
-/** Live path: create Contacts board item on Monday (or local mock). */
+/** Live path: upsert Contacts board item via shared match engine (or local mock). */
 export async function createContactFromProspectAsync(
   prospect: RecruitmentProspect,
 ): Promise<ContactListItem> {
-  const existing = prospect.email
-    ? findContactByEmail(prospect.email)
-    : undefined;
-  if (existing) {
-    ensureContactTag(existing.id, 'recruitment');
-    return getContactListItem(existing.id)!;
+  const { useMockData } = await import('../config/boards');
+  if (useMockData()) {
+    const existing = prospect.email
+      ? findContactByEmail(prospect.email)
+      : undefined;
+    if (existing) {
+      ensureContactTag(existing.id, 'recruitment');
+      return getContactListItem(existing.id)!;
+    }
+    const { createContactOnMonday } = await import('./createContactOnMonday');
+    return createContactOnMonday({
+      name: prospect.name.trim(),
+      email: prospect.email.trim() || '—',
+      phone: normalizeStoredPhone(prospect.phone.trim()),
+      tags: ['recruitment'],
+    });
   }
 
-  const { createContactOnMonday } = await import('./createContactOnMonday');
-  return createContactOnMonday({
+  const { fetchContactsList } = await import('./contactsApi');
+  const { upsertContactPerson } = await import(
+    './contactUpsert/contactUpsert'
+  );
+  const contacts = await fetchContactsList({ refresh: true }).catch(() => []);
+  const result = await upsertContactPerson(
+    {
+      name: prospect.name.trim(),
+      email: prospect.email.trim() || undefined,
+      phone: normalizeStoredPhone(prospect.phone.trim()),
+      tags: ['recruitment'],
+      source: 'recruitment',
+      sourceItemId: prospect.id,
+    },
+    contacts,
+  );
+  if (result.contact) return result.contact;
+
+  // Fuzzy match queued — still return a provisional list item for linking.
+  return {
+    id: `recruitment-pending-${prospect.id}`,
     name: prospect.name.trim(),
     email: prospect.email.trim() || '—',
     phone: normalizeStoredPhone(prospect.phone.trim()),
     tags: ['recruitment'],
-  });
+    createdAt: new Date().toISOString(),
+  };
 }
 
 export function createContact(input: {

@@ -36,6 +36,24 @@ export const contactMap = {
   pastorReferenceLink:
     viteEnv.VITE_CONTACT_COL_PASTOR_REFERENCE_LINK || 'Pastor Reference',
   donationsLink: viteEnv.VITE_CONTACT_COL_DONATIONS_LINK || 'Donations',
+  parentName: viteEnv.VITE_CONTACT_COL_PARENT_NAME || "Parent's Name",
+  parentEmail: viteEnv.VITE_CONTACT_COL_PARENT_EMAIL || 'Parents Email',
+  parentPhone: viteEnv.VITE_CONTACT_COL_PARENT_PHONE || 'Parents Phone',
+  spouseName: viteEnv.VITE_CONTACT_COL_SPOUSE_NAME || 'Spouse Name',
+  spouseEmail: viteEnv.VITE_CONTACT_COL_SPOUSE_EMAIL || 'Spouse Email',
+  spouseProfilePhoto:
+    viteEnv.VITE_CONTACT_COL_SPOUSE_PROFILE_PHOTO || 'Spouse Profile Photo',
+  spousePassport:
+    viteEnv.VITE_CONTACT_COL_SPOUSE_PASSPORT || 'Spouse Passport Pic',
+  emergencyContact:
+    viteEnv.VITE_CONTACT_COL_EMERGENCY_CONTACT || 'Emergency Contact',
+  emergencyPhone:
+    viteEnv.VITE_CONTACT_COL_EMERGENCY_PHONE || 'Emergency Contact Phone',
+  /** Free-text links: couple partners, all pastors attached to a volunteer, etc. */
+  connectedTo: viteEnv.VITE_CONTACT_COL_CONNECTED_TO || 'Connected  to:',
+  longtermApplicationsLink:
+    viteEnv.VITE_CONTACT_COL_LONGTERM_APPLICATIONS ||
+    'Volunteer Service - Long Term',
 } as const;
 
 export type ContactMapKey = keyof typeof contactMap;

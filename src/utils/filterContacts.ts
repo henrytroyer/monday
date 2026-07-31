@@ -20,7 +20,18 @@ export function filterContacts(
 
   return contacts.filter((contact) => {
     if (query) {
-      const haystack = `${contact.name} ${contact.email}`.toLowerCase();
+      const haystack = [
+        contact.name,
+        contact.email,
+        contact.phone,
+        contact.spouseName,
+        contact.connectedTo,
+        contact.pastorName,
+        contact.searchHints,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
       if (!haystack.includes(query)) return false;
     }
 

@@ -251,7 +251,7 @@ export default function ApplicationDetailPanel({
       <h3 className="text-sm font-semibold text-crm-heading">Quick Actions</h3>
       <div className="mt-3 flex flex-wrap gap-2.5">
         <ActionButton
-          label="Open linked record"
+          label="Open in monday.com"
           onClick={handleOpenInMonday}
         />
         <ActionButton

@@ -1,8 +1,17 @@
+/**
+ * TermNotesChat.tsx — Service-record internal notes thread.
+ * Own notes: edit/delete. Others' notes: read + reply.
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { canAddApplicationNotes } from '../../config/boards';
+import { useCurrentUser } from '../../context/CurrentUserContext';
 import { getTimelineLabel } from '../../data/timelines';
-import { formatNoteTimestamp } from '../../services/termNotes';
 import { useTermNotes } from '../../hooks/useTermNotes';
+import {
+  formatNoteTimestamp,
+  isOwnTermNote,
+} from '../../services/termNotes';
 import type { TermNote } from '../../types/volunteer';
 
 type TermNotesState = ReturnType<typeof useTermNotes>;
@@ -22,13 +31,26 @@ export default function TermNotesChat({
 }: TermNotesChatProps) {
   const timelineLabel = getTimelineLabel(timelineId);
   const notesWritable = canAddApplicationNotes();
+  const { user } = useCurrentUser();
   const internalNotes = useTermNotes({
     itemId,
     timelineId,
     initialNotes,
   });
-  const { notes, sending, error, addNote } = termNotesState ?? internalNotes;
+  const {
+    notes,
+    sending,
+    error,
+    addNote,
+    editNote,
+    deleteNote,
+    replyToNote,
+  } = termNotesState ?? internalNotes;
   const [draft, setDraft] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,7 +58,7 @@ export default function TermNotesChat({
     if (el) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [notes.length]);
+  }, [notes.length, editingId, replyingToId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +66,72 @@ export default function TermNotesChat({
     const text = draft;
     setDraft('');
     await addNote(text);
+  };
+
+  const beginEdit = (note: TermNote) => {
+    setEditingId(note.id);
+    setEditDraft(note.body);
+    setReplyingToId(null);
+    setReplyDraft('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft('');
+  };
+
+  const saveEdit = async (noteId: string, isReply: boolean) => {
+    if (!editDraft.trim() || sending) return;
+    try {
+      await editNote(noteId, editDraft, isReply);
+      cancelEdit();
+    } catch {
+      // error surfaced via hook
+    }
+  };
+
+  const handleDelete = async (note: TermNote) => {
+    if (!notesWritable || sending) return;
+    const preview = note.body.trim().slice(0, 80) || 'this note';
+    if (
+      !window.confirm(
+        `Delete “${preview}${note.body.trim().length > 80 ? '…' : ''}”? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await deleteNote(note.id);
+      if (editingId === note.id) cancelEdit();
+      if (replyingToId === note.id) {
+        setReplyingToId(null);
+        setReplyDraft('');
+      }
+    } catch {
+      // error surfaced via hook
+    }
+  };
+
+  const beginReply = (noteId: string) => {
+    setReplyingToId(noteId);
+    setReplyDraft('');
+    setEditingId(null);
+    setEditDraft('');
+  };
+
+  const cancelReply = () => {
+    setReplyingToId(null);
+    setReplyDraft('');
+  };
+
+  const submitReply = async (parentId: string) => {
+    if (!replyDraft.trim() || sending) return;
+    try {
+      await replyToNote(parentId, replyDraft);
+      cancelReply();
+    } catch {
+      // error surfaced via hook
+    }
   };
 
   return (
@@ -56,7 +144,7 @@ export default function TermNotesChat({
         </p>
         <p className="mt-1 text-xs text-crm-slate">
           Notes stay with this service record only. A future record gets its own
-          thread.
+          thread. You can edit or delete your own notes; reply to others.
         </p>
       </div>
 
@@ -71,25 +159,203 @@ export default function TermNotesChat({
               : 'No notes for this service record yet.'}
           </p>
         ) : (
-          notes.map((note) => (
-            <div
-              key={note.id}
-              className="rounded-2xl bg-crm-white px-4 py-3 text-sm text-crm-text"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-semibold text-crm-heading">
-                  {note.authorName ?? 'Coordinator'}
-                </span>
-                <time
-                  className="text-xs text-crm-slate"
-                  dateTime={note.createdAt}
-                >
-                  {formatNoteTimestamp(note.createdAt)}
-                </time>
+          notes.map((note) => {
+            const own = isOwnTermNote(note, user);
+            const isEditing = editingId === note.id;
+
+            return (
+              <div key={note.id} className="space-y-2">
+                <div className="rounded-2xl bg-crm-white px-4 py-3 text-sm text-crm-text">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-semibold text-crm-heading">
+                      {note.authorName ?? 'Coordinator'}
+                      {own ? (
+                        <span className="ml-1.5 text-xs font-normal text-crm-slate">
+                          (you)
+                        </span>
+                      ) : null}
+                    </span>
+                    <time
+                      className="text-xs text-crm-slate"
+                      dateTime={note.createdAt}
+                    >
+                      {formatNoteTimestamp(note.createdAt)}
+                    </time>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        rows={3}
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        disabled={sending}
+                        className="w-full resize-y rounded-xl border border-crm-taupe/20 px-3 py-2 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={sending || !editDraft.trim()}
+                          onClick={() => void saveEdit(note.id, false)}
+                          className="rounded-lg bg-crm-indigo px-3 py-1.5 text-xs font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          disabled={sending}
+                          onClick={cancelEdit}
+                          className="rounded-lg border border-crm-taupe/25 bg-crm-white px-3 py-1.5 text-xs font-medium text-crm-heading hover:bg-crm-taupe-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 whitespace-pre-wrap">{note.body}</p>
+                  )}
+
+                  {notesWritable && !isEditing && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {own ? (
+                        <>
+                          <NoteActionButton
+                            label="Edit"
+                            onClick={() => beginEdit(note)}
+                          />
+                          <NoteActionButton
+                            label="Delete"
+                            tone="danger"
+                            onClick={() => void handleDelete(note)}
+                          />
+                        </>
+                      ) : (
+                        <NoteActionButton
+                          label={
+                            replyingToId === note.id ? 'Cancel reply' : 'Reply'
+                          }
+                          onClick={() =>
+                            replyingToId === note.id
+                              ? cancelReply()
+                              : beginReply(note.id)
+                          }
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {(note.replies?.length ?? 0) > 0 && (
+                  <ul className="ml-4 space-y-2 border-l-2 border-crm-taupe/25 pl-3">
+                    {note.replies!.map((reply) => {
+                      const ownReply = isOwnTermNote(reply, user);
+                      const editingReply = editingId === reply.id;
+                      return (
+                        <li
+                          key={reply.id}
+                          className="rounded-xl bg-crm-white/90 px-3 py-2.5 text-sm text-crm-text ring-1 ring-crm-taupe/15"
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="font-semibold text-crm-heading">
+                              {reply.authorName ?? 'Coordinator'}
+                              {ownReply ? (
+                                <span className="ml-1.5 text-xs font-normal text-crm-slate">
+                                  (you)
+                                </span>
+                              ) : null}
+                            </span>
+                            <time
+                              className="text-xs text-crm-slate"
+                              dateTime={reply.createdAt}
+                            >
+                              {formatNoteTimestamp(reply.createdAt)}
+                            </time>
+                          </div>
+                          {editingReply ? (
+                            <div className="mt-2 space-y-2">
+                              <textarea
+                                rows={2}
+                                value={editDraft}
+                                onChange={(e) => setEditDraft(e.target.value)}
+                                disabled={sending}
+                                className="w-full resize-y rounded-xl border border-crm-taupe/20 px-3 py-2 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  disabled={sending || !editDraft.trim()}
+                                  onClick={() => void saveEdit(reply.id, true)}
+                                  className="rounded-lg bg-crm-indigo px-3 py-1.5 text-xs font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={sending}
+                                  onClick={cancelEdit}
+                                  className="rounded-lg border border-crm-taupe/25 bg-crm-white px-3 py-1.5 text-xs font-medium text-crm-heading hover:bg-crm-taupe-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="mt-1.5 whitespace-pre-wrap">
+                              {reply.body}
+                            </p>
+                          )}
+                          {notesWritable && ownReply && !editingReply && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <NoteActionButton
+                                label="Edit"
+                                onClick={() => beginEdit(reply)}
+                              />
+                              <NoteActionButton
+                                label="Delete"
+                                tone="danger"
+                                onClick={() => void handleDelete(reply)}
+                              />
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {notesWritable && replyingToId === note.id && (
+                  <div className="ml-4 space-y-2 border-l-2 border-crm-indigo/30 pl-3">
+                    <textarea
+                      rows={2}
+                      value={replyDraft}
+                      onChange={(e) => setReplyDraft(e.target.value)}
+                      placeholder={`Reply to ${note.authorName ?? 'this note'}…`}
+                      disabled={sending}
+                      className="w-full resize-y rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-2 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={sending || !replyDraft.trim()}
+                        onClick={() => void submitReply(note.id)}
+                        className="rounded-lg bg-crm-indigo px-3 py-1.5 text-xs font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-50"
+                      >
+                        {sending ? 'Sending…' : 'Post reply'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={sending}
+                        onClick={cancelReply}
+                        className="rounded-lg border border-crm-taupe/25 bg-crm-white px-3 py-1.5 text-xs font-medium text-crm-heading hover:bg-crm-taupe-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="mt-2 whitespace-pre-wrap">{note.body}</p>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -134,5 +400,26 @@ export default function TermNotesChat({
         </p>
       )}
     </div>
+  );
+}
+
+function NoteActionButton({
+  label,
+  onClick,
+  tone = 'default',
+}: {
+  label: string;
+  onClick: () => void;
+  tone?: 'default' | 'danger';
+}) {
+  const className =
+    tone === 'danger'
+      ? 'rounded-md border border-rose-200 bg-crm-white px-2.5 py-1 text-[11px] font-medium text-rose-700 transition hover:bg-rose-50'
+      : 'rounded-md border border-crm-taupe/25 bg-crm-white px-2.5 py-1 text-[11px] font-medium text-crm-heading transition hover:bg-crm-taupe-50';
+
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      {label}
+    </button>
   );
 }

@@ -1,3 +1,7 @@
+/**
+ * termNotes.ts — Encode/parse CRM term-scoped internal notes on monday updates.
+ */
+
 import type { TermNote } from '../types/volunteer';
 
 export const TERM_NOTE_PREFIX = '[CRM_TERM_NOTE';
@@ -8,7 +12,8 @@ export interface MondayItemUpdateRaw {
   id: string;
   text_body: string;
   created_at: string;
-  creator?: { name?: string | null } | null;
+  creator?: { id?: string | null; name?: string | null } | null;
+  replies?: MondayItemUpdateRaw[] | null;
 }
 
 export function encodeTermNoteBody(timelineId: string, text: string): string {
@@ -35,6 +40,22 @@ function parseTaggedBody(text: string): { timelineId: string; body: string } | n
   };
 }
 
+function mapReply(
+  itemId: string,
+  timelineId: string,
+  reply: MondayItemUpdateRaw,
+): TermNote {
+  return {
+    id: reply.id,
+    itemId,
+    timelineId,
+    body: stripHtml(reply.text_body ?? ''),
+    createdAt: reply.created_at,
+    authorName: reply.creator?.name ?? undefined,
+    authorId: reply.creator?.id != null ? String(reply.creator.id) : undefined,
+  };
+}
+
 export function parseTermNotes(
   itemId: string,
   updates: MondayItemUpdateRaw[] | undefined,
@@ -49,6 +70,13 @@ export function parseTermNotes(
     if (!parsed) continue;
     if (filterTimelineId && parsed.timelineId !== filterTimelineId) continue;
 
+    const replies = (update.replies ?? [])
+      .map((reply) => mapReply(itemId, parsed.timelineId, reply))
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+
     notes.push({
       id: update.id,
       itemId,
@@ -56,12 +84,32 @@ export function parseTermNotes(
       body: parsed.body,
       createdAt: update.created_at,
       authorName: update.creator?.name ?? undefined,
+      authorId:
+        update.creator?.id != null ? String(update.creator.id) : undefined,
+      replies: replies.length > 0 ? replies : undefined,
     });
   }
 
   return notes.sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
+}
+
+/** True when this note was authored by the signed-in monday user. */
+export function isOwnTermNote(
+  note: Pick<TermNote, 'authorId' | 'authorName'>,
+  user: { id?: string | null; name?: string | null } | null | undefined,
+): boolean {
+  if (!user) return false;
+  if (note.authorId && user.id) {
+    return String(note.authorId) === String(user.id);
+  }
+  if (note.authorName?.trim() && user.name?.trim()) {
+    return (
+      note.authorName.trim().toLowerCase() === user.name.trim().toLowerCase()
+    );
+  }
+  return false;
 }
 
 export function formatNoteTimestamp(iso: string): string {

@@ -29,6 +29,10 @@ export interface TermNote {
   body: string;
   createdAt: string;
   authorName?: string;
+  /** monday.com user id of the update creator (when available). */
+  authorId?: string;
+  /** Nested replies under this note (monday update thread). */
+  replies?: TermNote[];
 }
 
 export interface VolunteerTerm {

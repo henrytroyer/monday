@@ -31,6 +31,28 @@ const contacts: ContactListItem[] = [
   },
 ];
 
+describe('filterContacts search hints', () => {
+  it('matches volunteer when searching a linked pastor name', () => {
+    const withPastor: ContactListItem[] = [
+      {
+        id: 'v1',
+        name: 'Volunteer One',
+        email: 'v1@example.com',
+        tags: ['volunteer'],
+        pastorName: 'Pastor Pat',
+        connectedTo: 'Pastor Pat, Couple: Volunteer One & Spouse Two',
+        searchHints: 'Pastor Pat Couple: Volunteer One & Spouse Two',
+      },
+    ];
+    const filtered = filterContacts(withPastor, {
+      ...emptyContactFilters(),
+      searchQuery: 'pastor pat',
+    });
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0]?.id, 'v1');
+  });
+});
+
 describe('filterContacts tag AND semantics', () => {
   it('returns contacts that have every selected tag', () => {
     const filtered = filterContacts(contacts, {
