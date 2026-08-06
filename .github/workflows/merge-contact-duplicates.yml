@@ -1,0 +1,72 @@
+name: Merge Contact Duplicates
+
+# Daily at 17:00 Greek time (Europe/Athens).
+# GitHub cron is UTC-only, so we fire at 14:00 and 15:00 UTC and the script
+# only proceeds when Athens local hour is 17 (handles EET/EEST).
+# Live archive merges on schedule (17:00 Europe/Athens) and on manual dispatch.
+# Use workflow_dispatch report_only=true for a dry report without archiving.
+
+on:
+  schedule:
+    - cron: '0 14,15 * * *'
+  workflow_dispatch:
+    inputs:
+      report_only:
+        description: 'Set to true for report-only (no archives)'
+        required: false
+        default: 'false'
+      override_high_volume:
+        description: 'Set to true to override high-volume circuit breaker'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: contact-merge-duplicates
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Merge same-email Contacts duplicates
+        env:
+          MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
+          VITE_CONTACTS_BOARD_ID: ${{ secrets.CONTACTS_BOARD_ID }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          MERGE_REPORT_ONLY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.report_only == 'true' && 'true' || 'false' }}
+          ALLOW_LIVE_MERGE: 'true'
+          FORCE_DIRECT_MONDAY: 'true'
+          VITE_MONDAY_API_PROXY_URL: ''
+          VITE_USE_MOCK_DATA: 'false'
+          VITE_MONDAY_READ_ONLY: 'false'
+          VITE_CONTACTS_WRITABLE: 'true'
+          CI: 'true'
+          GITHUB_ACTIONS: 'true'
+        run: |
+          EXTRA=""
+          if [ "${{ github.event.inputs.override_high_volume }}" = "true" ]; then
+            EXTRA="--override-high-volume"
+          fi
+          npm run merge:contact-duplicates -- $EXTRA
+
+      - name: Upload logs (if merge fails)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: merge-contact-duplicates-logs
+          path: |
+            *.log
+            merge-*.txt

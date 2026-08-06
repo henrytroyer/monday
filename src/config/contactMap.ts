@@ -1,10 +1,19 @@
 /**
  * Map CRM contact fields to monday.com column titles on the Contacts board.
  */
-const viteEnv = import.meta.env ?? {};
+
+import { readViteEnv } from '../utils/readViteEnv';
+
+const viteEnv = new Proxy({} as Record<string, string | undefined>, {
+  get(_target, prop: string) {
+    return readViteEnv(prop);
+  },
+});
 
 export const contactMap = {
   email: viteEnv.VITE_CONTACT_COL_EMAIL || 'Email',
+  /** Second address kept when merging contacts with different emails. */
+  altEmail: viteEnv.VITE_CONTACT_COL_ALT_EMAIL || 'Alt Email',
   tags: viteEnv.VITE_CONTACT_COL_TAGS || 'Tags',
   /** Legacy single-value column from Mailchimp sync */
   type: viteEnv.VITE_CONTACT_COL_TYPE || 'type',
@@ -23,10 +32,15 @@ export const contactMap = {
   safeguardingLink:
     viteEnv.VITE_CONTACT_COL_SAFEGUARDING_LINK ||
     'link to Safeguarding Certificates (2.0)',
-  address: viteEnv.VITE_CONTACT_COL_ADDRESS || 'Address',
+  /**
+   * Mailing fields on the live Contacts board (titles verified 2026-08):
+   * Street, City, State/Providence, Zip Code, Country.
+   * Legacy / alternate titles kept as aliases in mapMondayToContact.
+   */
+  address: viteEnv.VITE_CONTACT_COL_ADDRESS || 'Street',
   city: viteEnv.VITE_CONTACT_COL_CITY || 'City',
-  state: viteEnv.VITE_CONTACT_COL_STATE || 'State',
-  zip: viteEnv.VITE_CONTACT_COL_ZIP || 'Zip',
+  state: viteEnv.VITE_CONTACT_COL_STATE || 'State/Providence',
+  zip: viteEnv.VITE_CONTACT_COL_ZIP || 'Zip Code',
   country: viteEnv.VITE_CONTACT_COL_COUNTRY || 'Country',
   dateOfBirth: viteEnv.VITE_CONTACT_COL_DATE_OF_BIRTH || 'Date of birth',
   pastorName: viteEnv.VITE_CONTACT_COL_PASTOR_NAME || 'Pastor Name',

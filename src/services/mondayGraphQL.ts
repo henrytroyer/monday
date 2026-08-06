@@ -13,9 +13,30 @@ const PROXY_FETCH_TIMEOUT_MS = 45_000;
 function resolveProxyBase(): string | undefined {
   const override = getMondayProxyBaseOverride();
   if (override) return override;
-  const fromEnv = import.meta.env.VITE_MONDAY_API_PROXY_URL as
-    | string
-    | undefined;
+  // Node/scripts with a token talk to Monday directly (no Vite proxy).
+  try {
+    if (
+      typeof process !== 'undefined' &&
+      process.env?.MONDAY_API_TOKEN?.trim() &&
+      (process.env.FORCE_DIRECT_MONDAY === 'true' ||
+        process.env.VITE_MONDAY_API_PROXY_URL === '')
+    ) {
+      return undefined;
+    }
+  } catch {
+    // ignore
+  }
+  let fromEnv: string | undefined;
+  try {
+    fromEnv = (
+      import.meta as ImportMeta & { env?: { VITE_MONDAY_API_PROXY_URL?: string } }
+    ).env?.VITE_MONDAY_API_PROXY_URL;
+  } catch {
+    fromEnv = undefined;
+  }
+  if (!fromEnv && typeof process !== 'undefined') {
+    fromEnv = process.env?.VITE_MONDAY_API_PROXY_URL;
+  }
   return fromEnv?.trim() ? fromEnv.trim().replace(/\/$/, '') : undefined;
 }
 
@@ -50,10 +71,20 @@ function messageFromProxyBody(
   return `API proxy ${status}`;
 }
 
+export type MondayGraphQLCallOptions = {
+  /** Override API-Version header (default 2025-01). Mute board APIs need 2025-10+. */
+  apiVersion?: string;
+};
+
+const DEFAULT_API_VERSION = '2025-01';
+
 export async function mondayGraphQL<T>(
   query: string,
   variables?: Record<string, unknown>,
+  options?: MondayGraphQLCallOptions,
 ): Promise<T> {
+  const apiVersion = options?.apiVersion?.trim() || DEFAULT_API_VERSION;
+
   if (useMondayApiProxy()) {
     const base = resolveProxyBase()!;
     const idToken = await getMondayProxyAuthToken();
@@ -68,12 +99,14 @@ export async function mondayGraphQL<T>(
       headers['X-Crm-Operator-Email'] = operatorEmail;
     }
 
+    const body = JSON.stringify({ query, variables, apiVersion });
+
     let res: Response;
     try {
       res = await fetch(`${base}/graphql`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ query, variables }),
+        body,
         signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS),
       });
     } catch (err) {
@@ -94,7 +127,7 @@ export async function mondayGraphQL<T>(
                 ? { 'X-Crm-Operator-Email': operatorEmail }
                 : {}),
             },
-            body: JSON.stringify({ query, variables }),
+            body,
             signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS),
           });
         } catch (err) {
@@ -119,7 +152,13 @@ export async function mondayGraphQL<T>(
     return response.data as T;
   }
 
-  monday.setApiVersion('2023-10');
+  monday.setApiVersion(apiVersion);
+  try {
+    const token = process.env?.MONDAY_API_TOKEN?.trim();
+    if (token) monday.setToken(token);
+  } catch {
+    // browser / monday iframe uses session auth
+  }
   const response: MondayResponse<T> = await monday.api(query, { variables });
 
   if (response.errors?.length) {

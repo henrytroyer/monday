@@ -225,6 +225,17 @@ export const queries = {
   }`,
 
   /**
+   * Board notification mute state. Requires API-Version 2025-10+.
+   * Query docs expose board_id + mute_state; enabled is returned by the update mutation.
+   */
+  getMuteBoardSettings: `query ($boardIds: [ID!]!) {
+    mute_board_settings(board_ids: $boardIds) {
+      board_id
+      mute_state
+    }
+  }`,
+
+  /**
    * Get item details
    */
   getItem: `query ($itemId: [ID!]) {
@@ -469,6 +480,37 @@ export const mutations = {
   }`,
 
   /**
+   * Update multiple columns in one mutation (fewer activity events than N× change_column_value).
+   * Monday has no create_notifications:false flag — batching is the quietest write shape.
+   */
+  updateMultipleColumnValues: `mutation ($boardId: ID!, $itemId: ID!, $columnValues: JSON!, $createLabelsIfMissing: Boolean) {
+    change_multiple_column_values(
+      board_id: $boardId,
+      item_id: $itemId,
+      column_values: $columnValues,
+      create_labels_if_missing: $createLabelsIfMissing
+    ) {
+      id
+    }
+  }`,
+
+  /**
+   * Mute board notifications for everyone (admin). Requires API-Version 2025-10+.
+   * Used around contact merge; archive_item / column mutations have no silent flag.
+   */
+  updateMuteBoardSettings: `mutation ($boardId: String!, $muteState: BoardMuteState!, $enabled: [CustomizableBoardSettings!]) {
+    update_mute_board_settings(
+      board_id: $boardId,
+      mute_state: $muteState,
+      enabled: $enabled
+    ) {
+      board_id
+      mute_state
+      enabled
+    }
+  }`,
+
+  /**
    * Create a board
    */
   createBoard: `mutation ($boardName: String!, $boardKind: BoardKind!, $workspaceId: ID) {
@@ -581,5 +623,17 @@ export const formatColumnValue = (value: any, columnType: string): string => {
       return JSON.stringify(String(value ?? ''));
   }
 };
+
+/**
+ * Convert a formatColumnValue / change_column_value JSON string into a value
+ * suitable for change_multiple_column_values' column_values map.
+ */
+export function parseFormattedColumnValue(formatted: string): unknown {
+  try {
+    return JSON.parse(formatted);
+  } catch {
+    return formatted;
+  }
+}
 
 

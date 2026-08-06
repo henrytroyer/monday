@@ -32,10 +32,18 @@ const SLOT_FILENAME_PREFIX: Record<ContactFileSlot, string> = {
 };
 
 function proxyBase(): string {
-  const base = (
-    getMondayProxyBaseOverride() ??
-    import.meta.env.VITE_MONDAY_API_PROXY_URL
-  )
+  let fromEnv: string | undefined;
+  try {
+    fromEnv = (
+      import.meta as ImportMeta & { env?: { VITE_MONDAY_API_PROXY_URL?: string } }
+    ).env?.VITE_MONDAY_API_PROXY_URL;
+  } catch {
+    fromEnv = undefined;
+  }
+  if (!fromEnv && typeof process !== 'undefined') {
+    fromEnv = process.env?.VITE_MONDAY_API_PROXY_URL;
+  }
+  const base = (getMondayProxyBaseOverride() ?? fromEnv)
     ?.trim()
     .replace(/\/$/, '');
   if (!base) {

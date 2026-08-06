@@ -6,12 +6,33 @@ import {
 import type { PermissionKey } from '../permissions/permissionKeys';
 import { getMondayProxyBaseOverride } from '../services/mondayProxyAuth';
 
+/** Vite env with process.env fallback for Node scripts (tsx). */
+function viteEnv(key: string): string | undefined {
+  try {
+    const fromMeta = (
+      import.meta as ImportMeta & { env?: Record<string, string | undefined> }
+    ).env?.[key];
+    if (fromMeta != null && String(fromMeta).length > 0) return String(fromMeta);
+  } catch {
+    // ignore
+  }
+  try {
+    const fromProcess = process.env?.[key];
+    if (fromProcess != null && String(fromProcess).length > 0) {
+      return String(fromProcess);
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
 export function useMockData(): boolean {
-  return import.meta.env.VITE_USE_MOCK_DATA === 'true';
+  return viteEnv('VITE_USE_MOCK_DATA') === 'true';
 }
 
 export function isMondayReadOnly(): boolean {
-  return import.meta.env.VITE_MONDAY_READ_ONLY === 'true';
+  return viteEnv('VITE_MONDAY_READ_ONLY') === 'true';
 }
 
 /** Portal Things RBAC gate layered on top of env soft role + board flags. */
@@ -25,7 +46,7 @@ export function canEditContacts(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
   if (!allowsPermission('contacts.edit')) return false;
-  if (import.meta.env.VITE_CONTACTS_WRITABLE === 'true') return true;
+  if (viteEnv('VITE_CONTACTS_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
 
@@ -34,7 +55,7 @@ export function canEditApplications(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
   if (!allowsPermission('hr.applications.edit')) return false;
-  if (import.meta.env.VITE_APPLICATIONS_WRITABLE === 'true') return true;
+  if (viteEnv('VITE_APPLICATIONS_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
 
@@ -48,21 +69,21 @@ export function canAddApplicationNotes(): boolean {
   ) {
     return false;
   }
-  if (import.meta.env.VITE_APPLICATION_NOTES_WRITABLE === 'true') return true;
+  if (viteEnv('VITE_APPLICATION_NOTES_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
 
 export function useMondayApiProxy(): boolean {
   return Boolean(
     getMondayProxyBaseOverride() ||
-      import.meta.env.VITE_MONDAY_API_PROXY_URL?.trim(),
+      viteEnv('VITE_MONDAY_API_PROXY_URL')?.trim(),
   );
 }
 
 export function hasStandaloneBoardConfig(): boolean {
   return Boolean(
-    import.meta.env.VITE_CONTACTS_BOARD_ID ||
-      import.meta.env.VITE_APPLICATIONS_BOARD_ID,
+    viteEnv('VITE_CONTACTS_BOARD_ID') ||
+      viteEnv('VITE_APPLICATIONS_BOARD_ID'),
   );
 }
 
@@ -81,7 +102,7 @@ export function resolveBoardId(context: MondayContext | null): string | null {
     return String(context.boardIds[0]);
   }
 
-  const envBoardId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
+  const envBoardId = viteEnv('VITE_APPLICATIONS_BOARD_ID');
   if (envBoardId) return envBoardId;
 
   return null;
@@ -100,7 +121,7 @@ export function resolveContactsBoardId(
     return String(context.boardIds[0]);
   }
 
-  const envBoardId = import.meta.env.VITE_CONTACTS_BOARD_ID;
+  const envBoardId = viteEnv('VITE_CONTACTS_BOARD_ID');
   if (envBoardId) return String(envBoardId);
 
   return null;
@@ -111,7 +132,7 @@ export function resolveApplicationsBoardId(
 ): string | null {
   if (useMockData()) return null;
 
-  const envBoardId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
+  const envBoardId = viteEnv('VITE_APPLICATIONS_BOARD_ID');
   if (envBoardId) return String(envBoardId);
 
   return resolveBoardId(context);
@@ -122,7 +143,7 @@ export function resolveDonationsBoardId(
 ): string | null {
   if (useMockData()) return null;
 
-  const envBoardId = import.meta.env.VITE_DONATIONS_BOARD_ID;
+  const envBoardId = viteEnv('VITE_DONATIONS_BOARD_ID');
   if (envBoardId?.trim()) return String(envBoardId.trim());
 
   return null;
@@ -133,7 +154,7 @@ export function resolveServiceEndedBoardId(
 ): string | null {
   if (useMockData()) return null;
 
-  const envBoardId = import.meta.env.VITE_SERVICE_ENDED_BOARD_ID;
+  const envBoardId = viteEnv('VITE_SERVICE_ENDED_BOARD_ID');
   if (envBoardId?.trim()) return String(envBoardId.trim());
 
   return null;
@@ -144,7 +165,7 @@ export function resolveEndOfServiceReviewBoardId(
 ): string | null {
   if (useMockData()) return null;
 
-  const envBoardId = import.meta.env.VITE_EOS_REVIEW_BOARD_ID;
+  const envBoardId = viteEnv('VITE_EOS_REVIEW_BOARD_ID');
   if (envBoardId?.trim()) return String(envBoardId.trim());
 
   return null;
@@ -155,7 +176,7 @@ export function resolveLongtermApplicationsBoardId(
 ): string | null {
   if (useMockData()) return null;
 
-  const envBoardId = import.meta.env.VITE_LONGTERM_APPLICATIONS_BOARD_ID;
+  const envBoardId = viteEnv('VITE_LONGTERM_APPLICATIONS_BOARD_ID');
   if (envBoardId?.trim()) return String(envBoardId.trim());
 
   return null;
@@ -164,7 +185,7 @@ export function resolveLongtermApplicationsBoardId(
 export function resolveLongtermReferencesBoardId(): string | null {
   if (useMockData()) return null;
 
-  const envBoardId = import.meta.env.VITE_LONGTERM_REFERENCES_BOARD_ID;
+  const envBoardId = viteEnv('VITE_LONGTERM_REFERENCES_BOARD_ID');
   if (envBoardId?.trim()) return String(envBoardId.trim());
 
   return null;
@@ -173,7 +194,7 @@ export function resolveLongtermReferencesBoardId(): string | null {
 export function resolveEmailTemplatesBoardId(): string | null {
   if (useMockData()) return null;
 
-  const envBoardId = import.meta.env.VITE_EMAIL_TEMPLATES_BOARD_ID;
+  const envBoardId = viteEnv('VITE_EMAIL_TEMPLATES_BOARD_ID');
   if (envBoardId?.trim()) return String(envBoardId.trim());
 
   return null;
@@ -187,7 +208,7 @@ export function canEditEmailTemplates(): boolean {
   } else if (!crmRoleIsAdmin()) {
     return false;
   }
-  if (import.meta.env.VITE_EMAIL_TEMPLATES_WRITABLE === 'true') return true;
+  if (viteEnv('VITE_EMAIL_TEMPLATES_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
 
@@ -196,7 +217,7 @@ export function canEditLongtermReferences(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
   if (!allowsPermission('hr.longterm.edit')) return false;
-  if (import.meta.env.VITE_LONGTERM_REFERENCES_WRITABLE === 'true') return true;
+  if (viteEnv('VITE_LONGTERM_REFERENCES_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
 
@@ -213,7 +234,7 @@ export function canEditDonations(): boolean {
   } else if (!crmRoleIsAdmin()) {
     return false;
   }
-  if (import.meta.env.VITE_DONATIONS_WRITABLE === 'true') return true;
+  if (viteEnv('VITE_DONATIONS_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
 
@@ -227,14 +248,14 @@ export function canEditSafeguarding(): boolean {
   ) {
     return false;
   }
-  if (import.meta.env.VITE_SAFEGUARDING_WRITABLE === 'true') return true;
+  if (viteEnv('VITE_SAFEGUARDING_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
 
 /** Portal Things board (CRM infrastructure: onboarding, recruitment, signatures). */
 export function resolvePortalThingsBoardId(): string | null {
   if (useMockData()) return null;
-  const envBoardId = import.meta.env.VITE_PORTAL_THINGS_BOARD_ID;
+  const envBoardId = viteEnv('VITE_PORTAL_THINGS_BOARD_ID');
   if (envBoardId?.trim()) return String(envBoardId.trim());
   return null;
 }
@@ -242,7 +263,7 @@ export function resolvePortalThingsBoardId(): string | null {
 export function canEditPortalThings(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
-  if (import.meta.env.VITE_PORTAL_THINGS_WRITABLE === 'true') return true;
+  if (viteEnv('VITE_PORTAL_THINGS_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
 
@@ -250,7 +271,7 @@ export type CrmRole = 'viewer' | 'coordinator' | 'admin';
 
 /** Soft CRM role from env (password-gated Admin still applies). Default admin. */
 export function resolveCrmRole(): CrmRole {
-  const raw = String(import.meta.env.VITE_CRM_ROLE ?? 'admin')
+  const raw = String(viteEnv('VITE_CRM_ROLE') ?? 'admin')
     .trim()
     .toLowerCase();
   if (raw === 'viewer' || raw === 'coordinator' || raw === 'admin') return raw;
@@ -268,13 +289,13 @@ export function crmRoleIsAdmin(): boolean {
 }
 
 export function contactsBoardName(): string {
-  return import.meta.env.VITE_CONTACTS_BOARD_NAME || 'Contacts Test';
+  return viteEnv('VITE_CONTACTS_BOARD_NAME') || 'Contacts Test';
 }
 
 export type MondayBoardRole = 'contacts' | 'applications' | 'other';
 
 export function resolveMonitoredBoardIds(): string[] {
-  const explicit = String(import.meta.env.VITE_MONDAY_BOARD_IDS ?? '').trim();
+  const explicit = String(viteEnv('VITE_MONDAY_BOARD_IDS') ?? '').trim();
   if (explicit) {
     const ids = explicit
       .split(',')
@@ -284,14 +305,14 @@ export function resolveMonitoredBoardIds(): string[] {
   }
 
   const ids: string[] = [];
-  const contactsId = import.meta.env.VITE_CONTACTS_BOARD_ID;
-  const applicationsId = import.meta.env.VITE_APPLICATIONS_BOARD_ID;
-  const donationsId = import.meta.env.VITE_DONATIONS_BOARD_ID;
-  const serviceEndedId = import.meta.env.VITE_SERVICE_ENDED_BOARD_ID;
-  const eosReviewId = import.meta.env.VITE_EOS_REVIEW_BOARD_ID;
-  const longtermAppsId = import.meta.env.VITE_LONGTERM_APPLICATIONS_BOARD_ID;
-  const longtermRefsId = import.meta.env.VITE_LONGTERM_REFERENCES_BOARD_ID;
-  const portalThingsId = import.meta.env.VITE_PORTAL_THINGS_BOARD_ID;
+  const contactsId = viteEnv('VITE_CONTACTS_BOARD_ID');
+  const applicationsId = viteEnv('VITE_APPLICATIONS_BOARD_ID');
+  const donationsId = viteEnv('VITE_DONATIONS_BOARD_ID');
+  const serviceEndedId = viteEnv('VITE_SERVICE_ENDED_BOARD_ID');
+  const eosReviewId = viteEnv('VITE_EOS_REVIEW_BOARD_ID');
+  const longtermAppsId = viteEnv('VITE_LONGTERM_APPLICATIONS_BOARD_ID');
+  const longtermRefsId = viteEnv('VITE_LONGTERM_REFERENCES_BOARD_ID');
+  const portalThingsId = viteEnv('VITE_PORTAL_THINGS_BOARD_ID');
   if (contactsId) ids.push(String(contactsId));
   if (applicationsId) ids.push(String(applicationsId));
   if (donationsId) ids.push(String(donationsId));
@@ -304,9 +325,8 @@ export function resolveMonitoredBoardIds(): string[] {
 }
 
 export function resolveBoardRole(boardId: string): MondayBoardRole {
-  const env = import.meta.env;
-  const contactsId = env?.VITE_CONTACTS_BOARD_ID;
-  const applicationsId = env?.VITE_APPLICATIONS_BOARD_ID;
+  const contactsId = viteEnv('VITE_CONTACTS_BOARD_ID');
+  const applicationsId = viteEnv('VITE_APPLICATIONS_BOARD_ID');
   if (contactsId && String(boardId) === String(contactsId)) return 'contacts';
   if (applicationsId && String(boardId) === String(applicationsId)) {
     return 'applications';
@@ -316,11 +336,11 @@ export function resolveBoardRole(boardId: string): MondayBoardRole {
 
 export function isMondayWatchEnabled(): boolean {
   if (useMockData()) return false;
-  return import.meta.env.VITE_MONDAY_WATCH_ENABLED === 'true';
+  return viteEnv('VITE_MONDAY_WATCH_ENABLED') === 'true';
 }
 
 export function mondayWatchIntervalMs(): number {
-  const raw = import.meta.env.VITE_MONDAY_WATCH_INTERVAL_MS;
+  const raw = viteEnv('VITE_MONDAY_WATCH_INTERVAL_MS');
   const parsed = raw ? Number(raw) : 60_000;
   return Number.isFinite(parsed) && parsed >= 15_000 ? parsed : 60_000;
 }

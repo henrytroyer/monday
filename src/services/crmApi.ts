@@ -12,10 +12,17 @@ import { columnMap } from '../config/columnMap';
 import { longtermColumnMap } from '../config/longtermColumnMap';
 import { contactMap } from '../config/contactMap';
 import { donationMap } from '../config/donationMap';
+import { getCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
 import type { ContactListItem, ContactTag } from '../types/contact';
 import type { PipelineSection, VolunteerDetail } from '../types/volunteer';
+import { filterVolunteerDetailForPermissions } from '../utils/filterContactForPermissions';
 import { encodeTermNoteBody } from './termNotes';
-import { formatColumnValue, mutations, queries } from '../utils/mondayQueries';
+import {
+  formatColumnValue,
+  mutations,
+  parseFormattedColumnValue,
+  queries,
+} from '../utils/mondayQueries';
 import {
   phoneForMondayColumn,
   type MondayPhoneColumnValue,
@@ -112,17 +119,41 @@ const CONTACT_LIST_COLUMN_KEYS = [
   'donationsLink',
 ] as const satisfies ReadonlyArray<keyof typeof contactMap>;
 
+const CONTACT_LIST_COLUMN_TITLE_ALIASES: Partial<
+  Record<(typeof CONTACT_LIST_COLUMN_KEYS)[number], readonly string[]>
+> = {
+  address: [
+    'Street',
+    'Address',
+    'z Address',
+    'Mailing Address',
+    'z Mailing Address',
+  ],
+  city: ['City'],
+  state: ['State/Providence', 'State/Province', 'State', 'Province'],
+  zip: ['Zip Code', 'Zip', 'Postal Code', 'Postcode'],
+  country: ['Country'],
+};
+
 async function resolveContactListColumnIds(boardId: string): Promise<string[]> {
   const columns = await fetchBoardColumns(boardId);
   const ids: string[] = [];
+  const seen = new Set<string>();
 
   for (const key of CONTACT_LIST_COLUMN_KEYS) {
-    const target = normalizeColumnTitle(contactMap[key]);
-    const column = columns.find(
-      (entry) => normalizeColumnTitle(entry.title) === target,
-    );
-    if (column) {
-      ids.push(column.id);
+    const titles = [
+      contactMap[key],
+      ...(CONTACT_LIST_COLUMN_TITLE_ALIASES[key] ?? []),
+    ];
+    for (const title of titles) {
+      const target = normalizeColumnTitle(title);
+      const column = columns.find(
+        (entry) => normalizeColumnTitle(entry.title) === target,
+      );
+      if (column && !seen.has(column.id)) {
+        ids.push(column.id);
+        seen.add(column.id);
+      }
     }
   }
 
@@ -225,13 +256,21 @@ async function fetchApplicationsBoardPipeline(
   };
 }
 
+function applyVolunteerPermissionFilter(
+  detail: VolunteerDetail,
+): VolunteerDetail {
+  const { ready, permissions } = getCrmPermissionsRuntime();
+  if (!ready) return detail;
+  return filterVolunteerDetailForPermissions(detail, permissions);
+}
+
 export async function fetchApplicationDetail(
   itemId: string,
   options?: { refresh?: boolean },
 ): Promise<VolunteerDetail> {
   if (!options?.refresh) {
     const cached = getCachedApplicationDetail(itemId);
-    if (cached) return cached;
+    if (cached) return applyVolunteerPermissionFilter(cached);
   }
 
   const data = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
@@ -308,7 +347,7 @@ export async function fetchApplicationDetail(
     couple,
   };
   setCachedApplicationDetail(itemId, result);
-  return result;
+  return applyVolunteerPermissionFilter(result);
 }
 
 export async function fetchLongtermApplicationDetail(
@@ -318,7 +357,7 @@ export async function fetchLongtermApplicationDetail(
   if (!options?.refresh) {
     const cached = getCachedApplicationDetail(itemId);
     if (cached && (!options?.partnerItemId || cached.couple)) {
-      return cached;
+      return applyVolunteerPermissionFilter(cached);
     }
   }
 
@@ -360,7 +399,7 @@ export async function fetchLongtermApplicationDetail(
   }
 
   setCachedApplicationDetail(itemId, detail);
-  return detail;
+  return applyVolunteerPermissionFilter(detail);
 }
 
 export async function fetchServiceEndedDetail(
@@ -389,11 +428,11 @@ export async function fetchServiceEndedDetail(
     childSafeguardingReceivedDate = undefined;
   }
 
-  return {
+  return applyVolunteerPermissionFilter({
     ...detail,
     childSafeguardingFile,
     childSafeguardingReceivedDate,
-  };
+  });
 }
 
 export type MondayBoardColumn = {
@@ -1325,6 +1364,10 @@ const CONTACT_UPDATE_COLUMNS: Array<{
       fields.email.trim() && fields.email !== '—' ? fields.email.trim() : '',
   },
   {
+    fieldKey: 'altEmail',
+    getValue: (fields) => fields.altEmail?.trim() || '',
+  },
+  {
     fieldKey: 'phone',
     getValue: (fields) => phoneForMondayColumn(fields.phone?.trim() ?? ''),
   },
@@ -1378,11 +1421,20 @@ const CONTACT_PASTOR_UPDATE_COLUMNS: Array<{
   },
 ];
 
+export type ContactMondayWriteOptions = {
+  /**
+   * Merge quiet path: one change_multiple_column_values instead of N column
+   * mutations. Normal CRM edits omit this so behavior stays unchanged.
+   */
+  quiet?: boolean;
+};
+
 export async function updateContactTagsOnMonday(
   boardId: string,
   itemId: string,
   tags: ContactTag[],
   columns?: MondayBoardColumn[],
+  options?: ContactMondayWriteOptions,
 ): Promise<void> {
   assertContactsWritable('update contact tags');
 
@@ -1395,37 +1447,118 @@ export async function updateContactTagsOnMonday(
   }
 
   if (contactTagsUseSimpleColumnValue(column.type)) {
-    await writeMondaySimpleColumnValue(
-      boardId,
-      itemId,
-      column,
-      formatContactTagsSimpleValue(tags),
-    );
+    const simple = formatContactTagsSimpleValue(tags);
+    if (options?.quiet) {
+      await api(mutations.updateMultipleColumnValues, {
+        boardId,
+        itemId,
+        columnValues: JSON.stringify({ [column.id]: simple }),
+        createLabelsIfMissing: false,
+      });
+      return;
+    }
+    await writeMondaySimpleColumnValue(boardId, itemId, column, simple);
     return;
   }
 
-  await writeMondayColumnValue(
-    boardId,
-    itemId,
-    column,
-    formatContactTagsColumnValue(
-      tags,
-      column.type,
-      column.settings_str,
-      column.title,
-    ),
-    { createLabelsIfMissing: true },
+  const formatted = formatContactTagsColumnValue(
+    tags,
+    column.type,
+    column.settings_str,
+    column.title,
   );
+  if (options?.quiet) {
+    await api(mutations.updateMultipleColumnValues, {
+      boardId,
+      itemId,
+      columnValues: JSON.stringify({
+        [column.id]: parseFormattedColumnValue(formatted),
+      }),
+      createLabelsIfMissing: true,
+    });
+    return;
+  }
+
+  await writeMondayColumnValue(boardId, itemId, column, formatted, {
+    createLabelsIfMissing: true,
+  });
 }
 
 export async function updateContactFieldsOnMonday(
   boardId: string,
   itemId: string,
   fields: ContactCoreFields,
+  options?: ContactMondayWriteOptions,
 ): Promise<void> {
   assertContactsWritable('update contact profile');
 
   const trimmedName = fields.name.trim();
+  const columns = await fetchBoardColumns(boardId);
+
+  if (options?.quiet) {
+    const columnValues: Record<string, unknown> = {};
+    if (trimmedName) {
+      columnValues.name = trimmedName;
+    }
+
+    for (const { fieldKey, getValue } of CONTACT_UPDATE_COLUMNS) {
+      const value = getValue(fields);
+      if (value === undefined) continue;
+      if (value === '') continue;
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        'phone' in value &&
+        !String((value as MondayPhoneColumnValue).phone ?? '').trim()
+      ) {
+        continue;
+      }
+
+      const target = normalizeColumnTitle(contactMap[fieldKey]);
+      const column = columns.find(
+        (entry) => normalizeColumnTitle(entry.title) === target,
+      );
+      if (!column) continue;
+      columnValues[column.id] = parseFormattedColumnValue(
+        formatColumnValue(value, column.type),
+      );
+    }
+
+    if (fields.tags !== undefined) {
+      const tagColumn = resolveContactTagsWriteColumn(columns);
+      if (tagColumn) {
+        if (contactTagsUseSimpleColumnValue(tagColumn.type)) {
+          columnValues[tagColumn.id] = formatContactTagsSimpleValue(
+            fields.tags,
+          );
+        } else {
+          columnValues[tagColumn.id] = parseFormattedColumnValue(
+            formatContactTagsColumnValue(
+              fields.tags,
+              tagColumn.type,
+              tagColumn.settings_str,
+              tagColumn.title,
+            ),
+          );
+        }
+      }
+    }
+
+    if (Object.keys(columnValues).length === 0) return;
+
+    try {
+      await api(mutations.updateMultipleColumnValues, {
+        boardId,
+        itemId,
+        columnValues: JSON.stringify(columnValues),
+        createLabelsIfMissing: fields.tags !== undefined,
+      });
+    } catch (err) {
+      throw columnWriteError('Contact profile', 'batch', err);
+    }
+    return;
+  }
+
   if (trimmedName) {
     try {
       await api(mutations.updateItemName, {
@@ -1437,8 +1570,6 @@ export async function updateContactFieldsOnMonday(
       throw columnWriteError('Name', 'name', err);
     }
   }
-
-  const columns = await fetchBoardColumns(boardId);
 
   for (const { fieldKey, getValue } of CONTACT_UPDATE_COLUMNS) {
     const value = getValue(fields);
@@ -1483,10 +1614,38 @@ export async function updateContactPastorReferenceOnMonday(
   boardId: string,
   itemId: string,
   fields: ContactPastorFields,
+  options?: ContactMondayWriteOptions,
 ): Promise<void> {
   assertContactsWritable('update pastor reference');
 
   const columns = await fetchBoardColumns(boardId);
+
+  if (options?.quiet) {
+    const columnValues: Record<string, unknown> = {};
+    for (const { fieldKey, getValue } of CONTACT_PASTOR_UPDATE_COLUMNS) {
+      const value = getValue(fields);
+      const target = normalizeColumnTitle(contactMap[fieldKey]);
+      const column = columns.find(
+        (entry) => normalizeColumnTitle(entry.title) === target,
+      );
+      if (!column) continue;
+      columnValues[column.id] = parseFormattedColumnValue(
+        formatColumnValue(value, column.type),
+      );
+    }
+    if (Object.keys(columnValues).length === 0) return;
+    try {
+      await api(mutations.updateMultipleColumnValues, {
+        boardId,
+        itemId,
+        columnValues: JSON.stringify(columnValues),
+        createLabelsIfMissing: false,
+      });
+    } catch (err) {
+      throw columnWriteError('Pastor reference', 'batch', err);
+    }
+    return;
+  }
 
   for (const { fieldKey, getValue } of CONTACT_PASTOR_UPDATE_COLUMNS) {
     const value = getValue(fields);

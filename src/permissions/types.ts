@@ -4,6 +4,7 @@
 
 import type { PermissionDef, PermissionKey } from './permissionKeys';
 import type { CrmRole } from './roles';
+import type { SectionVisibilityOverrides } from './sectionCatalog';
 
 export type OperatorStatus = 'active' | 'inactive';
 
@@ -27,6 +28,8 @@ export interface RolePermissionsPayload {
   }>;
   permissions: PermissionDef[];
   rolePermissions: Record<CrmRole, PermissionKey[]>;
+  /** DEV overrides only — omitted keys use sectionCatalog defaults. */
+  sectionVisibilityOverrides?: SectionVisibilityOverrides;
   updatedAt?: string;
 }
 
@@ -34,6 +37,7 @@ export type AuditAction =
   | 'ROLE_ASSIGNED'
   | 'ROLE_REMOVED'
   | 'PERMISSION_UPDATED'
+  | 'SECTION_VISIBILITY_UPDATED'
   | 'USER_CREATED'
   | 'USER_UPDATED'
   | 'USER_ACTIVATED'
@@ -42,13 +46,16 @@ export type AuditAction =
   | 'DEV_REVOKED'
   | 'AUTHZ_DENIED'
   | 'SETTINGS_ACCESS'
-  | 'SETTINGS_DENIED';
+  | 'SETTINGS_DENIED'
+  | 'CONTACT_MERGE'
+  | 'CONTACT_MERGE_RUN'
+  | 'CONTACT_MERGE_REVERSED';
 
 export interface AuditEventPayload {
   actorEmail: string;
   actorName?: string;
   action: AuditAction;
-  targetType: 'operator' | 'role' | 'permission' | 'settings' | 'system';
+  targetType: 'operator' | 'role' | 'permission' | 'section' | 'settings' | 'system';
   targetId?: string;
   targetEmail?: string;
   before?: unknown;

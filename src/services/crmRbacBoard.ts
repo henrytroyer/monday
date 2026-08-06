@@ -11,6 +11,7 @@ import {
 } from '../config/portalThingsMap';
 import { DEFAULT_ROLE_PERMISSIONS } from '../permissions/defaults';
 import { PERMISSION_CATALOG } from '../permissions/permissionKeys';
+import { sanitizeSectionVisibilityOverrides } from '../permissions/resolveSectionPermission';
 import { CRM_ROLE_META, CRM_ROLES, normalizeCrmRoles } from '../permissions/roles';
 import type {
   AuditEventPayload,
@@ -56,7 +57,23 @@ function defaultRolePermissionsPayload(): RolePermissionsPayload {
     })),
     permissions: PERMISSION_CATALOG,
     rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS },
+    sectionVisibilityOverrides: {},
     updatedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeRolePermissionsPayload(
+  parsed: RolePermissionsPayload,
+): RolePermissionsPayload {
+  return {
+    ...parsed,
+    rolePermissions: {
+      ...parsed.rolePermissions,
+      DEV: [...DEFAULT_ROLE_PERMISSIONS.DEV],
+    },
+    sectionVisibilityOverrides: sanitizeSectionVisibilityOverrides(
+      parsed.sectionVisibilityOverrides,
+    ),
   };
 }
 
@@ -78,9 +95,7 @@ export async function loadRolePermissionsPayload(): Promise<RolePermissionsPaylo
     if (!parsed?.rolePermissions || !parsed.permissions) {
       return defaultRolePermissionsPayload();
     }
-    // DEV always retains every catalog permission.
-    parsed.rolePermissions.DEV = [...DEFAULT_ROLE_PERMISSIONS.DEV];
-    return parsed;
+    return normalizeRolePermissionsPayload(parsed);
   } catch {
     return defaultRolePermissionsPayload();
   }
@@ -100,6 +115,9 @@ export async function saveRolePermissionsPayload(
       ...payload.rolePermissions,
       DEV: [...DEFAULT_ROLE_PERMISSIONS.DEV],
     },
+    sectionVisibilityOverrides: sanitizeSectionVisibilityOverrides(
+      payload.sectionVisibilityOverrides,
+    ),
     updatedAt: new Date().toISOString(),
   };
   const existing = await findPortalItemByName(PORTAL_CONFIG_ITEM.rolePermissions);

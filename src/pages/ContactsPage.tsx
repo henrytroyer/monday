@@ -6,6 +6,7 @@ import ContactFilters from '../components/contacts/ContactFilters';
 import ContactListToolbar from '../components/contacts/ContactListToolbar';
 import ContactList from '../components/contacts/ContactList';
 import ContactBatchEmailModal from '../components/contacts/ContactBatchEmailModal';
+import ContactMergeConfirmModal from '../components/contacts/ContactMergeConfirmModal';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { useContactsList } from '../hooks/useContactsList';
@@ -29,6 +30,15 @@ import { sortContacts } from '../utils/sortContacts';
 import { ingestPendingDonations, deleteContacts } from '../services/contactsApi';
 import { runContactIngest } from '../services/contactUpsert/runContactIngest';
 import { countPendingContactMatchReviews } from '../services/contactUpsert/contactMatchReviewStorage';
+import {
+  mergeContacts,
+  pickSurvivor,
+  previewMergeContacts,
+  type MergeContactsPreview,
+} from '../services/contactUpsert/contactBoardDedupe';
+import type { FieldMergeOverrides } from '../services/contactUpsert/merge';
+import { isCompiledContactId } from '../services/compileContactsFromBoards';
+import { usePermissions } from '../context/PermissionsContext';
 import { readWorkspaceState } from '../services/crmNavigationStorage';
 
 export default function ContactsPage({
@@ -55,6 +65,13 @@ export default function ContactsPage({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [syncingContacts, setSyncingContacts] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [mergeDialog, setMergeDialog] = useState<{
+    survivor: ContactListItem;
+    losers: ContactListItem[];
+    preview: MergeContactsPreview;
+  } | null>(null);
+  const { hasPermission } = usePermissions();
   const listScrollRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [filterPanelTop, setFilterPanelTop] = useState(0);
@@ -83,6 +100,10 @@ export default function ContactsPage({
     refetch,
     removeContacts,
   } = useContactsList();
+
+  const canMergeContacts =
+    contactsEditable &&
+    (hasPermission('contacts.merge') || hasPermission('contacts.edit'));
 
   const restoreContact = useCallback(
     (contact: ContactListItem, detailOpen: boolean) => {
@@ -251,6 +272,49 @@ export default function ContactsPage({
   const selectAllFiltered = () => {
     setDeleteError(null);
     setSelectedIds(new Set(displayed.map((contact) => contact.id)));
+  };
+
+  const handleMergeSelected = () => {
+    if (selectedContacts.length !== 2) return;
+    const [a, b] = selectedContacts;
+    if (!a || !b) return;
+    if (isCompiledContactId(a.id) || isCompiledContactId(b.id)) {
+      setDeleteError(
+        'Both contacts must be real Contacts board items (not compiled-only).',
+      );
+      return;
+    }
+
+    const survivor = pickSurvivor([a, b]);
+    const loser = survivor.id === a.id ? b : a;
+    const preview = previewMergeContacts(survivor, [loser], {
+      allContacts: contacts,
+    });
+    setDeleteError(null);
+    setMergeDialog({ survivor, losers: [loser], preview });
+  };
+
+  const handleConfirmMerge = async (overrides: FieldMergeOverrides) => {
+    if (!mergeDialog) return;
+    const { survivor, losers } = mergeDialog;
+    setMerging(true);
+    setDeleteError(null);
+    try {
+      await mergeContacts(survivor, losers, {
+        allContacts: contacts,
+        fieldOverrides: overrides,
+      });
+      removeContacts(losers.map((loser) => loser.id));
+      setSelectedIds(new Set());
+      setMergeDialog(null);
+      refetch();
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : 'Failed to merge contacts',
+      );
+    } finally {
+      setMerging(false);
+    }
   };
 
   const handleDeleteSelected = async () => {
@@ -550,11 +614,22 @@ export default function ContactsPage({
                     >
                       Email {batchEmailRecipientCount || ''}
                     </button>
+                    {selectedCount === 2 && canMergeContacts && (
+                      <button
+                        type="button"
+                        onClick={handleMergeSelected}
+                        disabled={merging || deleting}
+                        className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-semibold text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                        title="Merge into one Contacts item; union tags; keep both emails"
+                      >
+                        {merging ? 'Merging…' : 'Merge'}
+                      </button>
+                    )}
                     {selectedCount > 0 && contactsEditable && (
                       <button
                         type="button"
                         onClick={() => void handleDeleteSelected()}
-                        disabled={deleting}
+                        disabled={deleting || merging}
                         className="rounded-xl border border-red-200 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
                       >
                         {deleting ? 'Deleting…' : 'Delete'}
@@ -606,6 +681,21 @@ export default function ContactsPage({
           contacts={batchEmailContacts}
           filterTags={filters.tags}
           onClose={() => setBatchEmailOpen(false)}
+        />
+      )}
+
+      {mergeDialog && (
+        <ContactMergeConfirmModal
+          open
+          survivor={mergeDialog.survivor}
+          losers={mergeDialog.losers}
+          preview={mergeDialog.preview}
+          allContacts={contacts}
+          busy={merging}
+          onConfirm={(overrides) => void handleConfirmMerge(overrides)}
+          onCancel={() => {
+            if (!merging) setMergeDialog(null);
+          }}
         />
       )}
 

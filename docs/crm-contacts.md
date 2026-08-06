@@ -11,6 +11,7 @@ Create or use a board (default name in sync script: `Contacts Test`). Required c
 | Column title | Type | Notes |
 |--------------|------|--------|
 | Email | email | Primary match key |
+| Alt Email | text/email | Secondary address(es) kept after merge (comma-separated) |
 | Tags | status (multi-label) | Labels: `Volunteer`, `Pastor`, `Parents`, `Donor` (legacy `Parent` is read as Parents) |
 | type | status/text | Legacy single-value column (still read if present) |
 | Phone | phone | Optional; displayed in international format (`+1 555 123 4567`); writes use `{ phone, countryShortName }` JSON |
@@ -190,13 +191,36 @@ Profile / Passport (and spouse slots) copy onto Contacts file columns through th
 - Contacts page → **Sync contacts** (recently updated items; cursor in `localStorage`)
 - Contacts page → **Full sync** (backfill all boards — use for cutover)
 - Sidebar → **Contact matches** for fuzzy/ambiguous approvals
+- Sidebar → **Contact duplicates** for same-email board items (merge + delete losers)
+- Contacts list → select **exactly 2** → **Merge** (manual board merge)
 - Board watcher (when `VITE_MONDAY_WATCH_ENABLED=true`) also refreshes recent CSE items onto Contacts
+
+### Upsert vs board merge
+
+| Feature | What it does |
+|---------|----------------|
+| **Upsert / Sync contacts** | Create or update Contacts items from apps/donations; does **not** delete duplicates |
+| **Compile list** | In-memory collapse by email for display; does **not** write Monday |
+| **Merge (select 2)** / **Contact duplicates** | Union tags + fields onto one survivor, keep both emails, **delete** loser Monday items |
+
+### Merging duplicates (tags + emails)
+
+Shared engine: `src/services/contactUpsert/merge/` (CRM manual merge + daily job).
+
+- Tags are **always unioned** (e.g. Parents + Pastor → both on the survivor).
+- Survivor prefers the **richest** record (deterministic score; couple bonus capped); Alt Email / Connected-to keep alternate identities; Pastor/Parents push onto connected volunteers on confirmed merge.
+- **Auto-merge only** when exact normalized email **and** identical full name (or exact name + compatible email). **Same email + different names → Contact duplicates review** (never auto).
+- Losers are **archived** (not hard-deleted). Settings → **Contact merge ops** for reports / reverse.
+- **Daily job:** `Merge Contact Duplicates` at **17:00 Europe/Athens** (`npm run merge:contact-duplicates`). Defaults to **report-only** (`MERGE_REPORT_ONLY=true`) until you opt into live via workflow_dispatch `live=true`.
+- When emails differ: survivor keeps **Email**; the other address goes to **Alt Email**.
+- Compiled-only rows (`compiled:…`) cannot be merge targets.
 
 ### Update rules
 
 - Default upsert **fills gaps** (existing non-empty wins) and **unions tags**
 - Empty incoming values never wipe existing fields
 - **Current Service Ended** refresh prefers newer non-empty values and re-syncs Profile/Passport (`force`)
+- Ambiguous multi-email matches auto-update the best Contacts-board survivor when scores are clear; otherwise Match Review
 
 ### Cutover checklist (disable Monday automations + Make)
 
@@ -228,6 +252,8 @@ Do this **after** verifying Sync contacts on a few known people (ST apply, spous
 - `src/services/contactUpsert/contactUpsert.ts` — create/update/queue review  
 - `src/services/contactUpsert/ingestApplicationBundle.ts` — ST/LT/CSE people + files  
 - `src/services/contactUpsert/runContactIngest.ts` — board orchestrator + CSE refresh  
+- `src/services/contactUpsert/contactBoardDedupe.ts` — board merge (tags union, Alt Email, delete losers)  
+
 
 ## OAuth
 

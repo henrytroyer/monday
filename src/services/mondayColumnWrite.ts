@@ -7,6 +7,7 @@ import { mondayGraphQL as api } from './mondayGraphQL';
 import {
   formatColumnValue,
   mutations,
+  parseFormattedColumnValue,
   queries,
 } from '../utils/mondayQueries';
 
@@ -65,13 +66,23 @@ export async function findBoardColumnByTitle(
   );
 }
 
+export type MondayColumnWriteOptions = {
+  createLabelsIfMissing?: boolean;
+  simple?: boolean;
+  /**
+   * Prefer change_multiple_column_values when batching (opt-in for merge).
+   * Single-column quiet writes still use one mutation; prefer changeMultipleColumnsByTitle.
+   */
+  quiet?: boolean;
+};
+
 /** Write a CRM string into a Monday column resolved by title. */
 export async function changeColumnByTitle(
   boardId: string,
   itemId: string,
   columnTitle: string,
   rawValue: string,
-  options?: { createLabelsIfMissing?: boolean; simple?: boolean },
+  options?: MondayColumnWriteOptions,
 ): Promise<void> {
   const column = await findBoardColumnByTitle(boardId, columnTitle);
   if (!column) {
@@ -81,6 +92,19 @@ export async function changeColumnByTitle(
   }
 
   try {
+    if (options?.quiet) {
+      const value = options.simple
+        ? rawValue
+        : parseFormattedColumnValue(formatColumnValue(rawValue, column.type));
+      await api(mutations.updateMultipleColumnValues, {
+        boardId,
+        itemId,
+        columnValues: JSON.stringify({ [column.id]: value }),
+        createLabelsIfMissing: options?.createLabelsIfMissing ?? false,
+      });
+      return;
+    }
+
     if (options?.simple) {
       await api(mutations.updateSimpleColumnValue, {
         boardId,
@@ -104,13 +128,63 @@ export async function changeColumnByTitle(
   }
 }
 
+export type MondayBatchColumnUpdate = {
+  columnTitle: string;
+  rawValue: string;
+  /** When set, used as the change_multiple value instead of formatColumnValue(rawValue). */
+  formattedValue?: string;
+  simple?: boolean;
+};
+
+/**
+ * Batch several title-resolved column writes into one change_multiple_column_values.
+ * Opt-in quiet path for merge — normal CRM edits keep per-column mutations.
+ */
+export async function changeMultipleColumnsByTitle(
+  boardId: string,
+  itemId: string,
+  updates: MondayBatchColumnUpdate[],
+  options?: { createLabelsIfMissing?: boolean },
+): Promise<void> {
+  if (updates.length === 0) return;
+
+  const columnValues: Record<string, unknown> = {};
+  for (const update of updates) {
+    const column = await findBoardColumnByTitle(boardId, update.columnTitle);
+    if (!column) {
+      throw new Error(
+        `Column "${update.columnTitle}" not found on board ${boardId}. Check column maps / VITE_*_COL_* overrides.`,
+      );
+    }
+    if (update.simple) {
+      columnValues[column.id] = update.rawValue;
+      continue;
+    }
+    const formatted =
+      update.formattedValue ?? formatColumnValue(update.rawValue, column.type);
+    columnValues[column.id] = parseFormattedColumnValue(formatted);
+  }
+
+  try {
+    await api(mutations.updateMultipleColumnValues, {
+      boardId,
+      itemId,
+      columnValues: JSON.stringify(columnValues),
+      createLabelsIfMissing: options?.createLabelsIfMissing ?? false,
+    });
+  } catch (err) {
+    const titles = updates.map((u) => u.columnTitle).join(', ');
+    throw columnWriteError(titles, 'batch', err);
+  }
+}
+
 /** Best-effort write: skip silently when the column is missing on the board. */
 export async function tryChangeColumnByTitle(
   boardId: string,
   itemId: string,
   columnTitle: string,
   rawValue: string,
-  options?: { createLabelsIfMissing?: boolean; simple?: boolean },
+  options?: MondayColumnWriteOptions,
 ): Promise<boolean> {
   const column = await findBoardColumnByTitle(boardId, columnTitle);
   if (!column) return false;

@@ -2,6 +2,21 @@
 
 This directory contains backend scripts for syncing data between monday.com and external services.
 
+## Daily contact duplicate merge
+
+`merge-contact-duplicates.ts` uses the shared merge engine (`src/services/contactUpsert/merge/`):
+
+- Auto-merge only exact email **+ identical full name** (archives losers).
+- Same email + different names → Contact duplicates **review** queue (never auto).
+- Defaults to report-only (`MERGE_REPORT_ONLY=true`).
+
+```bash
+npm run merge:contact-duplicates -- --dry-run
+npm run merge:contact-duplicates -- --override-high-volume
+```
+
+Scheduled by `.github/workflows/merge-contact-duplicates.yml` at **17:00 Europe/Athens**. Secrets: `MONDAY_API_TOKEN`, optional `CONTACTS_BOARD_ID`. Workflow dispatch `live=true` to archive for real.
+
 ## Contact Sync Script
 
 ### Overview

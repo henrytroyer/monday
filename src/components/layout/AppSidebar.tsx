@@ -23,6 +23,7 @@ import {
 } from '../../services/crmLocalUserOverride';
 import ReviewNotificationBell from './ReviewNotificationBell';
 import ContactMatchReviewBell from './ContactMatchReviewBell';
+import ContactDuplicatesBell from './ContactDuplicatesBell';
 
 export type { PageId };
 
@@ -101,7 +102,8 @@ type NavRow = readonly [PageId, string, PermissionKey];
 export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
   const { detailMode, sidebarOpen, openSidebar, closeSidebar } = useLayout();
   const { user, displayName, canSwitchLocalUser } = useCurrentUser();
-  const { ready, hasPermission, hasRole, roles } = usePermissions();
+  const { ready, hasPermission, hasRole, roles, canViewSection } =
+    usePermissions();
   const settingsChildActive = isSettingsPage(activePage);
   const [settingsOpen, setSettingsOpen] = useState(settingsChildActive);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -126,7 +128,13 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
   const showCollapsedRail = detailMode && !sidebarOpen;
 
   const filterRows = (rows: readonly NavRow[]) =>
-    ready ? rows.filter(([, , perm]) => hasPermission(perm)) : [];
+    ready
+      ? rows.filter(([id]) =>
+          canViewSection(
+            `nav.${id}` as Parameters<typeof canViewSection>[0],
+          ),
+        )
+      : [];
 
   const primary = filterRows(PRIMARY_NAV_ITEMS as unknown as NavRow[]);
   const communications = filterRows(
@@ -173,13 +181,13 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
 
       {showFullSidebar && (
         <aside
-          className={`flex shrink-0 flex-col border-r border-crm-taupe/20 bg-crm-surface p-6 ${
+          className={`flex h-full min-h-0 shrink-0 flex-col border-r border-crm-taupe/20 bg-crm-surface p-6 ${
             detailMode && sidebarOpen
               ? 'fixed inset-y-0 left-0 z-50 w-72 shadow-2xl'
               : 'w-72'
           }`}
         >
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex shrink-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold text-crm-heading">
                 Volunteer Portal
@@ -200,7 +208,7 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
             )}
           </div>
 
-          <div ref={userMenuRef} className="relative mt-5">
+          <div ref={userMenuRef} className="relative mt-5 shrink-0">
             <button
               type="button"
               onClick={() => setUserMenuOpen((open) => !open)}
@@ -301,7 +309,7 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
             )}
           </div>
 
-          <nav className="mt-8">
+          <nav className="mt-8 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
             {primary.length > 0 && (
               <NavSection title="Volunteers" first>
                 {primary.map(([id, label]) => (
@@ -406,12 +414,16 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
             )}
           </nav>
 
-          {hasRole('DEV') && (
-            <>
-              <ReviewNotificationBell />
-              <ContactMatchReviewBell />
-            </>
-          )}
+          <div className="mt-4 shrink-0 border-t border-crm-taupe/20 pt-4">
+            {hasRole('DEV') && (
+              <>
+                <ReviewNotificationBell />
+                <ContactMatchReviewBell />
+              </>
+            )}
+            {(hasPermission('contacts.merge') ||
+              hasPermission('contacts.edit')) && <ContactDuplicatesBell />}
+          </div>
         </aside>
       )}
     </>

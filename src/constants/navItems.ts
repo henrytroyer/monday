@@ -1,8 +1,16 @@
 /**
  * navItems.ts — Volunteer Portal sidebar navigation (permission-aware sections).
+ *
+ * Default permission keys match `nav.*` rows in sectionCatalog.
+ * Runtime gating uses section overrides via permissionForPage / canViewSection.
  */
 
+import {
+  getSectionVisibilityOverrides,
+} from '../permissions/crmPermissionsRuntime';
 import type { PermissionKey } from '../permissions/permissionKeys';
+import { getRequiredPermissionForSection } from '../permissions/resolveSectionPermission';
+import { navSectionIdForPage } from '../permissions/sectionCatalog';
 
 export const PRIMARY_NAV_ITEMS = [
   ['contacts', 'Contacts', 'contacts.view'],
@@ -39,6 +47,7 @@ export const ACCOUNT_NAV_ITEMS = [
 export const SETTINGS_NAV_ITEMS = [
   ['roles-permissions', 'Roles & permissions', 'settings.permissions.manage'],
   ['audit-log', 'Audit log', 'settings.logs.view'],
+  ['contact-merge-ops', 'Contact merge ops', 'contacts.merge'],
 ] as const satisfies ReadonlyArray<readonly [string, string, PermissionKey]>;
 
 export type PrimaryPageId = (typeof PRIMARY_NAV_ITEMS)[number][0];
@@ -66,6 +75,13 @@ export function isSettingsPage(id: PageId): id is SettingsPageId {
 }
 
 export function permissionForPage(id: PageId): PermissionKey {
+  const sectionId = navSectionIdForPage(id);
+  if (sectionId) {
+    return getRequiredPermissionForSection(
+      sectionId,
+      getSectionVisibilityOverrides(),
+    );
+  }
   const all = [
     ...PRIMARY_NAV_ITEMS,
     ...COMMUNICATIONS_NAV_ITEMS,

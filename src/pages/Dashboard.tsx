@@ -27,6 +27,7 @@ const CrmUsersPage = lazy(() => import('./CrmUsersPage'));
 const UserSettingsPage = lazy(() => import('./UserSettingsPage'));
 const RolesPermissionsPage = lazy(() => import('./RolesPermissionsPage'));
 const AuditLogPage = lazy(() => import('./AuditLogPage'));
+const ContactMergeOpsPage = lazy(() => import('./ContactMergeOpsPage'));
 
 export default function Dashboard() {
   return (
@@ -230,6 +231,15 @@ function DashboardInner() {
         >
           <Suspense fallback={<PageLoadFallback label="Audit log" />}>
             <AuditLogPage />
+          </Suspense>
+        </KeepAlivePage>
+
+        <KeepAlivePage
+          active={activePage === 'contact-merge-ops'}
+          mounted={mountedPages.has('contact-merge-ops')}
+        >
+          <Suspense fallback={<PageLoadFallback label="Contact merge ops" />}>
+            <ContactMergeOpsPage />
           </Suspense>
         </KeepAlivePage>
 

@@ -2,6 +2,7 @@ import { contactMap } from '../config/contactMap';
 import type { ContactListItem, ContactPastorReference, ContactTag } from '../types/contact';
 import { CONTACT_TAG_LABELS } from '../types/contact';
 import type { VolunteerFile } from '../types/volunteer';
+import { readViteEnv } from '../utils/readViteEnv';
 import {
   mergeVolunteerGalleryFiles,
   parseLinkedBoardRelationIds,
@@ -35,7 +36,7 @@ export function resolveContactTagsWriteColumn(
   return resolveContactTagsWriteColumnCore(columns, {
     tagsColumnTitle: contactMap.tags,
     typeColumnTitle: contactMap.type,
-    explicitTagsColumnEnv: import.meta.env.VITE_CONTACT_COL_TAGS,
+    explicitTagsColumnEnv: readViteEnv('VITE_CONTACT_COL_TAGS'),
   });
 }
 
@@ -55,26 +56,53 @@ function columnTitle(col: MondayColumnValue): string {
   return col.column?.title?.trim() || '';
 }
 
+/** Alternate Monday titles seen on the Contacts board (views may rename labels). */
+const CONTACT_COLUMN_ALIASES: Partial<
+  Record<keyof typeof contactMap, readonly string[]>
+> = {
+  address: [
+    'Street',
+    'Address',
+    'z Address',
+    'Mailing Address',
+    'z Mailing Address',
+  ],
+  city: ['City'],
+  state: ['State/Providence', 'State/Province', 'State', 'Province'],
+  zip: ['Zip Code', 'Zip', 'Postal Code', 'Postcode'],
+  country: ['Country'],
+};
+
+function titlesForField(fieldKey: keyof typeof contactMap): string[] {
+  const primary = contactMap[fieldKey];
+  const aliases = CONTACT_COLUMN_ALIASES[fieldKey] ?? [];
+  return [...new Set([primary, ...aliases])];
+}
+
 function findColumn(
   columnValues: MondayColumnValue[],
   fieldKey: keyof typeof contactMap,
 ): MondayColumnValue | undefined {
-  const pastorLinkColumnId = import.meta.env
-    .VITE_CONTACT_COL_PASTOR_REFERENCE_LINK_ID as string | undefined;
+  const viteEnv = import.meta.env ?? {};
+  const pastorLinkColumnId = viteEnv.VITE_CONTACT_COL_PASTOR_REFERENCE_LINK_ID as
+    | string
+    | undefined;
   if (fieldKey === 'pastorReferenceLink' && pastorLinkColumnId?.trim()) {
     const byId = columnValues.find((col) => col.id === pastorLinkColumnId.trim());
     if (byId) return byId;
   }
 
-  const donationsLinkColumnId = import.meta.env
-    .VITE_CONTACT_COL_DONATIONS_LINK_ID as string | undefined;
+  const donationsLinkColumnId = viteEnv.VITE_CONTACT_COL_DONATIONS_LINK_ID as
+    | string
+    | undefined;
   if (fieldKey === 'donationsLink' && donationsLinkColumnId?.trim()) {
     const byId = columnValues.find((col) => col.id === donationsLinkColumnId.trim());
     if (byId) return byId;
   }
 
-  const serviceEndedLinkColumnId = import.meta.env
-    .VITE_CONTACT_COL_SERVICE_ENDED_LINK_ID as string | undefined;
+  const serviceEndedLinkColumnId = viteEnv.VITE_CONTACT_COL_SERVICE_ENDED_LINK_ID as
+    | string
+    | undefined;
   if (fieldKey === 'serviceEndedLink' && serviceEndedLinkColumnId?.trim()) {
     const byId = columnValues.find(
       (col) => col.id === serviceEndedLinkColumnId.trim(),
@@ -82,9 +110,19 @@ function findColumn(
     if (byId) return byId;
   }
 
-  const target = normalizeTitle(contactMap[fieldKey]);
-  return columnValues.find(
-    (c) => normalizeTitle(columnTitle(c)) === target,
+  const targets = new Set(
+    titlesForField(fieldKey).map((title) => normalizeTitle(title)),
+  );
+  // Prefer the first alias order: primary map title, then aliases.
+  for (const title of titlesForField(fieldKey)) {
+    const target = normalizeTitle(title);
+    const match = columnValues.find(
+      (c) => normalizeTitle(columnTitle(c)) === target,
+    );
+    if (match) return match;
+  }
+  return columnValues.find((c) =>
+    targets.has(normalizeTitle(columnTitle(c))),
   );
 }
 
@@ -105,11 +143,63 @@ function findPassportColumn(
   );
 }
 
+function parseLocationColumnValue(
+  value: string | null | undefined,
+): Partial<{
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+}> {
+  if (!value || value === 'null') return {};
+  try {
+    const parsed = JSON.parse(value) as {
+      address?: string;
+      street?: string;
+      street_number?: string;
+      city?: string;
+      state?: string;
+      state_short?: string;
+      zip?: string;
+      postal_code?: string;
+      country?: string;
+      country_short?: string;
+    };
+    const streetLine = [parsed.street_number, parsed.street]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    return {
+      address: parsed.address?.trim() || streetLine || undefined,
+      city: parsed.city?.trim() || undefined,
+      state: parsed.state_short?.trim() || parsed.state?.trim() || undefined,
+      zip: parsed.zip?.trim() || parsed.postal_code?.trim() || undefined,
+      country:
+        parsed.country?.trim() || parsed.country_short?.trim() || undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 function getColumnText(
   columnValues: MondayColumnValue[],
   fieldKey: keyof typeof contactMap,
 ): string {
-  return findColumn(columnValues, fieldKey)?.text?.trim() || '';
+  const col = findColumn(columnValues, fieldKey);
+  if (!col) return '';
+  const text = col.text?.trim();
+  if (text) return text;
+  if (col.type === 'location' || fieldKey === 'address') {
+    const fromLocation = parseLocationColumnValue(col.value);
+    if (fieldKey === 'address') return fromLocation.address ?? '';
+    if (fieldKey === 'city') return fromLocation.city ?? '';
+    if (fieldKey === 'state') return fromLocation.state ?? '';
+    if (fieldKey === 'zip') return fromLocation.zip ?? '';
+    if (fieldKey === 'country') return fromLocation.country ?? '';
+  }
+  return '';
 }
 
 export function getContactProfilePhotoUrl(
@@ -221,11 +311,26 @@ export function formatContactTagsForMonday(tags: ContactTag[]): string {
 function mapListDemographics(
   columnValues: MondayColumnValue[],
 ): ContactListItem['demographics'] {
-  const address = getColumnText(columnValues, 'address') || undefined;
-  const city = getColumnText(columnValues, 'city') || undefined;
-  const state = getColumnText(columnValues, 'state') || undefined;
-  const zip = getColumnText(columnValues, 'zip') || undefined;
-  const country = getColumnText(columnValues, 'country') || undefined;
+  let address = getColumnText(columnValues, 'address') || undefined;
+  let city = getColumnText(columnValues, 'city') || undefined;
+  let state = getColumnText(columnValues, 'state') || undefined;
+  let zip = getColumnText(columnValues, 'zip') || undefined;
+  let country = getColumnText(columnValues, 'country') || undefined;
+
+  // Fill gaps from a Monday location column (e.g. "z Mailing Address").
+  if (!address || !city || !state || !zip || !country) {
+    const locationCol = columnValues.find(
+      (col) =>
+        col.type === 'location' ||
+        normalizeTitle(columnTitle(col)).includes('mailing address'),
+    );
+    const fromLocation = parseLocationColumnValue(locationCol?.value);
+    address = address || fromLocation.address;
+    city = city || fromLocation.city;
+    state = state || fromLocation.state;
+    zip = zip || fromLocation.zip;
+    country = country || fromLocation.country;
+  }
 
   if (!address && !city && !state && !zip && !country) {
     return undefined;
@@ -248,6 +353,8 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
     relationTags.push('donor');
   }
   const tags = [...new Set([...storedTags, ...relationTags])];
+  const altEmail =
+    getColumnText(item.column_values, 'altEmail') || undefined;
   const spouseName =
     getColumnText(item.column_values, 'spouseName') || undefined;
   const connectedTo =
@@ -256,7 +363,13 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
     getColumnText(item.column_values, 'pastorName') || undefined;
   const parentName =
     getColumnText(item.column_values, 'parentName') || undefined;
-  const searchHints = [spouseName, connectedTo, pastorName, parentName]
+  const searchHints = [
+    altEmail,
+    spouseName,
+    connectedTo,
+    pastorName,
+    parentName,
+  ]
     .filter(Boolean)
     .join(' ');
 
@@ -269,6 +382,7 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
     createdAt: item.created_at ?? undefined,
     tags,
     demographics: mapListDemographics(item.column_values),
+    ...(altEmail ? { altEmail } : {}),
     ...(spouseName ? { spouseName } : {}),
     ...(connectedTo ? { connectedTo } : {}),
     ...(pastorName ? { pastorName } : {}),
