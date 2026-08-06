@@ -59,6 +59,23 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     // Keep prior permissions on screen — never flash "Checking permissions…".
+    // #region agent log
+    fetch('http://127.0.0.1:7680/ingest/7c990890-de4c-40ba-83fc-5c0c8d85914b', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Debug-Session-Id': '1bb3b6',
+      },
+      body: JSON.stringify({
+        sessionId: '1bb3b6',
+        location: 'PermissionsContext.tsx:refresh:start',
+        message: 'Permissions refresh start',
+        data: { emailPresent: Boolean(user?.email?.trim()) },
+        hypothesisId: 'A',
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     try {
       const matrix = await loadRolePermissionsPayload();
       setRolePermissions(matrix);
@@ -81,11 +98,47 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           photoUrl: op.photoUrl,
         });
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7680/ingest/7c990890-de4c-40ba-83fc-5c0c8d85914b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Debug-Session-Id': '1bb3b6',
+        },
+        body: JSON.stringify({
+          sessionId: '1bb3b6',
+          location: 'PermissionsContext.tsx:refresh:ok',
+          message: 'Permissions refresh ok',
+          data: { roles: op.roles, status: op.status },
+          hypothesisId: 'A',
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     } catch (err) {
       console.warn(
         'CRM permissions load failed:',
         err instanceof Error ? err.message : err,
       );
+      // #region agent log
+      fetch('http://127.0.0.1:7680/ingest/7c990890-de4c-40ba-83fc-5c0c8d85914b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Debug-Session-Id': '1bb3b6',
+        },
+        body: JSON.stringify({
+          sessionId: '1bb3b6',
+          location: 'PermissionsContext.tsx:refresh:error',
+          message: 'Permissions refresh failed',
+          data: {
+            error: err instanceof Error ? err.message : String(err),
+          },
+          hypothesisId: 'A',
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       setOperator((prev) =>
         prev ?? {
           email: user?.email || 'anonymous',
@@ -153,6 +206,23 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 export function usePermissions(): PermissionsContextValue {
   const ctx = useContext(PermissionsContext);
   if (!ctx) {
+    // #region agent log
+    fetch('http://127.0.0.1:7680/ingest/7c990890-de4c-40ba-83fc-5c0c8d85914b', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Debug-Session-Id': '1bb3b6',
+      },
+      body: JSON.stringify({
+        sessionId: '1bb3b6',
+        location: 'PermissionsContext.tsx:usePermissions',
+        message: 'Missing PermissionsProvider',
+        data: { href: typeof location !== 'undefined' ? location.href : '' },
+        hypothesisId: 'B',
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     throw new Error('usePermissions must be used within PermissionsProvider');
   }
   return ctx;

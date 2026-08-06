@@ -2,11 +2,20 @@
  * Dashboard.tsx — CRM shell with permission-gated pages.
  */
 
-import { lazy, Suspense, useEffect, useState } from 'react';
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from 'react';
 import AppSidebar from '../components/layout/AppSidebar';
 import { permissionForPage, type PageId } from '../constants/navItems';
 import KeepAlivePage from '../components/layout/KeepAlivePage';
 import PermissionGate from '../components/shared/PermissionGate';
+import CrmProviders from '../context/CrmProviders';
 import { useLayout } from '../context/LayoutContext';
 import { useMondayBoardWatcher } from '../hooks/useMondayBoardWatcher';
 import {
@@ -27,7 +36,92 @@ const UserSettingsPage = lazy(() => import('./UserSettingsPage'));
 const RolesPermissionsPage = lazy(() => import('./RolesPermissionsPage'));
 const AuditLogPage = lazy(() => import('./AuditLogPage'));
 
+// #region agent log
+function debugLog(
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+  hypothesisId: string,
+) {
+  fetch('http://127.0.0.1:7680/ingest/7c990890-de4c-40ba-83fc-5c0c8d85914b', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Debug-Session-Id': '1bb3b6',
+    },
+    body: JSON.stringify({
+      sessionId: '1bb3b6',
+      location,
+      message,
+      data,
+      hypothesisId,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+}
+// #endregion
+
+class DashboardErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // #region agent log
+    debugLog(
+      'Dashboard.tsx:ErrorBoundary',
+      'Dashboard render crash',
+      {
+        name: error.name,
+        message: error.message,
+        stack: String(error.stack || '').slice(0, 500),
+        componentStack: String(info.componentStack || '').slice(0, 400),
+      },
+      'B',
+    );
+    // #endregion
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex min-h-[240px] flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-sm text-crm-slate">
+          <p className="font-medium text-crm-heading">Monday Project failed to load</p>
+          <p>{this.state.error.message}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function Dashboard() {
+  // #region agent log
+  useEffect(() => {
+    debugLog(
+      'Dashboard.tsx:mount',
+      'Dashboard mounted with CrmProviders',
+      { hasWindow: typeof window !== 'undefined' },
+      'A',
+    );
+  }, []);
+  // #endregion
+
+  return (
+    <DashboardErrorBoundary>
+      <CrmProviders>
+        <DashboardInner />
+      </CrmProviders>
+    </DashboardErrorBoundary>
+  );
+}
+
+function DashboardInner() {
   const [activePage, setActivePage] = useState<PageId>(getInitialActivePage);
   const [mountedPages, setMountedPages] =
     useState<Set<PageId>>(getInitialMountedPages);

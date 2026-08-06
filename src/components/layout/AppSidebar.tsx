@@ -102,6 +102,30 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
   const { detailMode, sidebarOpen, openSidebar, closeSidebar } = useLayout();
   const { user, displayName, canSwitchLocalUser } = useCurrentUser();
   const { ready, hasPermission, hasRole, roles } = usePermissions();
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7680/ingest/7c990890-de4c-40ba-83fc-5c0c8d85914b', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Debug-Session-Id': '1bb3b6',
+      },
+      body: JSON.stringify({
+        sessionId: '1bb3b6',
+        location: 'AppSidebar.tsx:permissions',
+        message: 'Sidebar permissions state',
+        data: {
+          ready,
+          roles,
+          contacts: hasPermission('contacts.view'),
+          settings: hasPermission('settings.view'),
+        },
+        hypothesisId: 'D',
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, [ready, roles, hasPermission]);
+  // #endregion
   const settingsChildActive = isSettingsPage(activePage);
   const [settingsOpen, setSettingsOpen] = useState(settingsChildActive);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
