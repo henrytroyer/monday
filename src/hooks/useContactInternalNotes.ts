@@ -1,3 +1,7 @@
+/**
+ * useContactInternalNotes.ts — Contact hub notes (public Monday + private E2E).
+ */
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   canEditContacts,
@@ -5,14 +9,24 @@ import {
   mondayWatchIntervalMs,
   useMockData,
 } from '../config/boards';
-import { useCurrentUser } from '../context/CurrentUserContext';
+import { useCurrentUser } from '../context/useCurrentUser';
 import { fetchContactInternalNotes } from '../services/fetchContactInternalNotes';
 import { addContactHubNoteOnContact } from '../services/crmApi';
 import { addLocalContactHubNote } from '../services/contactHubNoteStorage';
 import { addRecruitmentNote } from '../services/recruitmentStorage';
 import { addLocalTermNote, shouldUseLocalTermNotes } from '../services/termNoteStorage';
+import {
+  addPrivateContactNote,
+  fetchDecryptedPrivateContactNotes,
+  mergeContactNotes,
+} from '../services/privateContactNotes';
+import {
+  getPrivateNotesVaultStatus,
+  subscribePrivateNotesVault,
+} from '../services/privateNotesVault';
 import type {
   ContactInternalNoteTarget,
+  ContactInternalNoteVisibility,
   CurrentApplicationSummary,
 } from '../types/contact';
 import type { VolunteerTerm } from '../types/volunteer';
@@ -27,11 +41,24 @@ export function useContactInternalNotes(
   currentApplication: CurrentApplicationSummary | null,
 ) {
   const isMock = useMockData();
-  const { displayName } = useCurrentUser();
-  const [notes, setNotes] = useState<Awaited<ReturnType<typeof fetchContactInternalNotes>>>([]);
+  const { displayName, user } = useCurrentUser();
+  const ownerUid = user?.id?.trim() || null;
+  const [notes, setNotes] = useState<
+    Awaited<ReturnType<typeof fetchContactInternalNotes>>
+  >([]);
+  const [privateLockedCount, setPrivateLockedCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [vaultTick, setVaultTick] = useState(0);
+
+  useEffect(
+    () =>
+      subscribePrivateNotesVault(() => {
+        setVaultTick((n) => n + 1);
+      }),
+    [],
+  );
 
   const targets = useMemo(
     () => buildContactInternalNoteTargets(serviceTerms),
@@ -49,6 +76,7 @@ export function useContactInternalNotes(
     async (options?: { silent?: boolean }) => {
       if (!contactId) {
         setNotes([]);
+        setPrivateLockedCount(0);
         return;
       }
       if (!options?.silent) {
@@ -56,14 +84,34 @@ export function useContactInternalNotes(
       }
       setError(null);
       try {
-        const data = await fetchContactInternalNotes(contactId, serviceTerms);
-        setNotes(data);
+        const publicNotes = await fetchContactInternalNotes(
+          contactId,
+          serviceTerms,
+        );
+        let privateNotes: typeof publicNotes = [];
+        let lockedCount = 0;
+        if (ownerUid) {
+          try {
+            const privateResult = await fetchDecryptedPrivateContactNotes(
+              ownerUid,
+              contactId,
+            );
+            privateNotes = privateResult.notes;
+            lockedCount = privateResult.lockedCount;
+          } catch {
+            // Private store optional — public notes still load
+            lockedCount = 0;
+          }
+        }
+        setPrivateLockedCount(lockedCount);
+        setNotes(mergeContactNotes(publicNotes, privateNotes));
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load internal notes',
         );
         if (!options?.silent) {
           setNotes([]);
+          setPrivateLockedCount(0);
         }
       } finally {
         if (!options?.silent) {
@@ -71,7 +119,7 @@ export function useContactInternalNotes(
         }
       }
     },
-    [contactId, serviceTerms],
+    [contactId, serviceTerms, ownerUid, vaultTick],
   );
 
   useEffect(() => {
@@ -116,7 +164,11 @@ export function useContactInternalNotes(
   }, [contactId, isMock, load]);
 
   const addNote = useCallback(
-    async (body: string, target: ContactInternalNoteTarget) => {
+    async (
+      body: string,
+      target: ContactInternalNoteTarget,
+      visibility: ContactInternalNoteVisibility = 'public',
+    ) => {
       const trimmed = body.trim();
       if (!trimmed || !contactId) return;
 
@@ -129,6 +181,24 @@ export function useContactInternalNotes(
       setSending(true);
       setError(null);
       try {
+        if (visibility === 'private') {
+          if (!ownerUid) {
+            throw new Error('Sign in to add private notes');
+          }
+          if (getPrivateNotesVaultStatus() !== 'unlocked') {
+            throw new Error('Unlock private notes before adding a private note');
+          }
+          await addPrivateContactNote({
+            ownerUid,
+            contactId,
+            body: trimmed,
+            target,
+            authorName: displayName,
+          });
+          await load();
+          return;
+        }
+
         if (isMock) {
           if (target.kind === 'contact') {
             addLocalContactHubNote(contactId, trimmed, displayName);
@@ -141,9 +211,19 @@ export function useContactInternalNotes(
               { contactId },
             );
           } else if (shouldUseLocalTermNotes(target.itemId, isMock)) {
-            addLocalTermNote(target.itemId, target.timelineId, trimmed, displayName);
+            addLocalTermNote(
+              target.itemId,
+              target.timelineId,
+              trimmed,
+              displayName,
+            );
           } else {
-            addLocalTermNote(target.itemId, target.timelineId, trimmed, displayName);
+            addLocalTermNote(
+              target.itemId,
+              target.timelineId,
+              trimmed,
+              displayName,
+            );
           }
         } else {
           await addContactHubNoteOnContact(contactId, target, trimmed);
@@ -156,11 +236,12 @@ export function useContactInternalNotes(
         setSending(false);
       }
     },
-    [contactId, isMock, canWrite, load, displayName],
+    [contactId, isMock, canWrite, load, displayName, ownerUid],
   );
 
   return {
     notes,
+    privateLockedCount,
     loading,
     sending,
     error,

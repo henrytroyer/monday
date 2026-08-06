@@ -1,3 +1,7 @@
+/**
+ * ContactMigrationActions.tsx — Create / open Recruitment from a contact profile.
+ */
+
 import { useMemo, useState } from 'react';
 import {
   findProspectByContactId,

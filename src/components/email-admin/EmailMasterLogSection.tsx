@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useEmailMasterLog } from '../../hooks/useEmailMasterLog';
 import { useEmailAccounts } from '../../hooks/useEmailAccounts';
 import type { EmailLogEntry } from '../../types/emailAdmin';
+import CrmPageLoading from '../shared/CrmPageLoading';
 
 function formatWhen(iso: string): string {
   const date = new Date(iso);
@@ -165,7 +166,10 @@ export default function EmailMasterLogSection({
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-sm">
         {loading && entries.length === 0 ? (
-          <p className="p-6 text-sm text-crm-slate">Loading email log…</p>
+          <CrmPageLoading
+            label="i58 Volunteer portal · Email log"
+            className="min-h-[200px] py-8"
+          />
         ) : error ? (
           <p className="p-6 text-sm text-amber-800">{error}</p>
         ) : entries.length === 0 ? (

@@ -7,6 +7,7 @@
 
 import type { ContactListItem } from '../../../types/contact';
 import {
+  allNamesRelatedForMerge,
   normalizeEmailForMerge,
   normalizeNameForMerge,
   namesEqualForMerge,
@@ -67,6 +68,20 @@ export function classifyDuplicateGroup(
   const hasExactName = candidate.reasons.includes('EXACT_NAME');
 
   if (hasExactEmail && hasDifferentNames(candidate.contacts)) {
+    // Same email + totally unrelated names (e.g. Clarence and Erla vs Kristalyn
+    // Martin) → ignore; shared surname/household variants still go to review.
+    if (!allNamesRelatedForMerge(candidate.contacts)) {
+      reviewReasons.push('UNRELATED_NAMES');
+      return {
+        ...candidate,
+        scoreBreakdown: breakdown,
+        suggestedSurvivorId: survivor.id,
+        disposition: 'ignore',
+        reviewReasons,
+        survivor,
+        losers,
+      };
+    }
     reviewReasons.push('EXACT_EMAIL_DIFF_NAME');
   }
 

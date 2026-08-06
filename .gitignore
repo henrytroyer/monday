@@ -34,3 +34,6 @@ dist-ssr
 
 # QBO income watcher cursor state
 server/.qbo-income-sync-state.json
+
+# Local private-notes ciphertext store
+server/.private-notes/

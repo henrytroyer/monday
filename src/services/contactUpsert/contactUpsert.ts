@@ -370,6 +370,28 @@ export async function upsertContactPerson(
 
   const match = matchContact(input, contacts);
   if (match.needsReview) {
+    // Ambiguous email: auto-pick best survivor when scores clearly favor one
+    // Contacts-board candidate; otherwise queue Match Review.
+    const ranked = [...match.candidates].sort((a, b) => b.score - a.score);
+    const best = ranked[0];
+    const second = ranked[1];
+    const bestIsBoard =
+      best && !isCompiledContactId(best.contact.id);
+    const clearWinner =
+      match.tier === 'email' &&
+      best &&
+      bestIsBoard &&
+      (!second || best.score > second.score);
+
+    if (clearWinner && best) {
+      const contact = await applyUpdate(boardId, best.contact, input);
+      return {
+        action: 'updated',
+        contact,
+        message: `Updated best email match (${best.contact.id})`,
+      };
+    }
+
     const review = enqueueContactMatchReview({
       source: input.source,
       sourceItemId: input.sourceItemId,

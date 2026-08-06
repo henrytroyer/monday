@@ -44,6 +44,8 @@ export interface ContactListItem {
   id: string;
   name: string;
   email: string;
+  /** Secondary email(s) kept after merge (comma-separated on Monday Alt Email). */
+  altEmail?: string;
   phone?: string;
   profilePhotoUrl?: string;
   createdAt?: string;
@@ -135,6 +137,9 @@ export interface FinancialRecord {
 
 export type ContactInternalNoteSource = 'term' | 'recruitment' | 'contact';
 
+/** Public notes sync to monday.com; private notes are E2E-encrypted off-Monday. */
+export type ContactInternalNoteVisibility = 'public' | 'private';
+
 export interface ContactInternalNote {
   id: string;
   body: string;
@@ -147,6 +152,8 @@ export interface ContactInternalNote {
   applicationItemId?: string;
   recruitmentProspectId?: string;
   mondayItemId: string;
+  visibility?: ContactInternalNoteVisibility;
+  ownerUid?: string;
 }
 
 export type ContactInternalNoteTarget =

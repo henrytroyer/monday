@@ -7,6 +7,7 @@ import ContactListToolbar from '../components/contacts/ContactListToolbar';
 import ContactList from '../components/contacts/ContactList';
 import ContactBatchEmailModal from '../components/contacts/ContactBatchEmailModal';
 import ContactMergeConfirmModal from '../components/contacts/ContactMergeConfirmModal';
+import CrmPageLoading from '../components/shared/CrmPageLoading';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { useContactsList } from '../hooks/useContactsList';
@@ -38,7 +39,6 @@ import {
 } from '../services/contactUpsert/contactBoardDedupe';
 import type { FieldMergeOverrides } from '../services/contactUpsert/merge';
 import { isCompiledContactId } from '../services/compileContactsFromBoards';
-import { usePermissions } from '../context/PermissionsContext';
 import { readWorkspaceState } from '../services/crmNavigationStorage';
 
 export default function ContactsPage({
@@ -71,7 +71,6 @@ export default function ContactsPage({
     losers: ContactListItem[];
     preview: MergeContactsPreview;
   } | null>(null);
-  const { hasPermission } = usePermissions();
   const listScrollRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [filterPanelTop, setFilterPanelTop] = useState(0);
@@ -101,9 +100,7 @@ export default function ContactsPage({
     removeContacts,
   } = useContactsList();
 
-  const canMergeContacts =
-    contactsEditable &&
-    (hasPermission('contacts.merge') || hasPermission('contacts.edit'));
+  const canMergeContacts = contactsEditable;
 
   const restoreContact = useCallback(
     (contact: ContactListItem, detailOpen: boolean) => {
@@ -517,18 +514,11 @@ export default function ContactsPage({
       )}
 
       {!showingDetail && loading && contacts.length === 0 && (
-        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface p-8 text-center text-crm-slate">
-          {isMock ? (
-            <p>Loading contacts…</p>
-          ) : (
-            <>
-              <p>Loading contacts…</p>
-              <p className="mt-2 text-sm text-crm-slate/80">
-                First batch appears in a few seconds; large boards keep loading
-                in the background.
-              </p>
-            </>
-          )}
+        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface">
+          <CrmPageLoading
+            label="i58 Volunteer portal · Contacts"
+            className="min-h-[280px] py-10"
+          />
         </div>
       )}
 

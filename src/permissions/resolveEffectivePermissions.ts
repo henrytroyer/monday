@@ -1,13 +1,42 @@
 /**
  * resolveEffectivePermissions.ts — Union permissions across assigned CRM roles.
+ *
+ * Domain view = full access: holding `hr.view` grants every `hr.*` key
+ * (same for contacts / finance / communications / users / settings / history).
  */
 
 import { DEFAULT_ROLE_PERMISSIONS } from './defaults';
 import {
+  PERMISSION_KEYS,
   isPermissionKey,
   type PermissionKey,
 } from './permissionKeys';
 import { normalizeCrmRoles, type CrmRole } from './roles';
+import {
+  VISIBILITY_DOMAIN_META,
+  VISIBILITY_DOMAINS,
+} from './sectionCatalog';
+
+/**
+ * If operator has a domain's view key, grant every permission in that domain.
+ * Contacts stays an exception: `contacts.view` is identity-only; create/edit/delete
+ * still require those keys (BASIC must not become full contact admin).
+ */
+export function expandDomainViewToFullAccess(
+  effective: Set<PermissionKey>,
+): Set<PermissionKey> {
+  const next = new Set(effective);
+  for (const domain of VISIBILITY_DOMAINS) {
+    if (domain === 'contacts') continue;
+    const viewKey = VISIBILITY_DOMAIN_META[domain].viewPermission;
+    if (!next.has(viewKey)) continue;
+    const prefix = `${domain}.`;
+    for (const key of PERMISSION_KEYS) {
+      if (key === viewKey || key.startsWith(prefix)) next.add(key);
+    }
+  }
+  return next;
+}
 
 export function resolveEffectivePermissions(
   roles: string[] | undefined | null,
@@ -28,7 +57,7 @@ export function resolveEffectivePermissions(
     for (const key of DEFAULT_ROLE_PERMISSIONS.DEV) effective.add(key);
   }
 
-  return effective;
+  return expandDomainViewToFullAccess(effective);
 }
 
 export function hasPermission(

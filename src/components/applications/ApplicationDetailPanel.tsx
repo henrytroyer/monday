@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { slotLabelForIndex } from '../../constants/longtermReferenceSlots';
 import { useApplicationDetail } from '../../hooks/useApplicationDetail';
 import { useLongtermReferences } from '../../hooks/useLongtermReferences';
 import { useShortTermOnboardingPipeline } from '../../hooks/useShortTermOnboardingPipeline';
+import { useWorkFocus } from '../../hooks/useWorkFocus';
 import { openItem } from '../../utils/mondayHelpers';
 import { savePipeline } from '../../services/onboardingPipelineStorage';
 import { syncOnboardingStepToMonday } from '../../services/crmApi';
@@ -19,7 +20,9 @@ import {
   hasConfirmedLocation,
 } from '../../utils/volunteerLocation';
 import { displayTermOfService } from '../../utils/volunteerTerm';
+import CrmPageLoading from '../shared/CrmPageLoading';
 import FormFieldsPanel, { findFormPdf } from './FormFieldsPanel';
+import ApplicationInvoiceSection from './ApplicationInvoiceSection';
 import LongtermReferenceAnswersPanel from './LongtermReferenceAnswersPanel';
 import LongtermReferenceCommandCenter from './LongtermReferenceCommandCenter';
 import OnboardingProgress from './OnboardingProgress';
@@ -34,9 +37,16 @@ import VolunteerAvatar from './VolunteerAvatar';
 import CoupleAvatarStack from './CoupleAvatarStack';
 import VolunteerTermDisplay from './VolunteerTermDisplay';
 import ContactCallModal from '../contacts/ContactCallModal';
-import { useCurrentUser } from '../../context/CurrentUserContext';
+import { useCurrentUser } from '../../context/useCurrentUser';
+import SectionGate from '../shared/SectionGate';
+import type { SectionId } from '../../preferences/workFocus';
+import {
+  applicationSectionOrder,
+  orderSectionEntries,
+} from '../../preferences/workFocus';
 import { useTermNotes } from '../../hooks/useTermNotes';
 import { useApplicationActivityTimeline } from '../../hooks/useApplicationActivityTimeline';
+import { fetchPastorReferenceReceivedSnapshot } from '../../services/pastorReferenceBoard';
 
 type DrillDownView = 'application' | 'pastor' | null;
 
@@ -58,6 +68,10 @@ export default function ApplicationDetailPanel({
   applicationsEditable = false,
 }: ApplicationDetailPanelProps) {
   const { displayName } = useCurrentUser();
+  const { focus: workFocus } = useWorkFocus();
+  const canViewAppFiles = true;
+  const canSendEmail = true;
+  const canViewInvoice = true;
   const { detail, loading, error, refetch } = useApplicationDetail(volunteer, {
     longterm: quickActionsBeforeFiles,
   });
@@ -200,7 +214,51 @@ export default function ApplicationDetailPanel({
   }, [onBack, drillDown, sendEmailOpen, callOpen, answersSlotIndex]);
 
   const display = detail ?? null;
+  const [linkedPastorReferenceReceived, setLinkedPastorReferenceReceived] =
+    useState(false);
   const emailCorrespondenceRefetch = useRef<(() => void) | null>(null);
+
+  // Long-term Quick Action: watch Contacts → Pastor Reference connect column.
+  useEffect(() => {
+    if (!quickActionsBeforeFiles || !display) {
+      setLinkedPastorReferenceReceived(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        const snapshot = await fetchPastorReferenceReceivedSnapshot(volunteer.id);
+        if (!cancelled) {
+          setLinkedPastorReferenceReceived(Boolean(snapshot?.received));
+        }
+      } catch {
+        if (!cancelled) setLinkedPastorReferenceReceived(false);
+      }
+    };
+
+    void refresh();
+    if (isMock) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 30_000);
+    const onFocus = () => {
+      void refresh();
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [quickActionsBeforeFiles, display?.id, volunteer.id, isMock]);
   const termNotesState = useTermNotes({
     itemId: volunteer.id,
     timelineId: volunteer.timelineId,
@@ -246,6 +304,10 @@ export default function ApplicationDetailPanel({
     }
   };
 
+  // Green only when Contacts → Pastor Reference connect column links a filled form.
+  const pastorReferenceReceived =
+    shortTermOnboarding.pastorReferenceReceived || linkedPastorReferenceReceived;
+
   const quickActions = (
     <div className="rounded-xl border border-crm-taupe/20 bg-crm-white px-4 py-3">
       <h3 className="text-sm font-semibold text-crm-heading">Quick Actions</h3>
@@ -261,16 +323,20 @@ export default function ApplicationDetailPanel({
         <ActionButton
           label="View Pastor Reference"
           onClick={() => setDrillDown('pastor')}
+          variant={pastorReferenceReceived ? 'success' : 'default'}
         />
-        <ActionButton
-          label="Send email"
-          onClick={() => setSendEmailOpen(true)}
-        />
+        {canSendEmail && (
+          <ActionButton
+            label="Send email"
+            onClick={() => setSendEmailOpen(true)}
+          />
+        )}
       </div>
     </div>
   );
 
-  const referencesPanel = quickActionsBeforeFiles ? (
+  const referencesPanel =
+    quickActionsBeforeFiles ? (
     <LongtermReferenceCommandCenter
       slots={referenceSlots}
       loading={longtermReferences.loading}
@@ -304,13 +370,16 @@ export default function ApplicationDetailPanel({
           </button>
         </div>
 
-        <ApplicationIdentityBar display={display} volunteer={volunteer} loading={loading} />
+        <SectionGate id="application.identity">
+          <ApplicationIdentityBar display={display} volunteer={volunteer} loading={loading} />
+        </SectionGate>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {loading && (
-            <p className="text-center text-crm-slate">
-              Loading application details…
-            </p>
+            <CrmPageLoading
+              label="i58 Volunteer portal · Application"
+              className="min-h-[240px] py-8"
+            />
           )}
 
           {error && (
@@ -321,85 +390,145 @@ export default function ApplicationDetailPanel({
 
           {display && !loading && (
             <div className="space-y-6">
-              {display.couple ? (
-                <CoupleApplicationCard
-                  detail={display}
-                  onEmailClick={() => setSendEmailOpen(true)}
-                  onPhoneClick={() => setCallOpen(true)}
-                  sharedContent={quickActions}
-                  splitFilesRow={quickActionsBeforeFiles}
-                  besideFiles={referencesPanel}
-                  boardId={boardId}
-                  canUploadFiles={applicationsEditable}
-                  onFilesUploaded={() => refetch()}
-                />
-              ) : (
-                <VolunteerContactCard
-                  detail={display}
-                  onEmailClick={() => setSendEmailOpen(true)}
-                  onPhoneClick={() => setCallOpen(true)}
-                  beforeFiles={quickActions}
-                  splitFilesRow={quickActionsBeforeFiles}
-                  besideFiles={referencesPanel}
-                  boardId={boardId}
-                  canUploadFiles={applicationsEditable}
-                  onFilesUploaded={() => refetch()}
-                  canEdit={applicationsEditable}
-                  longterm={quickActionsBeforeFiles}
-                  onContactSaved={() => refetch()}
-                />
-              )}
-
-              {pipeline && (
-                <OnboardingProgressPanel
-                  pipeline={pipeline}
-                  variant={quickActionsBeforeFiles ? 'long-term' : 'short-term'}
-                >
-                  <OnboardingProgress
-                    pipeline={pipeline}
-                    volunteer={volunteer}
-                    volunteerName={display.name}
-                    housing={display.housing}
-                    itemId={display.id}
-                    boardId={boardId}
-                    variant={quickActionsBeforeFiles ? 'long-term' : 'short-term'}
-                    onPipelineChange={handlePipelineChange}
-                    onSendProgressEmail={handleSendProgressEmail}
-                    invoiceReadOnly={!applicationsEditable}
-                    onInvoiceLinked={() => refetch()}
-                  />
-                </OnboardingProgressPanel>
-              )}
-
-              <TermNotesChat
-                itemId={display.id}
-                timelineId={display.timelineId}
-                initialNotes={display.termNotes}
-                termNotesState={termNotesState}
-              />
-
-              <TermEmailCorrespondence
-                itemId={display.id}
-                timelineId={display.timelineId}
-                timelineLabel={displayTermOfService(display)}
-                contactName={display.name}
-                contactEmail={display.email}
-                contactEmails={display.emails.map((e) => e.address)}
-                onRefetchReady={(refetch) => {
-                  emailCorrespondenceRefetch.current = refetch;
-                }}
-              />
-
-              <ApplicationActivityTimeline
-                events={activityTimeline.events}
-                loading={activityTimeline.loading}
-                error={activityTimeline.error}
-              />
+              {orderSectionEntries(
+                workFocus,
+                applicationSectionOrder(workFocus),
+                {
+                  'application.contact_card': (
+                    <SectionGate id="application.contact_card">
+                      {display.couple ? (
+                        <CoupleApplicationCard
+                          detail={display}
+                          onEmailClick={
+                            canSendEmail
+                              ? () => setSendEmailOpen(true)
+                              : undefined
+                          }
+                          onPhoneClick={() => setCallOpen(true)}
+                          sharedContent={quickActions}
+                          splitFilesRow={quickActionsBeforeFiles}
+                          besideFiles={referencesPanel}
+                          boardId={boardId}
+                          canUploadFiles={
+                            applicationsEditable && canViewAppFiles
+                          }
+                          onFilesUploaded={() => refetch()}
+                          showFiles={canViewAppFiles}
+                        />
+                      ) : (
+                        <VolunteerContactCard
+                          detail={display}
+                          onEmailClick={
+                            canSendEmail
+                              ? () => setSendEmailOpen(true)
+                              : undefined
+                          }
+                          onPhoneClick={() => setCallOpen(true)}
+                          beforeFiles={quickActions}
+                          splitFilesRow={quickActionsBeforeFiles}
+                          besideFiles={referencesPanel}
+                          boardId={boardId}
+                          canUploadFiles={
+                            applicationsEditable && canViewAppFiles
+                          }
+                          onFilesUploaded={() => refetch()}
+                          canEdit={applicationsEditable}
+                          longterm={quickActionsBeforeFiles}
+                          onContactSaved={() => refetch()}
+                          showFiles={canViewAppFiles}
+                        />
+                      )}
+                    </SectionGate>
+                  ),
+                  'application.invoice':
+                    canViewInvoice && workFocus === 'finance' ? (
+                      <SectionGate id="application.invoice">
+                        <ApplicationInvoiceSection
+                          volunteerName={display.name}
+                          invoiceId={
+                            pipeline?.steps.find((s) => s.stepId === 'invoice')
+                              ?.quickbooksInvoiceId
+                          }
+                          mondayStatus={display.status}
+                          readOnly={!applicationsEditable}
+                          onInvoiceLinked={() => refetch()}
+                        />
+                      </SectionGate>
+                    ) : undefined,
+                  'application.onboarding': pipeline ? (
+                    <SectionGate id="application.onboarding">
+                      <OnboardingProgressPanel
+                        pipeline={pipeline}
+                        variant={
+                          quickActionsBeforeFiles ? 'long-term' : 'short-term'
+                        }
+                      >
+                        <OnboardingProgress
+                          pipeline={pipeline}
+                          volunteer={volunteer}
+                          volunteerName={display.name}
+                          housing={display.housing}
+                          itemId={display.id}
+                          boardId={boardId}
+                          variant={
+                            quickActionsBeforeFiles
+                              ? 'long-term'
+                              : 'short-term'
+                          }
+                          onPipelineChange={handlePipelineChange}
+                          onSendProgressEmail={handleSendProgressEmail}
+                          invoiceReadOnly={!applicationsEditable}
+                          onInvoiceLinked={() => refetch()}
+                          showInvoiceStep={
+                            canViewInvoice && workFocus !== 'finance'
+                          }
+                        />
+                      </OnboardingProgressPanel>
+                    </SectionGate>
+                  ) : undefined,
+                  'application.term_notes': (
+                    <SectionGate id="application.term_notes">
+                      <TermNotesChat
+                        itemId={display.id}
+                        timelineId={display.timelineId}
+                        initialNotes={display.termNotes}
+                        termNotesState={termNotesState}
+                      />
+                    </SectionGate>
+                  ),
+                  'application.email': (
+                    <SectionGate id="application.email">
+                      <TermEmailCorrespondence
+                        itemId={display.id}
+                        timelineId={display.timelineId}
+                        timelineLabel={displayTermOfService(display)}
+                        contactName={display.name}
+                        contactEmail={display.email}
+                        contactEmails={display.emails.map((e) => e.address)}
+                        onRefetchReady={(refetchFn) => {
+                          emailCorrespondenceRefetch.current = refetchFn;
+                        }}
+                      />
+                    </SectionGate>
+                  ),
+                  'application.activity': (
+                    <SectionGate id="application.activity">
+                      <ApplicationActivityTimeline
+                        events={activityTimeline.events}
+                        loading={activityTimeline.loading}
+                        error={activityTimeline.error}
+                      />
+                    </SectionGate>
+                  ),
+                } satisfies Partial<Record<SectionId, ReactNode>>,
+              ).map((node, index) => (
+                <div key={`app-section-${index}`}>{node}</div>
+              ))}
             </div>
           )}
         </div>
 
-        {sendEmailOpen && display && (
+        {sendEmailOpen && display && canSendEmail && (
           <SendEmailModal
             detail={display}
             onClose={requestCloseEmail}
@@ -565,16 +694,19 @@ function ApplicationIdentityBar({
 function ActionButton({
   label,
   onClick,
+  variant = 'default',
 }: {
   label: string;
   onClick?: () => void;
+  variant?: 'default' | 'success';
 }) {
+  const className =
+    variant === 'success'
+      ? 'rounded-xl border border-emerald-200 bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-200/70'
+      : 'rounded-xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50';
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
-    >
+    <button type="button" onClick={onClick} className={className}>
       {label}
     </button>
   );

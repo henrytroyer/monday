@@ -4,8 +4,8 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import PermissionGate from '../components/shared/PermissionGate';
-import { useCurrentUser } from '../context/CurrentUserContext';
-import { usePermissions } from '../context/PermissionsContext';
+import { useCurrentUser } from '../context/useCurrentUser';
+import { usePermissions } from '../context/usePermissions';
 import {
   assertCanAssignRoles,
   assertCanDeactivateOperator,

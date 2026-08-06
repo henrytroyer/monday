@@ -52,20 +52,46 @@ export function countPendingDuplicateReviews(): number {
   return listDuplicateReviewItems('pending').length;
 }
 
+function contactIdsKey(ids: string[]): string {
+  return ids.slice().sort().join('|');
+}
+
+/** True when this exact contact set was dismissed as keep-both / not a duplicate. */
+export function isDuplicatePairDismissed(contactIds: string[]): boolean {
+  const key = contactIdsKey(contactIds);
+  return readAll().some(
+    (entry) =>
+      entry.status === 'dismissed' && contactIdsKey(entry.contactIds) === key,
+  );
+}
+
 export function enqueueDuplicateReview(
   item: Omit<DuplicateReviewItem, 'id' | 'createdAt' | 'status'> & {
     id?: string;
     createdAt?: string;
     status?: DuplicateReviewItem['status'];
   },
-): DuplicateReviewItem {
+): DuplicateReviewItem | null {
   const all = readAll();
+  const idsKey = contactIdsKey(item.contactIds);
+
+  // Respect Keep both / not-a-duplicate — do not re-queue.
+  if (
+    item.status !== 'dismissed' &&
+    all.some(
+      (entry) =>
+        entry.status === 'dismissed' &&
+        contactIdsKey(entry.contactIds) === idsKey,
+    )
+  ) {
+    return null;
+  }
+
   const existing = all.find(
     (entry) =>
       entry.status === 'pending' &&
       entry.key === item.key &&
-      entry.contactIds.slice().sort().join('|') ===
-        item.contactIds.slice().sort().join('|'),
+      contactIdsKey(entry.contactIds) === idsKey,
   );
   if (existing) return existing;
 
@@ -87,6 +113,69 @@ export function enqueueDuplicateReview(
   };
   writeAll([created, ...all]);
   return created;
+}
+
+/**
+ * Mark a contact set as keep-both (not a duplicate). Updates pending row or
+ * creates a dismissed stub so daily jobs do not re-enqueue.
+ */
+export function dismissDuplicatePair(options: {
+  contactIds: string[];
+  contactNames: string[];
+  key?: string;
+  reviewId?: string;
+  notes?: string;
+}): void {
+  const all = readAll();
+  const idsKey = contactIdsKey(options.contactIds);
+
+  if (options.reviewId) {
+    writeAll(
+      all.map((item) =>
+        item.id === options.reviewId
+          ? {
+              ...item,
+              status: 'dismissed' as const,
+              notes: options.notes ?? item.notes ?? 'Keep both',
+            }
+          : item,
+      ),
+    );
+    return;
+  }
+
+  const pending = all.find(
+    (entry) =>
+      entry.status === 'pending' && contactIdsKey(entry.contactIds) === idsKey,
+  );
+  if (pending) {
+    writeAll(
+      all.map((item) =>
+        item.id === pending.id
+          ? {
+              ...item,
+              status: 'dismissed' as const,
+              notes: options.notes ?? 'Keep both',
+            }
+          : item,
+      ),
+    );
+    return;
+  }
+
+  if (isDuplicatePairDismissed(options.contactIds)) return;
+
+  enqueueDuplicateReview({
+    key: options.key ?? `dismissed:${idsKey}`,
+    contactIds: options.contactIds,
+    contactNames: options.contactNames,
+    reasons: [],
+    reviewReasons: [],
+    suggestedSurvivorId: options.contactIds[0] ?? '',
+    scoreBreakdown: [],
+    status: 'dismissed',
+    notes: options.notes ?? 'Keep both',
+  });
 }
 
 export function updateDuplicateReviewStatus(

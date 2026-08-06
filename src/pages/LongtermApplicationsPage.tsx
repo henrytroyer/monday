@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import ApplicationDetailPanel from '../components/applications/ApplicationDetailPanel';
 import PipelineSection from '../components/applications/PipelineSection';
+import CrmPageLoading from '../components/shared/CrmPageLoading';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { useLongtermApplicationsPipeline } from '../hooks/useLongtermApplicationsPipeline';
@@ -213,12 +214,11 @@ export default function LongtermApplicationsPage({
       )}
 
       {loading && !showingDetail && !listHasData && (
-        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface p-8 text-center text-crm-slate">
-          {isMock ? (
-            <p>Loading long-term applications…</p>
-          ) : (
-            <p>Loading long-term applications…</p>
-          )}
+        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface">
+          <CrmPageLoading
+            label="i58 Volunteer portal · Long-term"
+            className="min-h-[280px] py-10"
+          />
         </div>
       )}
 

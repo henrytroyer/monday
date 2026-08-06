@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import type { VolunteerFile } from '../../types/volunteer';
 import { stripArchivedVolunteerFilePrefix } from '../../utils/archivedVolunteerFiles';
@@ -11,6 +11,7 @@ import {
   suggestedDownloadFilename,
   type VolunteerFileSlotKey,
 } from '../../utils/volunteerDownloadFilename';
+import ConfirmDialog from '../shared/ConfirmDialog';
 import BackgroundCheckPasswordModal from './BackgroundCheckPasswordModal';
 import DownloadFileModal from './DownloadFileModal';
 import FilePreviewModal from './FilePreviewModal';
@@ -19,6 +20,7 @@ import {
   type MondayFileSlot,
 } from '../../services/uploadMondayFile';
 import { removeVolunteerFileFromMonday } from '../../services/removeMondayFile';
+import { downloadVolunteerFile } from '../../utils/filePreview';
 
 interface VolunteerFilesSectionProps {
   volunteerName?: string;
@@ -85,6 +87,10 @@ export default function VolunteerFilesSection({
   const [downloadPrompt, setDownloadPrompt] = useState<DownloadPrompt | null>(
     null,
   );
+  const [pendingRemoveFiles, setPendingRemoveFiles] = useState<VolunteerFile[]>(
+    [],
+  );
+  const [bulkBusy, setBulkBusy] = useState(false);
   const pendingDownloadSlotRef = useRef<VolunteerFileSlotKey>('other');
 
   const canRemoveFiles = Boolean(canUpload && boardId && itemId);
@@ -105,6 +111,12 @@ export default function VolunteerFilesSection({
     downloadPrompt !== null,
     () => setDownloadPrompt(null),
     `file-download-${downloadPrompt?.file.id ?? 'none'}`,
+  );
+
+  const { requestClose: requestCloseRemoveConfirm } = useNavLayer(
+    pendingRemoveFiles.length > 0 && removingFileId === null && !bulkBusy,
+    () => setPendingRemoveFiles([]),
+    `file-remove-${pendingRemoveFiles.map((f) => f.id).join('-') || 'none'}`,
   );
 
   const slots = resolveVolunteerFileSlots(
@@ -166,20 +178,31 @@ export default function VolunteerFilesSection({
     }
   };
 
-  const handleRemove = async (file: VolunteerFile) => {
+  const requestRemove = (file: VolunteerFile) => {
     if (!itemId || !boardId || !canRemoveFiles) return;
-    const label = file.name?.trim() || 'this file';
-    if (
-      !window.confirm(
-        `Remove “${label}” from this application? This cannot be undone from the portal.`,
-      )
-    ) {
+    setPendingRemoveFiles([file]);
+  };
+
+  const requestRemoveMany = (filesToRemove: VolunteerFile[]) => {
+    if (!itemId || !boardId || !canRemoveFiles || filesToRemove.length === 0) {
+      return;
+    }
+    setPendingRemoveFiles(filesToRemove);
+  };
+
+  const confirmRemove = async () => {
+    const filesToRemove = pendingRemoveFiles;
+    if (filesToRemove.length === 0 || !itemId || !boardId || !canRemoveFiles) {
       return;
     }
     setUploadError(null);
-    setRemovingFileId(file.id);
+    setBulkBusy(true);
     try {
-      await removeVolunteerFileFromMonday(boardId, itemId, file);
+      for (const file of filesToRemove) {
+        setRemovingFileId(file.id);
+        await removeVolunteerFileFromMonday(boardId, itemId, file);
+      }
+      setPendingRemoveFiles([]);
       onUploaded?.();
     } catch (err) {
       setUploadError(
@@ -187,6 +210,35 @@ export default function VolunteerFilesSection({
       );
     } finally {
       setRemovingFileId(null);
+      setBulkBusy(false);
+    }
+  };
+
+  const downloadMany = async (filesToDownload: VolunteerFile[]) => {
+    if (filesToDownload.length === 0) return;
+    setUploadError(null);
+    setBulkBusy(true);
+    try {
+      for (const file of filesToDownload) {
+        if (fileRequiresPassword(file)) {
+          pendingDownloadSlotRef.current = inferVolunteerFileSlotKey(file);
+          setPasswordFile(file);
+          setPasswordAction('download');
+          break;
+        }
+        const slotKey = inferVolunteerFileSlotKey({
+          ...file,
+          name: stripArchivedVolunteerFilePrefix(file.name),
+        });
+        const filename = defaultFilenameFor(file, slotKey);
+        await downloadVolunteerFile(file, filename);
+      }
+    } catch (err) {
+      setUploadError(
+        err instanceof Error ? err.message : 'Could not download files',
+      );
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -241,7 +293,7 @@ export default function VolunteerFilesSection({
           onOpen={(file) => runFileAction(file, 'preview', 'profile')}
           onDownload={(file) => runFileAction(file, 'download', 'profile')}
           onRemove={
-            canRemoveFiles ? (file) => void handleRemove(file) : undefined
+            canRemoveFiles ? (file) => requestRemove(file) : undefined
           }
         />
         <FileRow
@@ -252,7 +304,7 @@ export default function VolunteerFilesSection({
           onOpen={(file) => runFileAction(file, 'preview', 'passport')}
           onDownload={(file) => runFileAction(file, 'download', 'passport')}
           onRemove={
-            canRemoveFiles ? (file) => void handleRemove(file) : undefined
+            canRemoveFiles ? (file) => requestRemove(file) : undefined
           }
         />
         <FileRow
@@ -265,7 +317,7 @@ export default function VolunteerFilesSection({
             runFileAction(file, 'download', 'backgroundcheck')
           }
           onRemove={
-            canRemoveFiles ? (file) => void handleRemove(file) : undefined
+            canRemoveFiles ? (file) => requestRemove(file) : undefined
           }
           locked={Boolean(slots.backgroundCheck?.url)}
         />
@@ -281,7 +333,7 @@ export default function VolunteerFilesSection({
             runFileAction(file, 'download', 'childsafeguarding')
           }
           onRemove={
-            canRemoveFiles ? (file) => void handleRemove(file) : undefined
+            canRemoveFiles ? (file) => requestRemove(file) : undefined
           }
         />
         <FileRow
@@ -293,7 +345,7 @@ export default function VolunteerFilesSection({
           onDownload={(file) => runFileAction(file, 'download', 'itinerary')}
           onRemove={
             canRemoveFiles && slots.itineraryFiles[0]
-              ? (file) => void handleRemove(file)
+              ? (file) => requestRemove(file)
               : undefined
           }
         />
@@ -301,13 +353,22 @@ export default function VolunteerFilesSection({
           files={slots.oldFiles}
           compact={embeddedInGrid}
           removingFileId={removingFileId}
+          busy={bulkBusy}
           canRemove={canRemoveFiles}
           onOpen={(file, slotKey) => runFileAction(file, 'preview', slotKey)}
           onDownload={(file, slotKey) =>
             runFileAction(file, 'download', slotKey)
           }
+          onDownloadMany={(filesToDownload) =>
+            void downloadMany(filesToDownload)
+          }
           onRemove={
-            canRemoveFiles ? (file) => void handleRemove(file) : undefined
+            canRemoveFiles ? (file) => requestRemove(file) : undefined
+          }
+          onRemoveMany={
+            canRemoveFiles
+              ? (filesToRemove) => requestRemoveMany(filesToRemove)
+              : undefined
           }
         />
       </ul>
@@ -353,7 +414,7 @@ export default function VolunteerFilesSection({
                     )
                   }
                   onRemove={
-                    canRemoveFiles ? () => void handleRemove(file) : undefined
+                    canRemoveFiles ? () => requestRemove(file) : undefined
                   }
                 />
               ) : (
@@ -394,7 +455,7 @@ export default function VolunteerFilesSection({
                       {canRemoveFiles && (
                         <RemoveButton
                           busy={removingFileId === file.id}
-                          onClick={() => void handleRemove(file)}
+                          onClick={() => requestRemove(file)}
                         />
                       )}
                     </div>
@@ -462,6 +523,30 @@ export default function VolunteerFilesSection({
           onClose={requestCloseDownload}
         />
       )}
+
+      <ConfirmDialog
+        open={pendingRemoveFiles.length > 0}
+        title={
+          pendingRemoveFiles.length > 1 ? 'Remove files' : 'Remove file'
+        }
+        message={
+          pendingRemoveFiles.length === 0
+            ? ''
+            : pendingRemoveFiles.length === 1
+              ? `Remove “${stripArchivedVolunteerFilePrefix(pendingRemoveFiles[0]!.name) || 'this file'}” from this application? This cannot be undone from the portal.`
+              : `Remove ${pendingRemoveFiles.length} selected files from this application? This cannot be undone from the portal.`
+        }
+        confirmLabel={
+          pendingRemoveFiles.length > 1
+            ? `Remove ${pendingRemoveFiles.length}`
+            : 'Remove'
+        }
+        cancelLabel="Cancel"
+        tone="danger"
+        busy={removingFileId !== null || bulkBusy}
+        onConfirm={() => void confirmRemove()}
+        onCancel={requestCloseRemoveConfirm}
+      />
     </>
   );
 }
@@ -470,25 +555,163 @@ function FilesBubble({
   files,
   compact = false,
   removingFileId,
+  busy = false,
   canRemove,
   onOpen,
   onDownload,
+  onDownloadMany,
   onRemove,
+  onRemoveMany,
 }: {
   files: VolunteerFile[];
   compact?: boolean;
   removingFileId: string | null;
+  busy?: boolean;
   canRemove: boolean;
   onOpen: (file: VolunteerFile, slotKey: VolunteerFileSlotKey) => void;
   onDownload: (file: VolunteerFile, slotKey: VolunteerFileSlotKey) => void;
+  onDownloadMany: (files: VolunteerFile[]) => void;
   onRemove?: (file: VolunteerFile) => void;
+  onRemoveMany?: (files: VolunteerFile[]) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const multiSelect = files.length > 1;
+  const [expanded, setExpanded] = useState(multiSelect);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+
+  // Keep selection in sync when the file list changes.
+  const fileIdsKey = files.map((f) => f.id).join('|');
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const next = new Set<string>();
+      for (const file of files) {
+        if (prev.has(file.id)) next.add(file.id);
+      }
+      return next;
+    });
+    if (files.length > 1) setExpanded(true);
+  }, [fileIdsKey, files]);
+
   const isEmpty = files.length === 0;
   const summary =
     files.length === 1
       ? stripArchivedVolunteerFilePrefix(files[0]!.name)
       : `${files.length} previous files`;
+  const selectedFiles = files.filter((file) => selectedIds.has(file.id));
+  const allSelected = multiSelect && selectedFiles.length === files.length;
+
+  const toggleSelected = (fileId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(
+      allSelected ? new Set() : new Set(files.map((file) => file.id)),
+    );
+  };
+
+  const fileRow = (file: VolunteerFile, dense: boolean) => {
+    const displayName = stripArchivedVolunteerFilePrefix(file.name);
+    const slotKey = inferVolunteerFileSlotKey({
+      ...file,
+      name: displayName,
+    });
+    const selected = selectedIds.has(file.id);
+
+    return (
+      <li
+        key={`files-${file.id}`}
+        className={`flex flex-wrap items-center gap-2 ${
+          dense ? '' : 'justify-between'
+        }`}
+      >
+        {multiSelect && (
+          <label className="flex shrink-0 items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selected}
+              disabled={busy}
+              onChange={() => toggleSelected(file.id)}
+              className="h-3.5 w-3.5 rounded border-crm-taupe/40 text-crm-indigo focus:ring-crm-taupe/30"
+            />
+            <span className="sr-only">Select {displayName}</span>
+          </label>
+        )}
+        <button
+          type="button"
+          onClick={() => onOpen(file, slotKey)}
+          className={`min-w-0 flex-1 text-left font-medium text-crm-heading underline-offset-2 hover:underline ${
+            dense ? 'truncate text-xs' : 'text-sm'
+          }`}
+        >
+          {displayName}
+        </button>
+        {!multiSelect && (
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            {dense ? (
+              <MiniDownloadButton onClick={() => onDownload(file, slotKey)} />
+            ) : (
+              <DownloadButton onClick={() => onDownload(file, slotKey)} />
+            )}
+            {canRemove && onRemove && (
+              dense ? (
+                <MiniRemoveButton
+                  busy={removingFileId === file.id}
+                  onClick={() => onRemove(file)}
+                />
+              ) : (
+                <RemoveButton
+                  busy={removingFileId === file.id}
+                  onClick={() => onRemove(file)}
+                />
+              )
+            )}
+          </div>
+        )}
+      </li>
+    );
+  };
+
+  const bulkActions = multiSelect && expanded && (
+    <div
+      className={`flex flex-wrap items-center gap-2 ${
+        compact ? 'px-2.5 pb-2' : 'mt-3'
+      }`}
+    >
+      <button
+        type="button"
+        disabled={busy}
+        onClick={toggleSelectAll}
+        className="rounded-md border border-crm-taupe/25 bg-crm-white px-2.5 py-1 text-[11px] font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+      >
+        {allSelected ? 'Clear' : 'Select all'}
+      </button>
+      <button
+        type="button"
+        disabled={busy || selectedFiles.length === 0}
+        onClick={() => onDownloadMany(selectedFiles)}
+        className="rounded-md border border-crm-taupe/25 bg-crm-white px-2.5 py-1 text-[11px] font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+      >
+        Download selected
+        {selectedFiles.length > 0 ? ` (${selectedFiles.length})` : ''}
+      </button>
+      {canRemove && onRemoveMany && (
+        <button
+          type="button"
+          disabled={busy || selectedFiles.length === 0}
+          onClick={() => onRemoveMany(selectedFiles)}
+          className="rounded-md border border-rose-200 bg-crm-white px-2.5 py-1 text-[11px] font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
+        >
+          Remove selected
+          {selectedFiles.length > 0 ? ` (${selectedFiles.length})` : ''}
+        </button>
+      )}
+    </div>
+  );
 
   if (compact) {
     const rowTone = isEmpty
@@ -520,38 +743,12 @@ function FilesBubble({
           )}
         </button>
         {expanded && !isEmpty && (
-          <ul className="space-y-1.5 border-t border-crm-taupe/15 px-2.5 py-2">
-            {files.map((file) => {
-              const displayName = stripArchivedVolunteerFilePrefix(file.name);
-              const slotKey = inferVolunteerFileSlotKey({
-                ...file,
-                name: displayName,
-              });
-              return (
-                <li
-                  key={`files-${file.id}`}
-                  className="flex flex-wrap items-center gap-2"
-                >
-                  <button
-                    type="button"
-                    onClick={() => onOpen(file, slotKey)}
-                    className="min-w-0 flex-1 truncate text-left text-xs font-medium text-crm-heading underline-offset-2 hover:underline"
-                  >
-                    {displayName}
-                  </button>
-                  <div className="flex shrink-0 gap-1">
-                    <MiniDownloadButton onClick={() => onDownload(file, slotKey)} />
-                    {canRemove && onRemove && (
-                      <MiniRemoveButton
-                        busy={removingFileId === file.id}
-                        onClick={() => onRemove(file)}
-                      />
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            <ul className="space-y-1.5 border-t border-crm-taupe/15 px-2.5 py-2">
+              {files.map((file) => fileRow(file, true))}
+            </ul>
+            {bulkActions}
+          </>
         )}
       </li>
     );
@@ -578,42 +775,17 @@ function FilesBubble({
       ) : (
         <>
           <p className="mt-1 text-sm font-medium text-crm-heading">{summary}</p>
+          {multiSelect && expanded && (
+            <p className="mt-1 text-[11px] text-crm-slate">
+              Select files, then download or remove.
+            </p>
+          )}
           {expanded && (
             <ul className="mt-3 space-y-2 border-t border-crm-taupe/15 pt-3">
-              {files.map((file) => {
-                const displayName = stripArchivedVolunteerFilePrefix(file.name);
-                const slotKey = inferVolunteerFileSlotKey({
-                  ...file,
-                  name: displayName,
-                });
-                return (
-                  <li
-                    key={`files-${file.id}`}
-                    className="flex flex-wrap items-center justify-between gap-2"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onOpen(file, slotKey)}
-                      className="min-w-0 flex-1 text-left text-sm font-medium text-crm-heading underline-offset-2 hover:underline"
-                    >
-                      {displayName}
-                    </button>
-                    <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                      <DownloadButton
-                        onClick={() => onDownload(file, slotKey)}
-                      />
-                      {canRemove && onRemove && (
-                        <RemoveButton
-                          busy={removingFileId === file.id}
-                          onClick={() => onRemove(file)}
-                        />
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
+              {files.map((file) => fileRow(file, false))}
             </ul>
           )}
+          {bulkActions}
         </>
       )}
     </li>

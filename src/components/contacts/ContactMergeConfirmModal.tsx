@@ -26,6 +26,8 @@ interface ContactMergeConfirmModalProps {
   busy?: boolean;
   onConfirm: (overrides: FieldMergeOverrides) => void;
   onCancel: () => void;
+  /** Keep both contacts; dismiss review / do not merge. */
+  onKeepBoth?: () => void;
 }
 
 export default function ContactMergeConfirmModal({
@@ -37,6 +39,7 @@ export default function ContactMergeConfirmModal({
   busy = false,
   onConfirm,
   onCancel,
+  onKeepBoth,
 }: ContactMergeConfirmModalProps) {
   const choices = useMemo(
     () => buildMergeFieldChoices(survivor, losers, allContacts),
@@ -110,6 +113,7 @@ export default function ContactMergeConfirmModal({
           <p className="mt-1 text-sm text-crm-slate">
             Choose which values to keep for each field. Defaults match the
             richest survivor. Duplicates are archived (not permanently deleted).
+            Use Keep both if these are different people.
           </p>
         </div>
 
@@ -179,25 +183,39 @@ export default function ContactMergeConfirmModal({
             )}
         </div>
 
-        <div className="flex shrink-0 justify-end gap-2 border-t border-crm-taupe/20 px-5 py-4">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onCancel}
-            className="rounded-xl border border-crm-taupe/25 bg-crm-white px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              onConfirm(selectionsToFieldOverrides(selections))
-            }
-            className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-semibold text-white hover:bg-crm-indigo-dark disabled:opacity-50"
-          >
-            {busy ? 'Merging…' : 'Merge contacts'}
-          </button>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-crm-taupe/20 px-5 py-4">
+          {onKeepBoth ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onKeepBoth}
+              className="rounded-xl border border-crm-taupe/25 bg-crm-white px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50 disabled:opacity-50"
+            >
+              Keep both
+            </button>
+          ) : (
+            <span />
+          )}
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onCancel}
+              className="rounded-xl border border-crm-taupe/25 bg-crm-white px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                onConfirm(selectionsToFieldOverrides(selections))
+              }
+              className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-semibold text-white hover:bg-crm-indigo-dark disabled:opacity-50"
+            >
+              {busy ? 'Merging…' : 'Merge contacts'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

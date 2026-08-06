@@ -7,6 +7,9 @@ export {
   normalizeNameForMerge,
   namesEqualForMerge,
   emailsEqualForMerge,
+  namesRelatedForMerge,
+  allNamesRelatedForMerge,
+  nameTokensForMerge,
 } from './normalize';
 export {
   findDuplicateGroupCandidates,
@@ -56,6 +59,8 @@ export {
   countPendingDuplicateReviews,
   enqueueDuplicateReview,
   updateDuplicateReviewStatus,
+  dismissDuplicatePair,
+  isDuplicatePairDismissed,
 } from './reviewStorage';
 export {
   saveMergeRunReport,

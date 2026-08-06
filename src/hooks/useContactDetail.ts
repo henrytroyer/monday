@@ -57,17 +57,28 @@ export function useContactDetail(contactId: string | null) {
       setError(null);
     }
 
+    const fetchOpts = {
+      contactsBoardId: isMock ? undefined : contactsBoardId,
+      applicationsBoardId: isMock ? undefined : applicationsBoardId,
+      donationsBoardId: isMock ? undefined : donationsBoardId,
+      serviceEndedBoardId: isMock ? undefined : serviceEndedBoardId,
+      endOfServiceReviewBoardId: isMock
+        ? undefined
+        : endOfServiceReviewBoardId,
+      refresh: true as const,
+    };
+
     try {
-      const data = await fetchContactDetail(contactId, {
-        contactsBoardId: isMock ? undefined : contactsBoardId,
-        applicationsBoardId: isMock ? undefined : applicationsBoardId,
-        donationsBoardId: isMock ? undefined : donationsBoardId,
-        serviceEndedBoardId: isMock ? undefined : serviceEndedBoardId,
-        endOfServiceReviewBoardId: isMock
-          ? undefined
-          : endOfServiceReviewBoardId,
-        refresh: true,
-      });
+      let data: ContactDetail;
+      try {
+        data = await fetchContactDetail(contactId, fetchOpts);
+      } catch (firstErr) {
+        const msg =
+          firstErr instanceof Error ? firstErr.message : String(firstErr);
+        const aborted = /abort/i.test(msg);
+        if (!aborted) throw firstErr;
+        data = await fetchContactDetail(contactId, fetchOpts);
+      }
       setDetail(data);
     } catch (err) {
       setError(

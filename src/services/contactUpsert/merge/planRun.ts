@@ -69,6 +69,7 @@ export function planMergeRun(
 
   if (options.enqueueReviews !== false) {
     for (const group of finalReview) {
+      if (group.disposition === 'ignore') continue;
       enqueueDuplicateReview({
         key: group.key,
         contactIds: group.contacts.map((c) => c.id),

@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useMockData } from '../config/boards';
-import { useCurrentUser } from '../context/CurrentUserContext';
+import { useCurrentUser } from '../context/useCurrentUser';
 import {
   addTermNote,
   deleteTermNote,

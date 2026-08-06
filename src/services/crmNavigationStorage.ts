@@ -1,5 +1,11 @@
 import type { PageId } from '../constants/navItems';
 import type { LongtermViewMode } from '../types/longtermVolunteer';
+import { defaultLandingPageForFocus } from '../preferences/workFocus';
+import {
+  hasExplicitLandingPreference,
+  readLandingPreference,
+  readWorkFocusCache,
+} from '../preferences/workFocusStorage';
 
 const STORAGE_KEY = 'crm-navigation-state';
 
@@ -11,10 +17,9 @@ const VALID_PAGES = new Set<PageId>([
   'email-templates',
   'email-campaigns',
   'history',
-  'users',
   'user-settings',
-  'roles-permissions',
   'audit-log',
+  'contact-merge-ops',
   'forms',
   'automations',
 ]);
@@ -31,6 +36,10 @@ export interface CrmNavigationState {
 }
 
 function normalizePageId(value: string): PageId | null {
+  // Removed RBAC pages — send stale bookmarks to Contacts.
+  if (value === 'users' || value === 'roles-permissions') {
+    return 'contacts';
+  }
   const migrated =
     value === 'email' || value === 'email-control'
       ? 'email-templates'
@@ -108,11 +117,14 @@ export function patchCrmNavigationState(
 export function getInitialActivePage(): PageId {
   const saved = readCrmNavigationState()?.activePage;
   if (saved) return saved;
-  try {
-    const preferred = localStorage.getItem('crm-user-default-landing-v1');
+  if (hasExplicitLandingPreference()) {
+    const preferred = readLandingPreference();
     if (preferred && isPageId(preferred)) return preferred;
-  } catch {
-    // ignore
+  }
+  const cachedFocus = readWorkFocusCache();
+  if (cachedFocus) {
+    const seeded = defaultLandingPageForFocus(cachedFocus);
+    if (isPageId(seeded)) return seeded;
   }
   return 'contacts';
 }

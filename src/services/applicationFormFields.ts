@@ -163,12 +163,33 @@ function buildFields(
   return fields;
 }
 
+/**
+ * True for pastor-reference form Q&A columns — not contact fields like
+ * "Pastor Name" / "Pastor Phone", and not "preference" (substring trap).
+ */
+function titleLooksLikePastorReference(title: string): boolean {
+  const normalized = normalizeTitle(title);
+  // Contact / directory fields about the pastor are not the reference form.
+  if (
+    /\b(name|phone|mobile|cell|email|e-mail|address|church)\b/.test(normalized) &&
+    !/\breference\b/.test(normalized)
+  ) {
+    return false;
+  }
+  if (/\breference\b/.test(normalized)) return true;
+  // e.g. "Pastor recommendation form" without the word reference
+  return (
+    /\bpastor\b/.test(normalized) &&
+    /\b(form|questionnaire|recommendation|survey)\b/.test(normalized)
+  );
+}
+
 function isPastorReferenceColumn(_col: MondayColumnValue, title: string): boolean {
   const normalized = normalizeTitle(title);
   if (normalized === PASTOR_REFERENCE_STATUS_TITLE) return false;
   if (isCrmColumn(title)) return false;
   if (pastorWhitelist.has(normalized)) return true;
-  return normalized.includes('pastor') || normalized.includes('reference');
+  return titleLooksLikePastorReference(title);
 }
 
 export function buildApplicationFormFields(
@@ -199,9 +220,8 @@ export function buildServiceEndedPastorReferenceFormFields(
   columnValues: MondayColumnValue[],
 ): ApplicationFormField[] {
   return buildFields(columnValues, (_col, title) => {
-    const normalized = normalizeTitle(title);
     if (isServiceEndedCrmColumn(title)) return false;
-    return normalized.includes('pastor') || normalized.includes('reference');
+    return titleLooksLikePastorReference(title);
   });
 }
 
@@ -227,9 +247,8 @@ export function buildLongtermPastorReferenceFormFields(
   columnValues: MondayColumnValue[],
 ): ApplicationFormField[] {
   return buildFields(columnValues, (_col, title) => {
-    const normalized = normalizeTitle(title);
     if (isLongtermCrmColumn(title)) return false;
-    return normalized.includes('pastor') || normalized.includes('reference');
+    return titleLooksLikePastorReference(title);
   });
 }
 

@@ -45,6 +45,8 @@ interface VolunteerContactCardProps {
   canEdit?: boolean;
   longterm?: boolean;
   onContactSaved?: () => void;
+  /** When false, omit passport/safeguarding/gallery files section. */
+  showFiles?: boolean;
 }
 
 export default function VolunteerContactCard({
@@ -60,6 +62,7 @@ export default function VolunteerContactCard({
   canEdit = false,
   longterm = false,
   onContactSaved,
+  showFiles = true,
 }: VolunteerContactCardProps) {
   const editable = canEdit && Boolean(boardId);
   const [editing, setEditing] = useState(false);
@@ -385,7 +388,7 @@ export default function VolunteerContactCard({
 
       {beforeFiles && <div className="mt-5">{beforeFiles}</div>}
 
-      {splitFilesRow ? (
+      {showFiles && splitFilesRow ? (
         <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-2 md:items-stretch">
           <VolunteerFilesSection
             volunteerName={detail.name}
@@ -402,7 +405,7 @@ export default function VolunteerContactCard({
           />
           {besideFiles}
         </div>
-      ) : (
+      ) : showFiles ? (
         <div className="mt-5 md:w-1/2">
           <VolunteerFilesSection
             volunteerName={detail.name}
@@ -417,7 +420,9 @@ export default function VolunteerContactCard({
             onUploaded={onFilesUploaded}
           />
         </div>
-      )}
+      ) : besideFiles ? (
+        <div className="mt-5">{besideFiles}</div>
+      ) : null}
 
       {profilePreviewOpen && profilePreviewFile && (
         <FilePreviewModal

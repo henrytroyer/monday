@@ -2,10 +2,7 @@
  * sendCrmEmail.ts — Send mail through the monday API proxy (/email/send).
  */
 
-import {
-  getCrmPermissionsRuntime,
-  requireCrmPermission,
-} from '../permissions/crmPermissionsRuntime';
+import { resolveCrmOperatorEmail } from './crmOperatorEmail';
 import {
   getMondayProxyAuthToken,
   getMondayProxyBaseOverride,
@@ -62,7 +59,7 @@ async function proxyFetch(
     ...(init?.headers as Record<string, string> | undefined),
   };
   if (idToken) headers.Authorization = `Bearer ${idToken}`;
-  const operatorEmail = getCrmPermissionsRuntime().email;
+  const operatorEmail = resolveCrmOperatorEmail();
   if (operatorEmail) headers['X-Crm-Operator-Email'] = operatorEmail;
 
   try {
@@ -98,7 +95,6 @@ export async function fetchEmailSendStatus(): Promise<EmailSendStatus> {
 export async function sendCrmEmail(
   params: SendCrmEmailParams,
 ): Promise<SendCrmEmailResult> {
-  requireCrmPermission('communications.email.send');
   try {
     const status = await fetchEmailSendStatus();
     if (!status.configured) {

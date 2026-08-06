@@ -1,13 +1,13 @@
 /**
- * Dashboard.tsx — CRM shell with permission-gated pages.
+ * Dashboard.tsx — CRM shell (open access; no permission gates).
  */
 
 import { lazy, Suspense, useEffect, useState } from 'react';
 import AppSidebar from '../components/layout/AppSidebar';
-import { permissionForPage, type PageId } from '../constants/navItems';
+import type { PageId } from '../constants/navItems';
 import KeepAlivePage from '../components/layout/KeepAlivePage';
-import PermissionGate from '../components/shared/PermissionGate';
-import CrmProviders from '../context/CrmProviders';
+import CrmPageLoading from '../components/shared/CrmPageLoading';
+import { useCurrentUser } from '../context/useCurrentUser';
 import { useLayout } from '../context/LayoutContext';
 import { useMondayBoardWatcher } from '../hooks/useMondayBoardWatcher';
 import {
@@ -23,18 +23,37 @@ const EmailCampaignsPage = lazy(() => import('./EmailCampaignsPage'));
 const HistoryPage = lazy(() => import('./HistoryPage'));
 const RecruitmentPage = lazy(() => import('./RecruitmentPage'));
 const LongtermApplicationsPage = lazy(() => import('./LongtermApplicationsPage'));
-const CrmUsersPage = lazy(() => import('./CrmUsersPage'));
 const UserSettingsPage = lazy(() => import('./UserSettingsPage'));
-const RolesPermissionsPage = lazy(() => import('./RolesPermissionsPage'));
 const AuditLogPage = lazy(() => import('./AuditLogPage'));
 const ContactMergeOpsPage = lazy(() => import('./ContactMergeOpsPage'));
 
+const shellBootGlobal = globalThis as typeof globalThis & {
+  __crmShellBooted?: boolean;
+};
+
 export default function Dashboard() {
-  return (
-    <CrmProviders>
-      <DashboardInner />
-    </CrmProviders>
+  const { isLoading: userLoading } = useCurrentUser();
+  // Once the shell has mounted, never replace it with the fullscreen boot loader
+  // again — that unmounted DashboardInner and wiped open contact/detail state.
+  const [shellBooted, setShellBooted] = useState(
+    () => Boolean(shellBootGlobal.__crmShellBooted),
   );
+
+  useEffect(() => {
+    if (!userLoading) {
+      shellBootGlobal.__crmShellBooted = true;
+      setShellBooted(true);
+    }
+  }, [userLoading]);
+
+  // After first successful boot in this JS realm, keep the shell mounted even if
+  // providers briefly report not-ready (full document reload still resets).
+  const showingBootLoader = !shellBooted && userLoading;
+
+  if (showingBootLoader) {
+    return <CrmPageLoading variant="fullscreen" />;
+  }
+  return <DashboardInner />;
 }
 
 function DashboardInner() {
@@ -97,21 +116,19 @@ function DashboardInner() {
   };
 
   return (
-    <div className="flex h-screen bg-crm-white">
+    <div className="flex h-[100dvh] max-h-[100dvh] bg-crm-white">
       <AppSidebar activePage={activePage} onNavigate={handleNavigate} />
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-8">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(3.25rem+env(safe-area-inset-top))] md:p-8 md:pt-8">
         <KeepAlivePage
           active={activePage === 'applications'}
           mounted={mountedPages.has('applications')}
         >
           <Suspense fallback={<PageLoadFallback label="Applications" />}>
-            <PermissionGate permission={permissionForPage('applications')}>
-              <ApplicationsPage
-                focusApplicationId={applicationFocusId}
-                onClearFocus={() => setApplicationFocusId(null)}
-              />
-            </PermissionGate>
+            <ApplicationsPage
+              focusApplicationId={applicationFocusId}
+              onClearFocus={() => setApplicationFocusId(null)}
+            />
           </Suspense>
         </KeepAlivePage>
 
@@ -120,14 +137,12 @@ function DashboardInner() {
           mounted={mountedPages.has('contacts')}
         >
           <Suspense fallback={<PageLoadFallback label="Contacts" />}>
-            <PermissionGate permission={permissionForPage('contacts')}>
-              <ContactsPage
-                focusContactId={contactFocusId}
-                onClearFocus={() => setContactFocusId(null)}
-                onGoToRecruitment={handleGoToRecruitment}
-                onGoToApplication={handleGoToApplication}
-              />
-            </PermissionGate>
+            <ContactsPage
+              focusContactId={contactFocusId}
+              onClearFocus={() => setContactFocusId(null)}
+              onGoToRecruitment={handleGoToRecruitment}
+              onGoToApplication={handleGoToApplication}
+            />
           </Suspense>
         </KeepAlivePage>
 
@@ -136,15 +151,13 @@ function DashboardInner() {
           mounted={mountedPages.has('history')}
         >
           <Suspense fallback={<PageLoadFallback label="History" />}>
-            <PermissionGate permission={permissionForPage('history')}>
-              <HistoryPage
-                onNavigate={handleNavigate}
-                onFocusApplication={handleGoToApplication}
-                onFocusRecruitment={handleGoToRecruitment}
-                onFocusContact={handleGoToContact}
-                onFocusLongtermApplication={handleGoToLongtermApplication}
-              />
-            </PermissionGate>
+            <HistoryPage
+              onNavigate={handleNavigate}
+              onFocusApplication={handleGoToApplication}
+              onFocusRecruitment={handleGoToRecruitment}
+              onFocusContact={handleGoToContact}
+              onFocusLongtermApplication={handleGoToLongtermApplication}
+            />
           </Suspense>
         </KeepAlivePage>
 
@@ -153,9 +166,7 @@ function DashboardInner() {
           mounted={mountedPages.has('email-templates')}
         >
           <Suspense fallback={<PageLoadFallback label="Email templates" />}>
-            <PermissionGate permission={permissionForPage('email-templates')}>
-              <EmailTemplatesPage />
-            </PermissionGate>
+            <EmailTemplatesPage />
           </Suspense>
         </KeepAlivePage>
 
@@ -164,9 +175,7 @@ function DashboardInner() {
           mounted={mountedPages.has('email-campaigns')}
         >
           <Suspense fallback={<PageLoadFallback label="Email campaigns" />}>
-            <PermissionGate permission={permissionForPage('email-campaigns')}>
-              <EmailCampaignsPage />
-            </PermissionGate>
+            <EmailCampaignsPage />
           </Suspense>
         </KeepAlivePage>
 
@@ -175,12 +184,10 @@ function DashboardInner() {
           mounted={mountedPages.has('recruitment')}
         >
           <Suspense fallback={<PageLoadFallback label="Recruitment" />}>
-            <PermissionGate permission={permissionForPage('recruitment')}>
-              <RecruitmentPage
-                focusProspectId={recruitmentFocusId}
-                onClearFocus={() => setRecruitmentFocusId(null)}
-              />
-            </PermissionGate>
+            <RecruitmentPage
+              focusProspectId={recruitmentFocusId}
+              onClearFocus={() => setRecruitmentFocusId(null)}
+            />
           </Suspense>
         </KeepAlivePage>
 
@@ -189,21 +196,10 @@ function DashboardInner() {
           mounted={mountedPages.has('longterm-applications')}
         >
           <Suspense fallback={<PageLoadFallback label="Long-term applications" />}>
-            <PermissionGate permission={permissionForPage('longterm-applications')}>
-              <LongtermApplicationsPage
-                focusApplicationId={longtermFocusId}
-                onClearFocus={() => setLongtermFocusId(null)}
-              />
-            </PermissionGate>
-          </Suspense>
-        </KeepAlivePage>
-
-        <KeepAlivePage
-          active={activePage === 'users'}
-          mounted={mountedPages.has('users')}
-        >
-          <Suspense fallback={<PageLoadFallback label="Users" />}>
-            <CrmUsersPage />
+            <LongtermApplicationsPage
+              focusApplicationId={longtermFocusId}
+              onClearFocus={() => setLongtermFocusId(null)}
+            />
           </Suspense>
         </KeepAlivePage>
 
@@ -213,15 +209,6 @@ function DashboardInner() {
         >
           <Suspense fallback={<PageLoadFallback label="User settings" />}>
             <UserSettingsPage />
-          </Suspense>
-        </KeepAlivePage>
-
-        <KeepAlivePage
-          active={activePage === 'roles-permissions'}
-          mounted={mountedPages.has('roles-permissions')}
-        >
-          <Suspense fallback={<PageLoadFallback label="Roles & permissions" />}>
-            <RolesPermissionsPage />
           </Suspense>
         </KeepAlivePage>
 
@@ -247,24 +234,20 @@ function DashboardInner() {
           active={activePage === 'forms'}
           mounted={mountedPages.has('forms')}
         >
-          <PermissionGate permission="settings.view">
-            <PlaceholderPage
-              title="Forms"
-              description="Application forms and references"
-            />
-          </PermissionGate>
+          <PlaceholderPage
+            title="Forms"
+            description="Application forms and references"
+          />
         </KeepAlivePage>
 
         <KeepAlivePage
           active={activePage === 'automations'}
           mounted={mountedPages.has('automations')}
         >
-          <PermissionGate permission="settings.view">
-            <PlaceholderPage
-              title="Automations"
-              description="Workflow and email automations"
-            />
-          </PermissionGate>
+          <PlaceholderPage
+            title="Automations"
+            description="Workflow and email automations"
+          />
         </KeepAlivePage>
       </main>
     </div>
@@ -273,13 +256,10 @@ function DashboardInner() {
 
 function PageLoadFallback({ label }: { label: string }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-crm-slate">
-      <div
-        className="h-8 w-8 animate-spin rounded-full border-2 border-crm-taupe/30 border-t-crm-heading"
-        aria-hidden
-      />
-      <p className="text-sm">Loading {label}…</p>
-    </div>
+    <CrmPageLoading
+      label={`i58 Volunteer portal · ${label}`}
+      className="min-h-0 flex-1"
+    />
   );
 }
 

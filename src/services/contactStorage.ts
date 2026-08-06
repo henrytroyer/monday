@@ -275,6 +275,8 @@ export function ensureContactTag(contactId: string, tag: ContactTag): void {
 export interface ContactCoreFields {
   name: string;
   email: string;
+  /** Secondary email(s); comma-separated when multiple. */
+  altEmail?: string;
   phone?: string;
   tags?: ContactTag[];
   demographics?: ContactDemographics;

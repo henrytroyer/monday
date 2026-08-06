@@ -194,8 +194,9 @@ export default function NoteReviewInbox({ onClose }: NoteReviewInboxProps) {
             </h2>
             <p className="mt-1 text-sm text-crm-slate">
               {pendingCount} note{pendingCount === 1 ? '' : 's'} need review.
-              Approve/dismiss syncs across local and production.
-              Sync only pulls recent updates, not full board history.
+              Notes with a contact match (relation, email, item name, or name in
+              email) auto-link on sync; search for a contact to attach anything
+              still unmatched. Approve/dismiss syncs across local and production.
             </p>
           </div>
           <button

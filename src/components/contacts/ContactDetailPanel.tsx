@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { useContactDetail } from '../../hooks/useContactDetail';
 import { useContactEmailCorrespondence } from '../../hooks/useContactEmailCorrespondence';
 import { usePastorReferenceDrillDown } from '../../hooks/usePastorReferenceDrillDown';
 import { usePastorReferenceLinkOptions } from '../../hooks/usePastorReferenceLinkOptions';
+import { useWorkFocus } from '../../hooks/useWorkFocus';
 import type { ReactNode } from 'react';
 import type { ContactDetail, ContactListItem } from '../../types/contact';
 import type { VolunteerTerm } from '../../types/volunteer';
@@ -13,8 +14,16 @@ import {
   formatEndOfServiceReviewLabel,
   formatTermDateRangeLabel,
 } from '../../utils/formatTermDateRange';
+import SectionGate from '../shared/SectionGate';
+import type { SectionId } from '../../preferences/workFocus';
+import {
+  contactSectionOrder,
+  orderSectionEntries,
+} from '../../preferences/workFocus';
 import FormFieldsPanel from '../applications/FormFieldsPanel';
+import CrmPageLoading from '../shared/CrmPageLoading';
 import ContactEmailHistory from '../email-correspondence/ContactEmailHistory';
+import ContactBillingPanel from './ContactBillingPanel';
 import ContactInternalNotesSection from './ContactInternalNotesSection';
 import ChurchInfoCard from './ChurchInfoCard';
 import ContactProfileCard from './ContactProfileCard';
@@ -42,13 +51,17 @@ export default function ContactDetailPanel({
 }: ContactDetailPanelProps) {
   const { detail, loading, error, saving, canEdit, updateCoreFields, updatePastorReference } =
     useContactDetail(contact.id);
+  const { focus: workFocus } = useWorkFocus();
+  const canViewEmailHistory = true;
+  const canOpenTermDetail = true;
   const {
     messages: emailCorrespondence,
     loading: emailLoading,
     error: emailError,
     refetch: refetchEmails,
   } = useContactEmailCorrespondence({
-    contactId: detail && !loading ? detail.id : null,
+    contactId:
+      detail && !loading && canViewEmailHistory ? detail.id : null,
     contactName: detail?.name ?? contact.name,
     contactEmail: detail?.email ?? contact.email,
     serviceTerms: detail?.serviceTerms ?? [],
@@ -166,6 +179,466 @@ export default function ContactDetailPanel({
     detail &&
     (detail.tags.includes('donor') || detail.donations.length > 0);
 
+  const orderedContactSections = useMemo(() => {
+    if (!detail) return [] as ReactNode[];
+
+    const connectedPeopleSection = (() => {
+      const isParentOrPastor =
+        detail.tags.includes('parent') || detail.tags.includes('pastor');
+      const linkedPeople = detail.linkedVolunteers;
+      const connectedLabels = (detail.connectedTo ?? '')
+        .split(/[,;]/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .filter(
+          (label) =>
+            label.toLowerCase() !== detail.name.trim().toLowerCase(),
+        );
+      const linkedNames = new Set(
+        linkedPeople.map((link) => link.volunteerName.trim().toLowerCase()),
+      );
+      const extraConnectedLabels = connectedLabels.filter(
+        (label) => !linkedNames.has(label.toLowerCase()),
+      );
+      const showConnected =
+        detail.spouseName ||
+        linkedPeople.length > 0 ||
+        extraConnectedLabels.length > 0 ||
+        detail.emergencyContact ||
+        detail.emergencyPhone;
+      if (!showConnected) return undefined;
+
+      return (
+        <SectionGate id="contact.connected_people">
+          <Panel title="Connected people">
+            <dl className="mt-4 space-y-3 text-sm">
+              {detail.spouseName && (
+                <div>
+                  <dt className="text-crm-slate">Spouse</dt>
+                  <dd className="font-medium text-crm-heading">
+                    {detail.spouseName}
+                  </dd>
+                </div>
+              )}
+              {isParentOrPastor && linkedPeople.length > 0 && (
+                <div>
+                  <dt className="text-crm-slate">
+                    Volunteers this contact is linked to
+                    {detail.tags.includes('parent') &&
+                    detail.tags.includes('pastor')
+                      ? ' (Parents + Pastor)'
+                      : detail.tags.includes('parent')
+                        ? ' (Parents)'
+                        : ' (Pastor)'}
+                  </dt>
+                  <dd className="mt-2 space-y-2">
+                    {[
+                      ...new Map(
+                        linkedPeople.map((link) => [
+                          link.volunteerName.trim().toLowerCase(),
+                          link,
+                        ]),
+                      ).values(),
+                    ].map((link) => (
+                      <div
+                        key={`${link.applicationItemId}-${link.relationship}`}
+                      >
+                        {link.contactId && onSelectContact ? (
+                          <button
+                            type="button"
+                            onClick={() => onSelectContact(link.contactId!)}
+                            className="rounded-full bg-crm-taupe-50 px-2.5 py-1 font-medium text-crm-heading transition hover:bg-crm-taupe-100"
+                          >
+                            {link.volunteerName}
+                            <span className="ml-1 text-xs font-normal text-crm-slate">
+                              {link.relationship === 'child'
+                                ? '· Parents'
+                                : '· Pastor'}
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="rounded-full bg-crm-taupe-50 px-2.5 py-1 font-medium text-crm-heading">
+                            {link.volunteerName}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </dd>
+                  <p className="mt-2 text-xs text-crm-slate">
+                    Open the volunteer to see their full application and family
+                    links.
+                  </p>
+                </div>
+              )}
+              {!isParentOrPastor &&
+                (extraConnectedLabels.length > 0 ||
+                  connectedLabels.length > 0) && (
+                  <div>
+                    <dt className="text-crm-slate">
+                      Connected to (pastors, family, couple)
+                    </dt>
+                    <dd className="mt-1 flex flex-wrap gap-2">
+                      {(extraConnectedLabels.length > 0
+                        ? extraConnectedLabels
+                        : connectedLabels
+                      ).map((label) => (
+                        <span
+                          key={label}
+                          className="rounded-full bg-crm-taupe-50 px-2.5 py-1 text-crm-heading"
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </dd>
+                    <p className="mt-2 text-xs text-crm-slate">
+                      Search Contacts by a pastor or spouse name to open their
+                      record — both old and new pastors stay linked.
+                    </p>
+                  </div>
+                )}
+              {isParentOrPastor &&
+                linkedPeople.length === 0 &&
+                connectedLabels.length > 0 && (
+                  <div>
+                    <dt className="text-crm-slate">Connected volunteers</dt>
+                    <dd className="mt-1 flex flex-wrap gap-2">
+                      {connectedLabels.map((label) => (
+                        <span
+                          key={label}
+                          className="rounded-full bg-crm-taupe-50 px-2.5 py-1 text-crm-heading"
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+              {(detail.emergencyContact || detail.emergencyPhone) && (
+                <div>
+                  <dt className="text-crm-slate">
+                    Emergency (on this contact only)
+                  </dt>
+                  <dd className="font-medium text-crm-heading">
+                    {[detail.emergencyContact, detail.emergencyPhone]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </Panel>
+        </SectionGate>
+      );
+    })();
+
+    const sections: Partial<Record<SectionId, ReactNode>> = {
+      'contact.profile': (
+        <SectionGate id="contact.profile">
+          <ContactProfileCard
+            detail={detail}
+            saving={saving}
+            onGoToRecruitment={onGoToRecruitment}
+            onEmailSent={refetchEmails}
+            canEdit={canEdit && !isCompiledContactId(detail.id)}
+            onSave={
+              canEdit && !isCompiledContactId(detail.id)
+                ? async (fields) => {
+                    const updated = await updateCoreFields(fields);
+                    onContactUpdated?.(updated);
+                    return updated;
+                  }
+                : undefined
+            }
+          />
+        </SectionGate>
+      ),
+      'contact.church': detail.tags.includes('volunteer') ? (
+        <SectionGate id="contact.church">
+          <ChurchInfoCard
+            volunteerName={detail.name}
+            pastorReference={detail.pastorReference}
+            linkedItemIds={linkedPastorReferenceItemIds}
+            drillDownLoading={
+              pastorReferenceDetailOpen && pastorReferenceDrillDown.loading
+            }
+            saving={saving}
+            canEdit={canEdit}
+            onSave={
+              canEdit
+                ? async (fields) => {
+                    const updated = await updatePastorReference(fields);
+                    onContactUpdated?.(updated);
+                    return updated;
+                  }
+                : undefined
+            }
+            onViewPastorReference={
+              linkedPastorReferenceItemIds.length > 0
+                ? openPastorReference
+                : undefined
+            }
+          />
+        </SectionGate>
+      ) : undefined,
+      'contact.internal_notes': (
+        <SectionGate id="contact.internal_notes">
+          <ContactInternalNotesSection
+            contactId={detail.id}
+            serviceTerms={detail.serviceTerms}
+            currentApplication={detail.currentApplication}
+          />
+        </SectionGate>
+      ),
+      'contact.email_history': (
+        <SectionGate id="contact.email_history">
+          <ContactEmailHistory
+            contactId={detail.id}
+            contactName={detail.name}
+            contactEmail={detail.email}
+            messages={emailCorrespondence}
+            applications={detail.serviceTerms
+              .filter(
+                (term) => term.itemId && !term.itemId.startsWith('mock-'),
+              )
+              .map((term) => ({
+                id: term.itemId,
+                label: term.timelineLabel || term.itemId,
+              }))}
+            loading={loading || emailLoading}
+            error={emailError}
+            onOpenApplication={onGoToApplication}
+            onSent={refetchEmails}
+            logItemId={
+              detail.currentApplication?.itemId ??
+              detail.serviceTerms.find(
+                (term) => term.itemId && !term.itemId.startsWith('mock-'),
+              )?.itemId ??
+              detail.id
+            }
+          />
+        </SectionGate>
+      ),
+      'contact.files': (
+        <SectionGate id="contact.files">
+          <ContactVolunteerFiles
+            volunteerName={detail.name}
+            profilePhotoUrl={detail.profilePhotoUrl}
+            passportFile={detail.passportFile}
+            childSafeguardingFile={detail.childSafeguardingFile}
+            files={detail.files}
+          />
+        </SectionGate>
+      ),
+      'contact.connected_people': connectedPeopleSection,
+      'contact.current_application': detail.tags.includes('volunteer') ? (
+        <SectionGate id="contact.current_application">
+          <Panel title="Current application">
+            {detail.currentApplication ? (
+              onGoToApplication ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onGoToApplication(detail.currentApplication!.itemId)
+                  }
+                  className="mt-4 flex w-full items-center justify-between rounded-2xl bg-crm-surface p-4 text-left ring-1 ring-crm-taupe/20 transition hover:ring-crm-taupe/50"
+                >
+                  <div>
+                    <p className="font-semibold text-crm-heading">
+                      {detail.currentApplication.timelineLabel}
+                    </p>
+                    <p className="mt-1 text-sm text-crm-slate">
+                      {detail.currentApplication.stage} ·{' '}
+                      {detail.currentApplication.status}
+                    </p>
+                  </div>
+                  <span className="text-crm-slate">→</span>
+                </button>
+              ) : (
+                <div className="mt-4 rounded-2xl bg-crm-surface p-4 ring-1 ring-crm-taupe/20">
+                  <p className="font-semibold text-crm-heading">
+                    {detail.currentApplication.timelineLabel}
+                  </p>
+                  <p className="mt-1 text-sm text-crm-slate">
+                    {detail.currentApplication.stage} ·{' '}
+                    {detail.currentApplication.status}
+                  </p>
+                </div>
+              )
+            ) : (
+              <p className="mt-4 text-sm text-crm-slate">
+                Not currently in an active application pipeline.
+              </p>
+            )}
+          </Panel>
+        </SectionGate>
+      ) : undefined,
+      'contact.terms': (
+        <SectionGate id="contact.terms">
+          <Panel title="Terms of service">
+            {detail.serviceTerms.length === 0 ? (
+              <p className="mt-4 text-sm text-crm-slate">
+                No terms of service yet. Linked applications and completed terms
+                from Current Service Ended will appear here.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {detail.serviceTerms.map((term) => {
+                  const dateRange = formatTermDateRangeLabel(term);
+                  const reviewLabel = formatEndOfServiceReviewLabel(
+                    term.endOfServiceReview?.completedAt,
+                  );
+
+                  return (
+                    <li key={`${term.itemId}-${term.timelineId}`}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTerm(term)}
+                        className="flex w-full items-center justify-between rounded-2xl bg-crm-surface p-4 text-left ring-1 ring-crm-taupe/20 transition hover:ring-crm-taupe/50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-crm-heading">
+                            {term.timelineLabel}
+                          </p>
+                          {dateRange && (
+                            <p className="mt-1 text-sm text-crm-slate">
+                              {dateRange}
+                            </p>
+                          )}
+                          <p className="mt-1 text-sm text-crm-slate">
+                            {term.pipelineStage} · {term.status}
+                            {isServiceEndedTerm(term) ? ' · Service ended' : ''}
+                          </p>
+                          <p className="mt-1 text-sm text-crm-slate">
+                            {reviewLabel}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-crm-slate">→</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Panel>
+        </SectionGate>
+      ),
+      'contact.volunteers_referenced': detail.tags.includes('pastor') ? (
+        <SectionGate id="contact.volunteers_referenced">
+          <Panel title="Volunteers referenced">
+            {detail.linkedVolunteers.filter(
+              (l) => l.relationship === 'reference',
+            ).length === 0 ? (
+              <p className="mt-4 text-sm text-crm-slate">
+                No linked reference applications yet.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {detail.linkedVolunteers
+                  .filter((l) => l.relationship === 'reference')
+                  .map((link) => (
+                    <li key={link.applicationItemId}>
+                      <LinkedVolunteerRow
+                        link={link}
+                        onSelectContact={onSelectContact}
+                      />
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </Panel>
+        </SectionGate>
+      ) : undefined,
+      'contact.connected_volunteers': detail.tags.includes('parent') ? (
+        <SectionGate id="contact.connected_volunteers">
+          <Panel title="Connected volunteers">
+            {detail.linkedVolunteers.filter((l) => l.relationship === 'child')
+              .length === 0 ? (
+              <p className="mt-4 text-sm text-crm-slate">
+                No linked volunteers yet.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {detail.linkedVolunteers
+                  .filter((l) => l.relationship === 'child')
+                  .map((link) => (
+                    <li key={link.applicationItemId}>
+                      <LinkedVolunteerRow
+                        link={link}
+                        onSelectContact={onSelectContact}
+                      />
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </Panel>
+        </SectionGate>
+      ) : undefined,
+      'contact.donations': showDonations ? (
+        <SectionGate id="contact.donations">
+          <Panel title="Donations & payments">
+            <p className="mt-2 text-sm text-crm-slate">
+              {import.meta.env.VITE_QBO_INCOME_SYNC_ENABLED === 'true'
+                ? 'From Donations (includes QuickBooks income sync)'
+                : `From Donations${
+                    detail.quickbooksCustomerId
+                      ? ` and QuickBooks · Customer ${detail.quickbooksCustomerId}`
+                      : import.meta.env.VITE_QUICKBOOKS_PROXY_URL
+                        ? ' and QuickBooks'
+                        : ''
+                  }`}
+            </p>
+            <div className="mt-4">
+              <DonationsList
+                records={detail.donations}
+                contactName={detail.name}
+                contactEmail={detail.email}
+              />
+            </div>
+          </Panel>
+        </SectionGate>
+      ) : undefined,
+      'contact.billing': (
+        <SectionGate id="contact.billing">
+          <ContactBillingPanel
+            volunteerName={detail.name}
+            serviceTerms={detail.serviceTerms}
+            onOpenTerm={
+              canOpenTermDetail ? (term) => setSelectedTerm(term) : undefined
+            }
+          />
+        </SectionGate>
+      ),
+    };
+
+    return orderSectionEntries(
+      workFocus,
+      contactSectionOrder(workFocus),
+      sections,
+    );
+  }, [
+    detail,
+    saving,
+    canEdit,
+    onGoToRecruitment,
+    refetchEmails,
+    updateCoreFields,
+    onContactUpdated,
+    linkedPastorReferenceItemIds,
+    pastorReferenceDetailOpen,
+    pastorReferenceDrillDown.loading,
+    updatePastorReference,
+    openPastorReference,
+    emailCorrespondence,
+    loading,
+    emailLoading,
+    emailError,
+    onGoToApplication,
+    onSelectContact,
+    showDonations,
+    canOpenTermDetail,
+    workFocus,
+  ]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface">
@@ -181,7 +654,10 @@ export default function ContactDetailPanel({
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {loading && (
-            <p className="text-center text-crm-slate">Loading contact…</p>
+            <CrmPageLoading
+              label="i58 Volunteer portal · Contact"
+              className="min-h-[240px] py-8"
+            />
           )}
 
           {error && (
@@ -199,308 +675,14 @@ export default function ContactDetailPanel({
                   edits are limited until they are added there.
                 </div>
               )}
-              <ContactProfileCard
-                detail={detail}
-                saving={saving}
-                onGoToRecruitment={onGoToRecruitment}
-                onEmailSent={refetchEmails}
-                canEdit={canEdit && !isCompiledContactId(detail.id)}
-                onSave={
-                  canEdit && !isCompiledContactId(detail.id)
-                    ? async (fields) => {
-                        const updated = await updateCoreFields(fields);
-                        onContactUpdated?.(updated);
-                        return updated;
-                      }
-                    : undefined
-                }
-              />
-
-              {detail.tags.includes('volunteer') && (
-                <ChurchInfoCard
-                  volunteerName={detail.name}
-                  pastorReference={detail.pastorReference}
-                  linkedItemIds={linkedPastorReferenceItemIds}
-                  drillDownLoading={
-                    pastorReferenceDetailOpen && pastorReferenceDrillDown.loading
-                  }
-                  saving={saving}
-                  canEdit={canEdit}
-                  onSave={
-                    canEdit
-                      ? async (fields) => {
-                          const updated = await updatePastorReference(fields);
-                          onContactUpdated?.(updated);
-                          return updated;
-                        }
-                      : undefined
-                  }
-                  onViewPastorReference={
-                    linkedPastorReferenceItemIds.length > 0
-                      ? openPastorReference
-                      : undefined
-                  }
-                />
-              )}
-
-              <ContactInternalNotesSection
-                contactId={detail.id}
-                serviceTerms={detail.serviceTerms}
-                currentApplication={detail.currentApplication}
-              />
-
-              <ContactEmailHistory
-                contactId={detail.id}
-                contactName={detail.name}
-                contactEmail={detail.email}
-                messages={emailCorrespondence}
-                applications={detail.serviceTerms
-                  .filter((term) => term.itemId && !term.itemId.startsWith('mock-'))
-                  .map((term) => ({
-                    id: term.itemId,
-                    label: term.timelineLabel || term.itemId,
-                  }))}
-                loading={loading || emailLoading}
-                error={emailError}
-                onOpenApplication={onGoToApplication}
-                onSent={refetchEmails}
-                logItemId={
-                  detail.currentApplication?.itemId ??
-                  detail.serviceTerms.find(
-                    (term) => term.itemId && !term.itemId.startsWith('mock-'),
-                  )?.itemId ??
-                  detail.id
-                }
-              />
-
-              <ContactVolunteerFiles
-                volunteerName={detail.name}
-                profilePhotoUrl={detail.profilePhotoUrl}
-                passportFile={detail.passportFile}
-                childSafeguardingFile={detail.childSafeguardingFile}
-                files={detail.files}
-              />
-
-              {(detail.spouseName ||
-                detail.connectedTo ||
-                detail.emergencyContact ||
-                detail.emergencyPhone) && (
-                <Panel title="Connected people">
-                  <dl className="mt-4 space-y-3 text-sm">
-                    {detail.spouseName && (
-                      <div>
-                        <dt className="text-crm-slate">Spouse</dt>
-                        <dd className="font-medium text-crm-heading">
-                          {detail.spouseName}
-                        </dd>
-                      </div>
-                    )}
-                    {detail.connectedTo && (
-                      <div>
-                        <dt className="text-crm-slate">
-                          Connected to (pastors, family, couple)
-                        </dt>
-                        <dd className="mt-1 flex flex-wrap gap-2">
-                          {detail.connectedTo
-                            .split(/[,;]/)
-                            .map((part) => part.trim())
-                            .filter(Boolean)
-                            .map((label) => (
-                              <span
-                                key={label}
-                                className="rounded-full bg-crm-taupe-50 px-2.5 py-1 text-crm-heading"
-                              >
-                                {label}
-                              </span>
-                            ))}
-                        </dd>
-                        <p className="mt-2 text-xs text-crm-slate">
-                          Search Contacts by a pastor or spouse name to open
-                          their record — both old and new pastors stay linked.
-                        </p>
-                      </div>
-                    )}
-                    {(detail.emergencyContact || detail.emergencyPhone) && (
-                      <div>
-                        <dt className="text-crm-slate">
-                          Emergency (on this contact only)
-                        </dt>
-                        <dd className="font-medium text-crm-heading">
-                          {[detail.emergencyContact, detail.emergencyPhone]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                </Panel>
-              )}
-
-              {detail.tags.includes('volunteer') && (
-                <Panel title="Current application">
-                  {detail.currentApplication ? (
-                    onGoToApplication ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onGoToApplication(detail.currentApplication!.itemId)
-                        }
-                        className="mt-4 flex w-full items-center justify-between rounded-2xl bg-crm-surface p-4 text-left ring-1 ring-crm-taupe/20 transition hover:ring-crm-taupe/50"
-                      >
-                        <div>
-                          <p className="font-semibold text-crm-heading">
-                            {detail.currentApplication.timelineLabel}
-                          </p>
-                          <p className="mt-1 text-sm text-crm-slate">
-                            {detail.currentApplication.stage} ·{' '}
-                            {detail.currentApplication.status}
-                          </p>
-                        </div>
-                        <span className="text-crm-slate">→</span>
-                      </button>
-                    ) : (
-                      <div className="mt-4 rounded-2xl bg-crm-surface p-4 ring-1 ring-crm-taupe/20">
-                        <p className="font-semibold text-crm-heading">
-                          {detail.currentApplication.timelineLabel}
-                        </p>
-                        <p className="mt-1 text-sm text-crm-slate">
-                          {detail.currentApplication.stage} ·{' '}
-                          {detail.currentApplication.status}
-                        </p>
-                      </div>
-                    )
-                  ) : (
-                    <p className="mt-4 text-sm text-crm-slate">
-                      Not currently in an active application pipeline.
-                    </p>
-                  )}
-                </Panel>
-              )}
-
-              <Panel title="Terms of service">
-                {detail.serviceTerms.length === 0 ? (
-                  <p className="mt-4 text-sm text-crm-slate">
-                    No terms of service yet. Linked applications and completed
-                    terms from Current Service Ended will appear here.
-                  </p>
-                ) : (
-                  <ul className="mt-4 space-y-3">
-                    {detail.serviceTerms.map((term) => {
-                      const dateRange = formatTermDateRangeLabel(term);
-                      const reviewLabel = formatEndOfServiceReviewLabel(
-                        term.endOfServiceReview?.completedAt,
-                      );
-
-                      return (
-                        <li key={`${term.itemId}-${term.timelineId}`}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTerm(term)}
-                            className="flex w-full items-center justify-between rounded-2xl bg-crm-surface p-4 text-left ring-1 ring-crm-taupe/20 transition hover:ring-crm-taupe/50"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-crm-heading">
-                                {term.timelineLabel}
-                              </p>
-                              {dateRange && (
-                                <p className="mt-1 text-sm text-crm-slate">
-                                  {dateRange}
-                                </p>
-                              )}
-                              <p className="mt-1 text-sm text-crm-slate">
-                                {term.pipelineStage} · {term.status}
-                                {isServiceEndedTerm(term) ? ' · Service ended' : ''}
-                              </p>
-                              <p className="mt-1 text-sm text-crm-slate">
-                                {reviewLabel}
-                              </p>
-                            </div>
-                            <span className="shrink-0 text-crm-slate">→</span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </Panel>
-
-              {detail.tags.includes('pastor') && (
-                <Panel title="Volunteers referenced">
-                  {detail.linkedVolunteers.filter(
-                    (l) => l.relationship === 'reference',
-                  ).length === 0 ? (
-                    <p className="mt-4 text-sm text-crm-slate">
-                      No linked reference applications yet.
-                    </p>
-                  ) : (
-                    <ul className="mt-4 space-y-3">
-                      {detail.linkedVolunteers
-                        .filter((l) => l.relationship === 'reference')
-                        .map((link) => (
-                          <li key={link.applicationItemId}>
-                            <LinkedVolunteerRow
-                              link={link}
-                              onSelectContact={onSelectContact}
-                            />
-                          </li>
-                        ))}
-                    </ul>
-                  )}
-                </Panel>
-              )}
-
-              {detail.tags.includes('parent') && (
-                <Panel title="Connected volunteers">
-                  {detail.linkedVolunteers.filter(
-                    (l) => l.relationship === 'child',
-                  ).length === 0 ? (
-                    <p className="mt-4 text-sm text-crm-slate">
-                      No linked volunteers yet.
-                    </p>
-                  ) : (
-                    <ul className="mt-4 space-y-3">
-                      {detail.linkedVolunteers
-                        .filter((l) => l.relationship === 'child')
-                        .map((link) => (
-                          <li key={link.applicationItemId}>
-                            <LinkedVolunteerRow
-                              link={link}
-                              onSelectContact={onSelectContact}
-                            />
-                          </li>
-                        ))}
-                    </ul>
-                  )}
-                </Panel>
-              )}
-
-              {showDonations && (
-                <Panel title="Donations & payments">
-                  <p className="mt-2 text-sm text-crm-slate">
-                    {import.meta.env.VITE_QBO_INCOME_SYNC_ENABLED === 'true'
-                      ? 'From Donations (includes QuickBooks income sync)'
-                      : `From Donations${
-                          detail.quickbooksCustomerId
-                            ? ` and QuickBooks · Customer ${detail.quickbooksCustomerId}`
-                            : import.meta.env.VITE_QUICKBOOKS_PROXY_URL
-                              ? ' and QuickBooks'
-                              : ''
-                        }`}
-                  </p>
-                  <div className="mt-4">
-                    <DonationsList
-                      records={detail.donations}
-                      contactName={detail.name}
-                      contactEmail={detail.email}
-                    />
-                  </div>
-                </Panel>
-              )}
+              {orderedContactSections.map((node, index) => (
+                <div key={`contact-section-${index}`}>{node}</div>
+              ))}
             </div>
           )}
         </div>
 
-        {selectedTerm && detail && (
+        {selectedTerm && detail && canOpenTermDetail && (
           <TermDetailPanel
             term={selectedTerm}
             volunteerName={detail.name}

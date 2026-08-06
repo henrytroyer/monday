@@ -51,7 +51,7 @@ export async function undoMerge(auditId: string): Promise<void> {
 
   markMergeAuditReversed(auditId);
 
-  const { appendAuditEvent } = await import('../../crmRbacBoard');
+  const { appendAuditEvent } = await import('../../crmAuditBoard');
   await appendAuditEvent({
     actorEmail: 'system@crm',
     actorName: 'Contact merge undo',

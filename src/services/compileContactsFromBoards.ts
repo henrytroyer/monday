@@ -41,12 +41,13 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/** Normalized usable email key (lowercase). Used for compile merge maps. */
 function usableEmail(email: string | undefined | null): string | null {
   if (!email) return null;
   const trimmed = email.trim();
   if (!trimmed || trimmed === '—') return null;
   if (!trimmed.includes('@')) return null;
-  return trimmed;
+  return normalizeEmail(trimmed);
 }
 
 /** Digits-only phone key; use last 10 digits so +1 / local forms match. */

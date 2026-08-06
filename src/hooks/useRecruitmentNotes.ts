@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useCurrentUser } from '../context/CurrentUserContext';
+import { useCurrentUser } from '../context/useCurrentUser';
 import {
   addRecruitmentNote,
   getRecruitmentNotes,

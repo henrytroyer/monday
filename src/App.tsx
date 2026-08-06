@@ -1,10 +1,12 @@
 /**
- * Main App component for monday.com application
+ * Main App component for monday.com application.
+ * CrmProviders mount at site start so identity + permissions spool before the shell.
  */
 
 import { useEffect, useState } from 'react';
 import { LayoutProvider } from './context/LayoutContext';
 import { NavigationHistoryProvider } from './context/NavigationHistoryContext';
+import CrmProviders from './context/CrmProviders';
 import Dashboard from './pages/Dashboard';
 import OAuthCallback from './pages/OAuthCallback';
 
@@ -22,7 +24,9 @@ function App() {
   return (
     <LayoutProvider>
       <NavigationHistoryProvider>
-        <Dashboard />
+        <CrmProviders>
+          <Dashboard />
+        </CrmProviders>
       </NavigationHistoryProvider>
     </LayoutProvider>
   );

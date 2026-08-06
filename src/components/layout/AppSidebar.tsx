@@ -1,5 +1,5 @@
 /**
- * AppSidebar.tsx — Permission-filtered Volunteer Portal sidebar.
+ * AppSidebar.tsx — Volunteer Portal sidebar (all nav items visible).
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -9,14 +9,12 @@ import {
   HISTORY_NAV_ITEMS,
   PRIMARY_NAV_ITEMS,
   SETTINGS_NAV_ITEMS,
-  USERS_NAV_ITEMS,
   isSettingsPage,
   type PageId,
 } from '../../constants/navItems';
-import { useCurrentUser } from '../../context/CurrentUserContext';
-import { usePermissions } from '../../context/PermissionsContext';
+import { useCurrentUser } from '../../context/useCurrentUser';
 import { useLayout } from '../../context/LayoutContext';
-import type { PermissionKey } from '../../permissions/permissionKeys';
+import { useIsPhoneLayout } from '../../hooks/useMediaQuery';
 import {
   LOCAL_CRM_OPERATORS,
   setLocalUserOverride,
@@ -24,6 +22,14 @@ import {
 import ReviewNotificationBell from './ReviewNotificationBell';
 import ContactMatchReviewBell from './ContactMatchReviewBell';
 import ContactDuplicatesBell from './ContactDuplicatesBell';
+
+function MenuIcon() {
+  return (
+    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
 
 export type { PageId };
 
@@ -97,13 +103,10 @@ function initialsFromName(name: string): string {
   return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
 }
 
-type NavRow = readonly [PageId, string, PermissionKey];
-
 export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
   const { detailMode, sidebarOpen, openSidebar, closeSidebar } = useLayout();
+  const isPhone = useIsPhoneLayout();
   const { user, displayName, canSwitchLocalUser } = useCurrentUser();
-  const { ready, hasPermission, hasRole, roles, canViewSection } =
-    usePermissions();
   const settingsChildActive = isSettingsPage(activePage);
   const [settingsOpen, setSettingsOpen] = useState(settingsChildActive);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -124,45 +127,48 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [userMenuOpen]);
 
-  const showFullSidebar = !detailMode || sidebarOpen;
-  const showCollapsedRail = detailMode && !sidebarOpen;
+  // Phone + detail overlays use a drawer; desktop keeps a permanent sidebar.
+  const useDrawer = isPhone || detailMode;
+  const showFullSidebar = !useDrawer || sidebarOpen;
+  const showDesktopCollapsedRail = detailMode && !sidebarOpen && !isPhone;
+  const showPhoneTopBar = isPhone && !sidebarOpen;
 
-  const filterRows = (rows: readonly NavRow[]) =>
-    ready
-      ? rows.filter(([id]) =>
-          canViewSection(
-            `nav.${id}` as Parameters<typeof canViewSection>[0],
-          ),
-        )
-      : [];
-
-  const primary = filterRows(PRIMARY_NAV_ITEMS as unknown as NavRow[]);
-  const communications = filterRows(
-    COMMUNICATIONS_NAV_ITEMS as unknown as NavRow[],
-  );
-  const history = filterRows(HISTORY_NAV_ITEMS as unknown as NavRow[]);
-  const users = filterRows(USERS_NAV_ITEMS as unknown as NavRow[]);
-  const adminTools = filterRows(ADMIN_TOOL_NAV_ITEMS as unknown as NavRow[]);
-  const settings = filterRows(SETTINGS_NAV_ITEMS as unknown as NavRow[]);
-  const showSettings = hasPermission('settings.view') && settings.length > 0;
-  const showAdmin =
-    history.length > 0 ||
-    users.length > 0 ||
-    adminTools.length > 0 ||
-    showSettings;
+  const primary = [...PRIMARY_NAV_ITEMS];
+  const communications = [...COMMUNICATIONS_NAV_ITEMS];
+  const history = [...HISTORY_NAV_ITEMS];
+  const adminTools = [...ADMIN_TOOL_NAV_ITEMS];
+  const settings = [...SETTINGS_NAV_ITEMS];
 
   return (
     <>
-      {detailMode && sidebarOpen && (
+      {useDrawer && sidebarOpen && (
         <button
           type="button"
           aria-label="Close navigation"
           onClick={closeSidebar}
-          className="fixed inset-0 z-40 bg-stone-900/15"
+          className="fixed inset-0 z-40 bg-stone-900/25"
         />
       )}
 
-      {showCollapsedRail && (
+      {showPhoneTopBar && (
+        <header className="fixed inset-x-0 top-0 z-30 flex items-center gap-3 border-b border-crm-taupe/20 bg-crm-surface/95 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-md md:hidden">
+          <button
+            type="button"
+            onClick={openSidebar}
+            aria-label="Open menu"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-crm-taupe/20 text-crm-heading transition hover:bg-crm-indigo-50"
+          >
+            <MenuIcon />
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-crm-heading">
+              Volunteer Portal
+            </p>
+          </div>
+        </header>
+      )}
+
+      {showDesktopCollapsedRail && (
         <>
           <aside className="relative w-4 shrink-0 border-r border-crm-taupe/20 bg-crm-surface" />
           <button
@@ -181,11 +187,11 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
 
       {showFullSidebar && (
         <aside
-          className={`flex h-full min-h-0 shrink-0 flex-col border-r border-crm-taupe/20 bg-crm-surface p-6 ${
-            detailMode && sidebarOpen
-              ? 'fixed inset-y-0 left-0 z-50 w-72 shadow-2xl'
-              : 'w-72'
-          }`}
+          className={
+            useDrawer
+              ? 'fixed inset-y-0 left-0 z-50 flex w-[min(20rem,88vw)] max-w-sm min-h-0 flex-col border-r border-crm-taupe/20 bg-crm-surface p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl'
+              : 'relative flex h-full min-h-0 w-72 shrink-0 flex-col border-r border-crm-taupe/20 bg-crm-surface p-6'
+          }
         >
           <div className="flex shrink-0 items-start justify-between gap-3">
             <div className="min-w-0">
@@ -196,11 +202,11 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
                 Volunteer operations dashboard
               </p>
             </div>
-            {detailMode && sidebarOpen && (
+            {useDrawer && sidebarOpen && (
               <button
                 type="button"
                 onClick={closeSidebar}
-                aria-label="Minimize navigation"
+                aria-label="Close navigation"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-crm-taupe/20 text-crm-slate transition hover:bg-crm-white hover:text-crm-heading"
               >
                 <ChevronLeftIcon />
@@ -235,7 +241,7 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
                   {displayName}
                 </span>
                 <span className="mt-0.5 block truncate text-xs text-crm-slate">
-                  {user?.email?.trim() || roles.join(' · ') || 'Operator'}
+                  {user?.email?.trim() || 'Operator'}
                 </span>
               </span>
               <ChevronDownIcon
@@ -310,119 +316,95 @@ export default function AppSidebar({ activePage, onNavigate }: AppSidebarProps) 
           </div>
 
           <nav className="mt-8 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
-            {primary.length > 0 && (
-              <NavSection title="Volunteers" first>
-                {primary.map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => onNavigate(id)}
-                    className={navButtonClass(activePage === id)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </NavSection>
-            )}
+            <NavSection title="Volunteers" first>
+              {primary.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onNavigate(id)}
+                  className={navButtonClass(activePage === id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </NavSection>
 
-            {communications.length > 0 && (
-              <NavSection title="Communications">
-                {communications.map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => onNavigate(id)}
-                    className={navButtonClass(activePage === id)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </NavSection>
-            )}
+            <NavSection title="Communications">
+              {communications.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onNavigate(id)}
+                  className={navButtonClass(activePage === id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </NavSection>
 
-            {showAdmin && (
-              <NavSection title="Admin">
-                {history.map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => onNavigate(id)}
-                    className={navButtonClass(activePage === id)}
-                  >
-                    {label}
-                  </button>
-                ))}
+            <NavSection title="Admin">
+              {history.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onNavigate(id)}
+                  className={navButtonClass(activePage === id)}
+                >
+                  {label}
+                </button>
+              ))}
 
-                {users.map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => onNavigate(id)}
-                    className={navButtonClass(activePage === id)}
-                  >
-                    {label}
-                  </button>
-                ))}
+              {adminTools.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onNavigate(id)}
+                  className={navButtonClass(activePage === id)}
+                >
+                  {label}
+                </button>
+              ))}
 
-                {adminTools.map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => onNavigate(id)}
-                    className={navButtonClass(activePage === id)}
+              <div>
+                <button
+                  type="button"
+                  aria-expanded={settingsOpen}
+                  aria-controls="settings-nav-items"
+                  onClick={() => setSettingsOpen((open) => !open)}
+                  className={`${navButtonClass(settingsChildActive)} flex items-center justify-between`}
+                >
+                  <span>Settings</span>
+                  <ChevronDownIcon
+                    className={`h-4 w-4 shrink-0 transition-transform ${
+                      settingsOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {settingsOpen && (
+                  <div
+                    id="settings-nav-items"
+                    className="ml-3 mt-1 space-y-1 border-l border-crm-taupe/15 pl-3"
                   >
-                    {label}
-                  </button>
-                ))}
-
-                {showSettings && (
-                  <div>
-                    <button
-                      type="button"
-                      aria-expanded={settingsOpen}
-                      aria-controls="settings-nav-items"
-                      onClick={() => setSettingsOpen((open) => !open)}
-                      className={`${navButtonClass(settingsChildActive)} flex items-center justify-between`}
-                    >
-                      <span>Settings</span>
-                      <ChevronDownIcon
-                        className={`h-4 w-4 shrink-0 transition-transform ${
-                          settingsOpen ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                    {settingsOpen && (
-                      <div
-                        id="settings-nav-items"
-                        className="ml-3 mt-1 space-y-1 border-l border-crm-taupe/15 pl-3"
+                    {settings.map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => onNavigate(id)}
+                        className={navButtonClass(activePage === id, true)}
                       >
-                        {settings.map(([id, label]) => (
-                          <button
-                            key={id}
-                            type="button"
-                            onClick={() => onNavigate(id)}
-                            className={navButtonClass(activePage === id, true)}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 )}
-              </NavSection>
-            )}
+              </div>
+            </NavSection>
           </nav>
 
           <div className="mt-4 shrink-0 border-t border-crm-taupe/20 pt-4">
-            {hasRole('DEV') && (
-              <>
-                <ReviewNotificationBell />
-                <ContactMatchReviewBell />
-              </>
-            )}
-            {(hasPermission('contacts.merge') ||
-              hasPermission('contacts.edit')) && <ContactDuplicatesBell />}
+            <ReviewNotificationBell />
+            <ContactMatchReviewBell />
+            <ContactDuplicatesBell />
           </div>
         </aside>
       )}

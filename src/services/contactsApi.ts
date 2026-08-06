@@ -2,9 +2,7 @@ import {
   canEditContacts,
   useMockData,
 } from '../config/boards';
-import { getCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
 import type { ContactDetail, ContactListItem, ContactTag } from '../types/contact';
-import { filterContactForPermissions } from '../utils/filterContactForPermissions';
 import { aggregateContactEmailCorrespondence } from './contactEmailAggregation';
 import {
   getPendingIncomingDonations,
@@ -112,7 +110,7 @@ let liveServiceEndedCache: MondayBoardItem[] | null = null;
 let liveEndOfServiceReviewCache: MondayBoardItem[] | null = null;
 
 /** Bump when compile shape changes so stale session lists are discarded. */
-const SESSION_CONTACTS_CACHE_KEY = 'crm-contacts-list-cache-v2';
+const SESSION_CONTACTS_CACHE_KEY = 'crm-contacts-list-cache-v3';
 
 interface SessionContactsCache {
   boardId: string;
@@ -297,10 +295,8 @@ export async function fetchContactsList(
 
   const baseContacts = await fetchContactsBoard(boardId, {
     onPage: (items, loaded) => {
-      // Progressive paint from Contacts board while other boards load.
-      liveContactsCache = items;
-      liveContactsCacheBoardId = boardId;
-      writeSessionContactsCache(boardId, items);
+      // Progressive UI paint only — do NOT treat uncompiled board pages as
+      // the authoritative live/session cache (that surfaces duplicate rows).
       options?.onPage?.(items, loaded);
     },
   });
@@ -359,12 +355,6 @@ async function resolveContactChildSafeguardingFile(
   }
 }
 
-function applyContactPermissionFilter(detail: ContactDetail): ContactDetail {
-  const { ready, permissions } = getCrmPermissionsRuntime();
-  if (!ready) return detail;
-  return filterContactForPermissions(detail, permissions);
-}
-
 export async function fetchContactDetail(
   contactId: string,
   options?: ContactsFetchOptions & { refresh?: boolean },
@@ -382,7 +372,7 @@ export async function fetchContactDetail(
         'This contact was compiled from other boards and is not on the Contacts board yet.',
       );
     }
-    return applyContactPermissionFilter(buildCompiledContactDetail(listItem));
+    return buildCompiledContactDetail(listItem);
   }
 
   if (useMockData()) {
@@ -416,14 +406,14 @@ export async function fetchContactDetail(
         serviceTerms,
       }));
 
-    return applyContactPermissionFilter({
+    return {
       ...detail,
       childSafeguardingFile:
         detail.childSafeguardingFile ??
         childSafeguardingFromMockFiles(detail.files),
       emailCorrespondence,
       serviceTerms,
-    });
+    };
   }
 
   const cacheKey = contactDetailCacheKey(contactId, {
@@ -436,14 +426,17 @@ export async function fetchContactDetail(
     if (cached) return cached;
   }
 
+  // Contact item is required; related boards are best-effort (same as list compile).
+  // Fetch related boards in parallel so one slow board does not serialize ~20s waits.
   const item = await fetchContactItem(contactId);
-  const applications = await getLiveApplications(options?.applicationsBoardId);
-  const serviceEndedItems = await getLiveServiceEndedItems(
-    options?.serviceEndedBoardId,
-  );
-  const endOfServiceReviewItems = await getLiveEndOfServiceReviewItems(
-    options?.endOfServiceReviewBoardId,
-  );
+  const [applications, serviceEndedItems, endOfServiceReviewItems] =
+    await Promise.all([
+      getLiveApplications(options?.applicationsBoardId).catch(() => []),
+      getLiveServiceEndedItems(options?.serviceEndedBoardId).catch(() => []),
+      getLiveEndOfServiceReviewItems(
+        options?.endOfServiceReviewBoardId,
+      ).catch(() => []),
+    ]);
 
   let allContacts = liveContactsCache;
   if (!allContacts && options?.contactsBoardId) {
@@ -482,14 +475,10 @@ export async function fetchContactDetail(
     (term) => !isRecruitmentServiceTerm(term),
   );
 
-  const { ready: permsReady, permissions } = getCrmPermissionsRuntime();
-  const canViewDonations =
-    !permsReady || permissions.has('finance.donations.view');
-
   const donationsBoardId = options?.donationsBoardId;
   let mondayDonations: Awaited<ReturnType<typeof fetchContactDonationsFromMonday>> =
     [];
-  if (donationsBoardId && canViewDonations) {
+  if (donationsBoardId) {
     try {
       mondayDonations = await fetchContactDonationsFromMonday({
         boardId: donationsBoardId,
@@ -504,7 +493,7 @@ export async function fetchContactDetail(
   const qboIncomeSyncEnabled = useQboIncomeSyncFromMonday();
   let quickbooksDonations: Awaited<ReturnType<typeof fetchContactFinancials>> =
     [];
-  if (!qboIncomeSyncEnabled && canViewDonations) {
+  if (!qboIncomeSyncEnabled) {
     try {
       quickbooksDonations = await fetchContactFinancials({
         email: base.email,
@@ -567,9 +556,8 @@ export async function fetchContactDetail(
     }
   }
 
-  const filtered = applyContactPermissionFilter(result);
-  setCachedContactDetail(cacheKey, filtered);
-  return filtered;
+  setCachedContactDetail(cacheKey, result);
+  return result;
 }
 
 export async function updateContactCoreFieldsApi(

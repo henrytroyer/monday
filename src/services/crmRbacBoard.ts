@@ -77,7 +77,17 @@ function normalizeRolePermissionsPayload(
   };
 }
 
-export async function loadRolePermissionsPayload(): Promise<RolePermissionsPayload> {
+/** Short-lived in-memory caches so boot + same-session reads share one Portal Things scan. */
+let matrixCache: Promise<RolePermissionsPayload> | null = null;
+let operatorsCache: Promise<CrmOperatorRecord[]> | null = null;
+
+/** Clear after admin mutations so the next refresh sees fresh Portal Things data. */
+export function invalidateCrmRbacCache(): void {
+  matrixCache = null;
+  operatorsCache = null;
+}
+
+async function loadRolePermissionsPayloadUncached(): Promise<RolePermissionsPayload> {
   if (useMockData()) return defaultRolePermissionsPayload();
   const boardId = await resolvePortalBoardId();
   if (!boardId) return defaultRolePermissionsPayload();
@@ -99,6 +109,16 @@ export async function loadRolePermissionsPayload(): Promise<RolePermissionsPaylo
   } catch {
     return defaultRolePermissionsPayload();
   }
+}
+
+export async function loadRolePermissionsPayload(): Promise<RolePermissionsPayload> {
+  if (!matrixCache) {
+    matrixCache = loadRolePermissionsPayloadUncached().catch((err) => {
+      matrixCache = null;
+      throw err;
+    });
+  }
+  return matrixCache;
 }
 
 export async function saveRolePermissionsPayload(
@@ -126,6 +146,7 @@ export async function saveRolePermissionsPayload(
     await updatePortalItemPayload(existing.id, json, {
       name: PORTAL_CONFIG_ITEM.rolePermissions,
     });
+    invalidateCrmRbacCache();
     return;
   }
   await createPortalItem({
@@ -136,6 +157,7 @@ export async function saveRolePermissionsPayload(
     entityId: PORTAL_KIND.rolePermissions,
     payloadJson: json,
   });
+  invalidateCrmRbacCache();
 }
 
 function parseOperator(item: {
@@ -175,7 +197,7 @@ function parseOperator(item: {
   };
 }
 
-export async function listOperators(): Promise<CrmOperatorRecord[]> {
+async function listOperatorsUncached(): Promise<CrmOperatorRecord[]> {
   if (useMockData()) {
     return [
       ...BOOTSTRAP_DEVS.map((d) => ({
@@ -202,6 +224,16 @@ export async function listOperators(): Promise<CrmOperatorRecord[]> {
     if (op) out.push(op);
   }
   return out.sort((a, b) => a.email.localeCompare(b.email));
+}
+
+export async function listOperators(): Promise<CrmOperatorRecord[]> {
+  if (!operatorsCache) {
+    operatorsCache = listOperatorsUncached().catch((err) => {
+      operatorsCache = null;
+      throw err;
+    });
+  }
+  return operatorsCache;
 }
 
 export async function getOperatorByEmail(
@@ -263,6 +295,7 @@ export async function upsertOperator(
       email,
     });
   }
+  invalidateCrmRbacCache();
   return record;
 }
 

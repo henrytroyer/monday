@@ -132,9 +132,15 @@ export function matchContact(
   const { first, last, full } = splitPersonName(incoming.name);
 
   if (email) {
-    const byEmail = contacts.filter(
-      (c) => normalizeEmail(c.email) === email,
-    );
+    const contactEmails = (c: ContactListItem): string[] => {
+      const primary = normalizeEmail(c.email);
+      const alts = (c.altEmail ?? '')
+        .split(/[,;]/)
+        .map((part) => normalizeEmail(part))
+        .filter((value): value is string => Boolean(value));
+      return [primary, ...alts].filter((value): value is string => Boolean(value));
+    };
+    const byEmail = contacts.filter((c) => contactEmails(c).includes(email));
     if (byEmail.length === 1) {
       return {
         tier: 'email',

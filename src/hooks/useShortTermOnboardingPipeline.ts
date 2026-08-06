@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useMockData } from '../config/boards';
+import {
+  isMondayWatchEnabled,
+  mondayWatchIntervalMs,
+  useMockData,
+} from '../config/boards';
 import { useApplicationEmailCorrespondence } from './useApplicationEmailCorrespondence';
 import { fetchQuickBooksInvoice } from '../services/quickbooksApi';
 import { fetchPastorReferenceReceivedSnapshot } from '../services/pastorReferenceBoard';
@@ -49,18 +53,82 @@ export function useShortTermOnboardingPipeline({
     contactEmails: detail?.emails.map((entry) => entry.address),
   });
 
+  // Watch Contacts → Pastor Reference connect column (poll while detail is open).
+  // "Received" flips only when that connect column links a filled form item.
   useEffect(() => {
-    if (!detail || isMock) return;
+    if (!detail) {
+      setPastorReference(undefined);
+      return;
+    }
+
     let cancelled = false;
 
-    void fetchPastorReferenceReceivedSnapshot(volunteer.id).then((snapshot) => {
-      if (!cancelled) setPastorReference(snapshot);
-    });
+    const applySnapshot = (
+      snapshot: PastorReferenceReceivedSnapshot | undefined,
+    ) => {
+      setPastorReference((prev) => {
+        if (
+          prev?.received === snapshot?.received &&
+          prev?.receivedDate === snapshot?.receivedDate &&
+          prev?.linkedItemId === snapshot?.linkedItemId &&
+          prev?.linkFingerprint === snapshot?.linkFingerprint
+        ) {
+          return prev;
+        }
+        return snapshot;
+      });
+    };
+
+    const refreshPastorLink = async () => {
+      try {
+        const snapshot = await fetchPastorReferenceReceivedSnapshot(volunteer.id);
+        if (!cancelled) applySnapshot(snapshot);
+      } catch {
+        if (!cancelled) {
+          applySnapshot({ received: false, linkFingerprint: '' });
+        }
+      }
+    };
+
+    void refreshPastorLink();
+
+    if (isMock) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const watchEnabled = isMondayWatchEnabled();
+    const intervalMs = watchEnabled
+      ? mondayWatchIntervalMs()
+      : Math.max(mondayWatchIntervalMs(), 30_000);
+    const timer = window.setInterval(() => {
+      void refreshPastorLink();
+    }, intervalMs);
+
+    const onFocus = () => {
+      void refreshPastorLink();
+    };
+    window.addEventListener('focus', onFocus);
 
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
     };
-  }, [detail?.id, volunteer.id, isMock, syncToken]);
+  }, [detail?.id, volunteer.id, isMock]);
+
+  // Also refresh connect-column state when email/pipeline resync is requested.
+  useEffect(() => {
+    if (!detail || syncToken === 0) return;
+    let cancelled = false;
+    void fetchPastorReferenceReceivedSnapshot(volunteer.id).then((snapshot) => {
+      if (!cancelled) setPastorReference(snapshot);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [syncToken, detail?.id, volunteer.id]);
 
   useEffect(() => {
     if (!detail) return;
@@ -176,5 +244,6 @@ export function useShortTermOnboardingPipeline({
     handlePipelineChange,
     resync,
     emailMessages: messages,
+    pastorReferenceReceived: Boolean(pastorReference?.received),
   };
 }

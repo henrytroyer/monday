@@ -18,9 +18,11 @@ export type MergeReviewReason =
   | 'RELATION_FAIL'
   | 'WRITE_FAIL'
   | 'HIGH_VOLUME'
-  | 'PHONE_DOB_ONLY';
+  | 'PHONE_DOB_ONLY'
+  /** Same email but names share no tokens — keep both; do not ask to merge. */
+  | 'UNRELATED_NAMES';
 
-export type MergeDisposition = 'auto' | 'review';
+export type MergeDisposition = 'auto' | 'review' | 'ignore';
 
 export type MergeSource = 'MANUAL' | 'DAILY_JOB';
 

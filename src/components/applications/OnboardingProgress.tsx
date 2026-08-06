@@ -31,6 +31,8 @@ interface OnboardingProgressProps {
   onSendProgressEmail: (stepId?: string) => void;
   invoiceReadOnly?: boolean;
   onInvoiceLinked?: () => void;
+  /** When false, hide invoice-paid step (finance section gate). */
+  showInvoiceStep?: boolean;
 }
 
 function formatShortDate(iso?: string): string {
@@ -75,9 +77,12 @@ export default function OnboardingProgress({
   onSendProgressEmail,
   invoiceReadOnly = false,
   onInvoiceLinked,
+  showInvoiceStep = true,
 }: OnboardingProgressProps) {
   const isLongterm = variant === 'long-term';
-  const stepDefs = getOnboardingStepsForApplication(isLongterm);
+  const stepDefs = getOnboardingStepsForApplication(isLongterm).filter(
+    (def) => showInvoiceStep || def.id !== 'invoice',
+  );
 
   const [invoiceModal, setInvoiceModal] = useState<{
     invoiceId?: string;

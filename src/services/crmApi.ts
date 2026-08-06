@@ -12,10 +12,8 @@ import { columnMap } from '../config/columnMap';
 import { longtermColumnMap } from '../config/longtermColumnMap';
 import { contactMap } from '../config/contactMap';
 import { donationMap } from '../config/donationMap';
-import { getCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
 import type { ContactListItem, ContactTag } from '../types/contact';
 import type { PipelineSection, VolunteerDetail } from '../types/volunteer';
-import { filterVolunteerDetailForPermissions } from '../utils/filterContactForPermissions';
 import { encodeTermNoteBody } from './termNotes';
 import {
   formatColumnValue,
@@ -256,21 +254,13 @@ async function fetchApplicationsBoardPipeline(
   };
 }
 
-function applyVolunteerPermissionFilter(
-  detail: VolunteerDetail,
-): VolunteerDetail {
-  const { ready, permissions } = getCrmPermissionsRuntime();
-  if (!ready) return detail;
-  return filterVolunteerDetailForPermissions(detail, permissions);
-}
-
 export async function fetchApplicationDetail(
   itemId: string,
   options?: { refresh?: boolean },
 ): Promise<VolunteerDetail> {
   if (!options?.refresh) {
     const cached = getCachedApplicationDetail(itemId);
-    if (cached) return applyVolunteerPermissionFilter(cached);
+    if (cached) return cached;
   }
 
   const data = await api<{ items: MondayItemDetail[] }>(queries.getItem, {
@@ -347,7 +337,7 @@ export async function fetchApplicationDetail(
     couple,
   };
   setCachedApplicationDetail(itemId, result);
-  return applyVolunteerPermissionFilter(result);
+  return result;
 }
 
 export async function fetchLongtermApplicationDetail(
@@ -357,7 +347,7 @@ export async function fetchLongtermApplicationDetail(
   if (!options?.refresh) {
     const cached = getCachedApplicationDetail(itemId);
     if (cached && (!options?.partnerItemId || cached.couple)) {
-      return applyVolunteerPermissionFilter(cached);
+      return cached;
     }
   }
 

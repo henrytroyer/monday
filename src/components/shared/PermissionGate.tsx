@@ -1,9 +1,11 @@
 /**
- * PermissionGate.tsx — Block page content until permissions resolve; deny if missing.
+ * PermissionGate.tsx — Page allow/deny wrapper.
+ * When CRM RBAC is disabled, always renders children.
  */
 
 import type { ReactNode } from 'react';
-import { usePermissions } from '../../context/PermissionsContext';
+import { usePermissions } from '../../context/usePermissions';
+import { CRM_PERMISSIONS_DISABLED } from '../../permissions/crmPermissionsDisabled';
 import type { PermissionKey } from '../../permissions/permissionKeys';
 import AccessDeniedPage from './AccessDeniedPage';
 
@@ -18,13 +20,11 @@ export default function PermissionGate({
 }) {
   const { ready, hasPermission } = usePermissions();
 
-  if (!ready) {
-    return (
-      <div className="flex h-full min-h-[240px] items-center justify-center text-sm text-crm-slate">
-        Checking permissions…
-      </div>
-    );
+  if (CRM_PERMISSIONS_DISABLED) {
+    return <>{children}</>;
   }
+
+  if (!ready) return null;
 
   const allowed = permission
     ? hasPermission(permission)

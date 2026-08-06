@@ -38,4 +38,15 @@ describe('resolveEffectivePermissions', () => {
     assert.equal(hasPermission(perms, 'settings.view'), false);
     assert.equal(hasPermission(perms, 'settings.permissions.manage'), false);
   });
+
+  it('domain view expands to full domain access (except contacts)', () => {
+    const hrOnlyView = resolveEffectivePermissions(['BASIC'], {
+      ...DEFAULT_ROLE_PERMISSIONS,
+      BASIC: ['contacts.view', 'hr.view'],
+    });
+    assert.equal(hasPermission(hrOnlyView, 'hr.documents.delete'), true);
+    assert.equal(hasPermission(hrOnlyView, 'hr.confidential_notes.edit'), true);
+    // contacts.view must not grant contacts.delete
+    assert.equal(hasPermission(hrOnlyView, 'contacts.delete'), false);
+  });
 });

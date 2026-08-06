@@ -1,21 +1,12 @@
 /**
- * AuditLogPage.tsx — DEV-only append-only CRM audit log viewer.
+ * AuditLogPage.tsx — Append-only CRM audit log viewer.
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import PermissionGate from '../components/shared/PermissionGate';
-import type { AuditEventPayload } from '../permissions/types';
-import { listAuditEvents } from '../services/crmRbacBoard';
+import type { AuditEventPayload } from '../types/crmAudit';
+import { listAuditEvents } from '../services/crmAuditBoard';
 
 export default function AuditLogPage() {
-  return (
-    <PermissionGate permission="settings.logs.view">
-      <AuditLogInner />
-    </PermissionGate>
-  );
-}
-
-function AuditLogInner() {
   const [events, setEvents] = useState<AuditEventPayload[]>([]);
   const [query, setQuery] = useState('');
   const [action, setAction] = useState('');

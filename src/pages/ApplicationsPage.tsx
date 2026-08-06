@@ -4,6 +4,7 @@ import ApplicationDetailPanel from '../components/applications/ApplicationDetail
 import ApplicationFilters from '../components/applications/ApplicationFilters';
 import ApplicationListToolbar from '../components/applications/ApplicationListToolbar';
 import PipelineSection from '../components/applications/PipelineSection';
+import CrmPageLoading from '../components/shared/CrmPageLoading';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { countVolunteers } from '../data/mockApplications';
@@ -219,17 +220,11 @@ export default function ApplicationsPage({
       )}
 
       {loading && !showingDetail && pipeline.length === 0 && (
-        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface p-8 text-center text-crm-slate">
-          {isMock ? (
-            <p>Loading short-term applications…</p>
-          ) : (
-            <>
-              <p>Loading short-term applications…</p>
-              <p className="mt-2 text-sm text-crm-slate/80">
-                Pipeline stages appear as soon as the first batch loads.
-              </p>
-            </>
-          )}
+        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface">
+          <CrmPageLoading
+            label="i58 Volunteer portal · Applications"
+            className="min-h-[280px] py-10"
+          />
         </div>
       )}
 

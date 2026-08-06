@@ -17,6 +17,29 @@ function col(title: string, text: string) {
 }
 
 describe('compileContactsFromBoards', () => {
+  it('collapses Contacts board items with same email different casing', () => {
+    const result = compileContactsFromBoards({
+      contacts: [
+        {
+          id: 'c1',
+          name: 'Gary Wagler',
+          email: 'Gary@Example.com',
+          tags: ['pastor'],
+        },
+        {
+          id: 'c2',
+          name: 'Gary Wagler',
+          email: 'gary@example.com',
+          tags: ['parent'],
+        },
+      ],
+    });
+
+    assert.equal(result.contacts.length, 1);
+    assert.equal(result.contacts[0]!.email, 'gary@example.com');
+    assert.deepEqual(result.contacts[0]!.tags.sort(), ['parent', 'pastor']);
+  });
+
   it('merges donor + volunteer roles onto one contact by email', () => {
     const result = compileContactsFromBoards({
       contacts: [

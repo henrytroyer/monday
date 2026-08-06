@@ -68,6 +68,34 @@ function columnText(
 let boardIdCache: string | null | undefined;
 let groupsCache: Map<string, string> | null = null;
 
+type PortalRawItem = {
+  id: string;
+  name: string;
+  group?: { id: string; title: string } | null;
+  column_values: ColumnValue[];
+};
+
+/** Avoid stampeding Monday while permissions/operators resolve (board is 500+ items). */
+const PORTAL_ITEMS_TTL_MS = 5 * 60_000;
+type PortalItemsCacheEntry = {
+  boardId: string;
+  items: PortalRawItem[];
+  fetchedAt: number;
+};
+const portalCacheGlobal = globalThis as typeof globalThis & {
+  __crmPortalItemsCache?: PortalItemsCacheEntry | null;
+  __crmPortalItemsInflight?: {
+    boardId: string;
+    promise: Promise<PortalRawItem[]>;
+  } | null;
+};
+function getPortalItemsCache(): PortalItemsCacheEntry | null {
+  return portalCacheGlobal.__crmPortalItemsCache ?? null;
+}
+function setPortalItemsCache(entry: PortalItemsCacheEntry | null): void {
+  portalCacheGlobal.__crmPortalItemsCache = entry;
+}
+
 export async function resolvePortalBoardId(): Promise<string | null> {
   if (useMockData()) return null;
   if (boardIdCache !== undefined) return boardIdCache;
@@ -98,6 +126,8 @@ export async function resolvePortalBoardId(): Promise<string | null> {
 export function clearPortalBoardCache(): void {
   boardIdCache = undefined;
   groupsCache = null;
+  setPortalItemsCache(null);
+  portalCacheGlobal.__crmPortalItemsInflight = null;
 }
 
 async function loadGroups(boardId: string): Promise<Map<string, string>> {
@@ -125,19 +155,14 @@ export async function resolvePortalGroupId(
   return groups.get(normalizeTitle(groupTitle)) ?? null;
 }
 
-type PortalRawItem = {
-  id: string;
-  name: string;
-  group?: { id: string; title: string } | null;
-  column_values: ColumnValue[];
-};
-
 type PortalItemsPage = {
   cursor: string | null;
   items: PortalRawItem[];
 };
 
-async function fetchAllPortalItems(boardId: string): Promise<PortalRawItem[]> {
+async function fetchAllPortalItemsUncached(
+  boardId: string,
+): Promise<PortalRawItem[]> {
   const all: PortalRawItem[] = [];
   let cursor: string | null = null;
   do {
@@ -155,6 +180,35 @@ async function fetchAllPortalItems(boardId: string): Promise<PortalRawItem[]> {
     cursor = page.cursor || null;
   } while (cursor);
   return all;
+}
+
+async function fetchAllPortalItems(boardId: string): Promise<PortalRawItem[]> {
+  const now = Date.now();
+  const portalItemsCache = getPortalItemsCache();
+  if (
+    portalItemsCache &&
+    portalItemsCache.boardId === boardId &&
+    now - portalItemsCache.fetchedAt < PORTAL_ITEMS_TTL_MS
+  ) {
+    return portalItemsCache.items;
+  }
+  const inflight = portalCacheGlobal.__crmPortalItemsInflight;
+  if (inflight?.boardId === boardId) {
+    return inflight.promise;
+  }
+
+  const promise = fetchAllPortalItemsUncached(boardId)
+    .then((items) => {
+      setPortalItemsCache({ boardId, items, fetchedAt: Date.now() });
+      return items;
+    })
+    .finally(() => {
+      if (portalCacheGlobal.__crmPortalItemsInflight?.promise === promise) {
+        portalCacheGlobal.__crmPortalItemsInflight = null;
+      }
+    });
+  portalCacheGlobal.__crmPortalItemsInflight = { boardId, promise };
+  return promise;
 }
 
 function mapRawItem(item: {
@@ -275,6 +329,7 @@ export async function createPortalItem(input: {
     linkedContactId: input.linkedContactId,
     linkedApplicationId: input.linkedApplicationId,
   });
+  setPortalItemsCache(null);
 
   return {
     id: itemId,
@@ -368,6 +423,7 @@ export async function updatePortalItemPayload(
     linkedContactId: extras?.linkedContactId,
     linkedApplicationId: extras?.linkedApplicationId,
   });
+  setPortalItemsCache(null);
 }
 
 export async function deletePortalItem(itemId: string): Promise<void> {
@@ -375,6 +431,7 @@ export async function deletePortalItem(itemId: string): Promise<void> {
     throw new Error('Portal Things is read-only.');
   }
   await api(mutations.deleteItem, { itemId });
+  setPortalItemsCache(null);
 }
 
 export async function ensurePortalConfigItem(

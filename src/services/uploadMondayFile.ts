@@ -5,13 +5,13 @@
 
 import { canEditApplications, useMockData } from '../config/boards';
 import { columnMap } from '../config/columnMap';
-import { getCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
+import { archiveCurrentSlotFilesBeforeUpload } from './archiveMondaySlotFiles';
+import { resolveCrmOperatorEmail } from './crmOperatorEmail';
 import {
   fetchWriteBoardColumns,
   findBoardColumnByTitle,
   type MondayWriteColumn,
 } from './mondayColumnWrite';
-import { archiveCurrentSlotFilesBeforeUpload } from './archiveMondaySlotFiles';
 import {
   getCachedMondayProxyAuthToken,
   getMondayProxyBaseOverride,
@@ -106,7 +106,7 @@ export async function uploadFileToApplicationColumn(
   };
   const token = getCachedMondayProxyAuthToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const operatorEmail = getCrmPermissionsRuntime().email;
+  const operatorEmail = resolveCrmOperatorEmail();
   if (operatorEmail) headers['X-Crm-Operator-Email'] = operatorEmail;
 
   const res = await fetch(`${proxyBase()}/assets/upload`, {

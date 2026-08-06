@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { applicationPipeline } from '../../data/mockApplications';
 import { useApplicationDetail } from '../../hooks/useApplicationDetail';
 import { useServiceEndedDetail } from '../../hooks/useServiceEndedDetail';
+import { useWorkFocus } from '../../hooks/useWorkFocus';
+import SectionGate from '../shared/SectionGate';
+import type { SectionId } from '../../preferences/workFocus';
+import {
+  orderSectionEntries,
+  termSectionOrder,
+} from '../../preferences/workFocus';
 import {
   isRecruitmentServiceTerm,
   isServiceEndedTerm,
@@ -15,6 +22,7 @@ import TermNotesChat from '../applications/TermNotesChat';
 import TermEmailCorrespondence from '../applications/TermEmailCorrespondence';
 import VolunteerFilesSection from '../applications/VolunteerFilesSection';
 import OverlayBackButton from '../layout/OverlayBackButton';
+import CrmPageLoading from '../shared/CrmPageLoading';
 import RecruitmentServiceRecordPanel from './RecruitmentServiceRecordPanel';
 import ServiceRecordEmailCorrespondence from './ServiceRecordEmailCorrespondence';
 import EndOfServiceReviewSection from './EndOfServiceReviewSection';
@@ -60,6 +68,7 @@ export default function TermDetailPanel({
     : isEndedRecord
       ? endedLoading
       : appLoading;
+  const { focus: workFocus } = useWorkFocus();
   const [formOpen, setFormOpen] = useState<
     'application' | 'pastor' | 'review' | null
   >(null);
@@ -114,7 +123,10 @@ export default function TermDetailPanel({
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {loading && (
-            <p className="text-center text-sm text-crm-slate">Loading service record…</p>
+            <CrmPageLoading
+              label="i58 Volunteer portal · Service record"
+              className="min-h-[240px] py-8"
+            />
           )}
 
           {!loading && isRecruitmentRecord && (
@@ -171,94 +183,121 @@ export default function TermDetailPanel({
                 </dl>
               </section>
 
-              <VolunteerFilesSection
-                volunteerName={volunteerName}
-                profilePhotoUrl={recordDetail.profilePhotoUrl}
-                passportFile={recordDetail.passportFile}
-                childSafeguardingFile={recordDetail.childSafeguardingFile}
-                files={recordDetail.files}
-                showOtherFiles
-                variant="panel"
-              />
-
-              <EndOfServiceReviewSection
-                completedAt={term.endOfServiceReview?.completedAt}
-                fields={term.endOfServiceReview?.fields}
-                onViewAll={
-                  term.endOfServiceReview?.fields?.length
-                    ? () => setFormOpen('review')
-                    : undefined
-                }
-              />
-
-              <section>
-                <h3 className="text-sm font-semibold text-crm-heading">
-                  Internal notes
-                </h3>
-                <div className="mt-3">
-                  <TermNotesChat
-                    itemId={term.itemId}
-                    timelineId={term.timelineId}
-                    initialNotes={recordDetail.termNotes}
-                  />
-                </div>
-              </section>
-
-              <section>
-                <div className="mt-3">
-                  <TermEmailCorrespondence
-                    itemId={term.itemId}
-                    timelineId={term.timelineId}
-                    timelineLabel={term.timelineLabel}
-                    contactName={volunteerName}
-                    contactEmail={recordDetail.email}
-                    contactEmails={recordDetail.emails.map((e) => e.address)}
-                  />
-                </div>
-              </section>
-
-              {!isEndedRecord && (
-                <section className="rounded-2xl border border-crm-taupe/20 p-4">
-                  <h3 className="text-sm font-semibold text-crm-heading">
-                    QuickBooks invoice
-                  </h3>
-                  {term.quickbooksInvoiceId ? (
-                    <button
-                      type="button"
-                      onClick={() => setInvoiceOpen(true)}
-                      className="mt-3 rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
-                    >
-                      View invoice
-                    </button>
-                  ) : (
-                    <p className="mt-2 text-sm text-crm-slate">
-                      No invoice linked for this service record.
-                    </p>
-                  )}
-                </section>
-              )}
-
-              <section className="rounded-2xl border border-crm-taupe/20 p-4">
-                <h3 className="text-sm font-semibold text-crm-heading">
-                  References & application
-                </h3>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormOpen('pastor')}
-                    className="rounded-xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
-                  >
-                    View pastor reference
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormOpen('application')}
-                    className="rounded-xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
-                  >
-                    View full application
-                  </button>
-                </div>
-              </section>
+              {orderSectionEntries(
+                workFocus,
+                termSectionOrder(workFocus),
+                {
+                  'contact.term_files': (
+                    <SectionGate id="contact.term_files">
+                      <VolunteerFilesSection
+                        volunteerName={volunteerName}
+                        profilePhotoUrl={recordDetail.profilePhotoUrl}
+                        passportFile={recordDetail.passportFile}
+                        childSafeguardingFile={recordDetail.childSafeguardingFile}
+                        files={recordDetail.files}
+                        showOtherFiles
+                        variant="panel"
+                      />
+                    </SectionGate>
+                  ),
+                  'contact.terms': (
+                    <SectionGate id="contact.terms">
+                      <EndOfServiceReviewSection
+                        completedAt={term.endOfServiceReview?.completedAt}
+                        fields={term.endOfServiceReview?.fields}
+                        onViewAll={
+                          term.endOfServiceReview?.fields?.length
+                            ? () => setFormOpen('review')
+                            : undefined
+                        }
+                      />
+                    </SectionGate>
+                  ),
+                  'contact.term_notes': (
+                    <SectionGate id="contact.term_notes">
+                      <section>
+                        <h3 className="text-sm font-semibold text-crm-heading">
+                          Internal notes
+                        </h3>
+                        <div className="mt-3">
+                          <TermNotesChat
+                            itemId={term.itemId}
+                            timelineId={term.timelineId}
+                            initialNotes={recordDetail.termNotes}
+                          />
+                        </div>
+                      </section>
+                    </SectionGate>
+                  ),
+                  'contact.email_history': (
+                    <SectionGate id="contact.email_history">
+                      <section>
+                        <div className="mt-3">
+                          <TermEmailCorrespondence
+                            itemId={term.itemId}
+                            timelineId={term.timelineId}
+                            timelineLabel={term.timelineLabel}
+                            contactName={volunteerName}
+                            contactEmail={recordDetail.email}
+                            contactEmails={recordDetail.emails.map(
+                              (e) => e.address,
+                            )}
+                          />
+                        </div>
+                      </section>
+                    </SectionGate>
+                  ),
+                  'contact.term_invoice': !isEndedRecord ? (
+                    <SectionGate id="contact.term_invoice">
+                      <section className="rounded-2xl border border-crm-taupe/20 p-4">
+                        <h3 className="text-sm font-semibold text-crm-heading">
+                          QuickBooks invoice
+                        </h3>
+                        {term.quickbooksInvoiceId ? (
+                          <button
+                            type="button"
+                            onClick={() => setInvoiceOpen(true)}
+                            className="mt-3 rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
+                          >
+                            View invoice
+                          </button>
+                        ) : (
+                          <p className="mt-2 text-sm text-crm-slate">
+                            No invoice linked for this service record.
+                          </p>
+                        )}
+                      </section>
+                    </SectionGate>
+                  ) : undefined,
+                  'contact.term_references': (
+                    <SectionGate id="contact.term_references">
+                      <section className="rounded-2xl border border-crm-taupe/20 p-4">
+                        <h3 className="text-sm font-semibold text-crm-heading">
+                          References & application
+                        </h3>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFormOpen('pastor')}
+                            className="rounded-xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
+                          >
+                            View pastor reference
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormOpen('application')}
+                            className="rounded-xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
+                          >
+                            View full application
+                          </button>
+                        </div>
+                      </section>
+                    </SectionGate>
+                  ),
+                } satisfies Partial<Record<SectionId, ReactNode>>,
+              ).map((node, index) => (
+                <div key={`term-section-${index}`}>{node}</div>
+              ))}
             </div>
           )}
         </div>

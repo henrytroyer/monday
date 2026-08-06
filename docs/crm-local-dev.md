@@ -45,7 +45,7 @@ Vite sets `host: true`, so the terminal prints **Local** and **Network** URLs.
 When `VITE_MONDAY_WATCH_ENABLED=true`, the short-term onboarding panel updates from:
 
 - **Application received** — monday item `created_at`
-- **Pastor reference** — outbound pastor-reference emails; received when linked pastor reference board item (Contacts → Pastor Reference) has answers
+- **Pastor reference** — outbound pastor-reference emails; **Received** only when the Contacts → Pastor Reference connect column links a filled form item (detail view polls that connect column while open)
 - **In review** — completes when pastor reference is received
 - **Background check / safeguarding** — outbound email dates; safeguarding received from Safeguarding board
 - **Flight info** — projected date 6 weeks before term start; note from itinerary columns/files

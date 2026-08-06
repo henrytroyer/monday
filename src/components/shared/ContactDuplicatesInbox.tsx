@@ -13,8 +13,11 @@ import {
   type MergeContactsPreview,
 } from '../../services/contactUpsert/contactBoardDedupe';
 import {
+  allNamesRelatedForMerge,
   classifyDuplicateGroup,
+  dismissDuplicatePair,
   findDuplicateGroupCandidates,
+  isDuplicatePairDismissed,
   listDuplicateReviewItems,
   updateDuplicateReviewStatus,
   type DuplicateReviewItem,
@@ -54,6 +57,19 @@ export default function ContactDuplicatesInbox({
   } | null>(null);
 
   const refreshReviews = () => {
+    // Drop pending pairs with unrelated names (same email, different people).
+    for (const item of listDuplicateReviewItems('pending')) {
+      const members = contacts.filter((c) => item.contactIds.includes(c.id));
+      if (members.length >= 2 && !allNamesRelatedForMerge(members)) {
+        dismissDuplicatePair({
+          reviewId: item.id,
+          key: item.key,
+          contactIds: item.contactIds,
+          contactNames: item.contactNames,
+          notes: 'Auto-dismissed — unrelated names',
+        });
+      }
+    }
     setReviewItems(listDuplicateReviewItems('pending'));
   };
 
@@ -63,7 +79,7 @@ export default function ContactDuplicatesInbox({
     window.addEventListener('crm-contact-duplicate-review', onStorage);
     return () =>
       window.removeEventListener('crm-contact-duplicate-review', onStorage);
-  }, []);
+  }, [contacts]);
 
   function openMergeDialog(
     groupKey: string,
@@ -113,8 +129,28 @@ export default function ContactDuplicatesInbox({
     }
   }
 
+  function handleKeepBoth() {
+    if (!mergeDialog) return;
+    const { groupKey, survivor, losers, reviewId } = mergeDialog;
+    const members = [survivor, ...losers];
+    dismissDuplicatePair({
+      reviewId,
+      key: groupKey,
+      contactIds: members.map((c) => c.id),
+      contactNames: members.map((c) => c.name),
+      notes: 'Keep both — not a duplicate',
+    });
+    setMessage('Kept both contacts. This pair will not be suggested again.');
+    setMergeDialog(null);
+    refreshReviews();
+  }
+
   const autoLive = classified.filter((g) => g.disposition === 'auto');
-  const reviewLive = classified.filter((g) => g.disposition === 'review');
+  const reviewLive = classified.filter(
+    (g) =>
+      g.disposition === 'review' &&
+      !isDuplicatePairDismissed(g.contacts.map((c) => c.id)),
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-16">
@@ -184,12 +220,18 @@ export default function ContactDuplicatesInbox({
                       <button
                         type="button"
                         onClick={() => {
-                          updateDuplicateReviewStatus(item.id, 'dismissed');
+                          dismissDuplicatePair({
+                            reviewId: item.id,
+                            key: item.key,
+                            contactIds: item.contactIds,
+                            contactNames: item.contactNames,
+                            notes: 'Keep both — not a duplicate',
+                          });
                           refreshReviews();
                         }}
                         className="rounded-xl border border-crm-taupe/25 px-3 py-1.5 text-sm text-crm-slate hover:bg-crm-taupe-50"
                       >
-                        Dismiss
+                        Keep both
                       </button>
                     </div>
                   </li>
@@ -206,18 +248,35 @@ export default function ContactDuplicatesInbox({
                       <p className="mt-1 text-xs text-crm-slate">
                         {group.reviewReasons.join(', ')}
                       </p>
-                      <button
-                        type="button"
-                        className="mt-3 rounded-xl bg-crm-indigo px-3 py-1.5 text-sm font-medium text-white"
-                        onClick={() =>
-                          openMergeDialog(
-                            group.key,
-                            group.contacts.map((c) => c.id),
-                          )
-                        }
-                      >
-                        Review & merge
-                      </button>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl bg-crm-indigo px-3 py-1.5 text-sm font-medium text-white"
+                          onClick={() =>
+                            openMergeDialog(
+                              group.key,
+                              group.contacts.map((c) => c.id),
+                            )
+                          }
+                        >
+                          Review & merge
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-xl border border-crm-taupe/25 px-3 py-1.5 text-sm text-crm-slate hover:bg-crm-taupe-50"
+                          onClick={() => {
+                            dismissDuplicatePair({
+                              key: group.key,
+                              contactIds: group.contacts.map((c) => c.id),
+                              contactNames: group.contacts.map((c) => c.name),
+                              notes: 'Keep both — not a duplicate',
+                            });
+                            refreshReviews();
+                          }}
+                        >
+                          Keep both
+                        </button>
+                      </div>
                     </li>
                   ))}
               </ul>
@@ -293,6 +352,7 @@ export default function ContactDuplicatesInbox({
           allContacts={contacts}
           busy={busyKey === mergeDialog.groupKey}
           onConfirm={(overrides) => void handleConfirmMerge(overrides)}
+          onKeepBoth={handleKeepBoth}
           onCancel={() => {
             if (busyKey !== mergeDialog.groupKey) setMergeDialog(null);
           }}

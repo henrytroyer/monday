@@ -2,7 +2,7 @@
  * CurrentUserContext.tsx — Signed-in CRM operator (Admin session, local override, or monday me).
  */
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useMockData } from '../config/boards';
 import { TEAM_MEMBERS } from '../data/mockTeamMembers';
@@ -11,6 +11,7 @@ import {
   applyOperatorProfileOverlay,
   subscribeOperatorProfileOverlay,
 } from '../services/crmOperatorProfile';
+import { syncCrmOperatorEmail } from '../services/crmOperatorEmail';
 import {
   getCrmSessionUser,
   subscribeCrmSessionUser,
@@ -24,21 +25,15 @@ import {
   fetchCurrentMondayUser,
   type CurrentMondayUser,
 } from '../services/resolveMondayUsers';
+import {
+  CurrentUserContext,
+  type CurrentUserContextValue,
+} from './currentUserContextBase';
 
-interface CurrentUserContextValue {
-  user: CurrentMondayUser | null;
-  displayName: string;
-  isLoading: boolean;
-  /** True on localhost when the operator picker is available. */
-  canSwitchLocalUser: boolean;
-}
-
-const CurrentUserContext = createContext<CurrentUserContextValue>({
-  user: null,
-  displayName: 'Coordinator',
-  isLoading: true,
-  canSwitchLocalUser: false,
-});
+/** Survives Vite HMR module invalidation (module locals are wiped; globalThis is not). */
+const warmUserGlobal = globalThis as typeof globalThis & {
+  __crmWarmCurrentUser?: CurrentMondayUser | null;
+};
 
 function mockDefaultUser(): CurrentMondayUser {
   const envName = import.meta.env.VITE_MOCK_CURRENT_USER_NAME as string | undefined;
@@ -52,8 +47,12 @@ function mockDefaultUser(): CurrentMondayUser {
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
   const isMock = useMockData();
   const { context } = useMondayContext();
-  const [user, setUser] = useState<CurrentMondayUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<CurrentMondayUser | null>(
+    () => warmUserGlobal.__crmWarmCurrentUser ?? null,
+  );
+  const [isLoading, setIsLoading] = useState(
+    () => warmUserGlobal.__crmWarmCurrentUser == null,
+  );
   const [sessionTick, setSessionTick] = useState(0);
   const [localTick, setLocalTick] = useState(0);
   const [profileTick, setProfileTick] = useState(0);
@@ -68,11 +67,28 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const userRef = useRef(user);
+  userRef.current = user;
+
+  useEffect(() => {
+    warmUserGlobal.__crmWarmCurrentUser = user;
+  }, [user]);
+
+  useEffect(() => {
+    syncCrmOperatorEmail(user?.email);
+  }, [user?.email]);
+
+  // Overlay updates must not flip isLoading (that unmounted the CRM boot shell).
+  useEffect(() => {
+    setUser((prev) => (prev ? applyOperatorProfileOverlay(prev) : prev));
+  }, [profileTick]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      setIsLoading(true);
+      const silent = userRef.current != null;
+      if (!silent) setIsLoading(true);
 
       const localOverride = getLocalUserOverride();
       if (localOverride) {
@@ -127,7 +143,7 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [isMock, context?.userId, sessionTick, localTick, profileTick]);
+  }, [isMock, context?.userId, sessionTick, localTick]);
 
   const value = useMemo<CurrentUserContextValue>(
     () => ({
@@ -142,8 +158,4 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   return (
     <CurrentUserContext.Provider value={value}>{children}</CurrentUserContext.Provider>
   );
-}
-
-export function useCurrentUser(): CurrentUserContextValue {
-  return useContext(CurrentUserContext);
 }

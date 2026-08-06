@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { canAddApplicationNotes } from '../../config/boards';
-import { useCurrentUser } from '../../context/CurrentUserContext';
+import { useCurrentUser } from '../../context/useCurrentUser';
 import { getTimelineLabel } from '../../data/timelines';
 import { useTermNotes } from '../../hooks/useTermNotes';
 import {
@@ -13,6 +13,7 @@ import {
   isOwnTermNote,
 } from '../../services/termNotes';
 import type { TermNote } from '../../types/volunteer';
+import ConfirmDialog from '../shared/ConfirmDialog';
 
 type TermNotesState = ReturnType<typeof useTermNotes>;
 
@@ -51,6 +52,9 @@ export default function TermNotesChat({
   const [editDraft, setEditDraft] = useState('');
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
+  const [pendingDeleteNote, setPendingDeleteNote] = useState<TermNote | null>(
+    null,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,18 +94,17 @@ export default function TermNotesChat({
     }
   };
 
-  const handleDelete = async (note: TermNote) => {
+  const requestDelete = (note: TermNote) => {
     if (!notesWritable || sending) return;
-    const preview = note.body.trim().slice(0, 80) || 'this note';
-    if (
-      !window.confirm(
-        `Delete “${preview}${note.body.trim().length > 80 ? '…' : ''}”? This cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    setPendingDeleteNote(note);
+  };
+
+  const confirmDelete = async () => {
+    const note = pendingDeleteNote;
+    if (!note || !notesWritable || sending) return;
     try {
       await deleteNote(note.id);
+      setPendingDeleteNote(null);
       if (editingId === note.id) cancelEdit();
       if (replyingToId === note.id) {
         setReplyingToId(null);
@@ -134,7 +137,14 @@ export default function TermNotesChat({
     }
   };
 
+  const deletePreview = pendingDeleteNote
+    ? pendingDeleteNote.body.trim().slice(0, 80) || 'this note'
+    : '';
+  const deleteEllipsis =
+    pendingDeleteNote && pendingDeleteNote.body.trim().length > 80 ? '…' : '';
+
   return (
+    <>
     <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
       <div className="border-b border-crm-taupe/20 pb-4">
         <h3 className="text-lg font-semibold text-crm-heading">Internal notes</h3>
@@ -226,7 +236,7 @@ export default function TermNotesChat({
                           <NoteActionButton
                             label="Delete"
                             tone="danger"
-                            onClick={() => void handleDelete(note)}
+                            onClick={() => requestDelete(note)}
                           />
                         </>
                       ) : (
@@ -313,7 +323,7 @@ export default function TermNotesChat({
                               <NoteActionButton
                                 label="Delete"
                                 tone="danger"
-                                onClick={() => void handleDelete(reply)}
+                                onClick={() => requestDelete(reply)}
                               />
                             </div>
                           )}
@@ -400,6 +410,23 @@ export default function TermNotesChat({
         </p>
       )}
     </div>
+
+    <ConfirmDialog
+      open={pendingDeleteNote !== null}
+      title="Delete note"
+      message={
+        pendingDeleteNote
+          ? `Delete “${deletePreview}${deleteEllipsis}”? This cannot be undone.`
+          : ''
+      }
+      confirmLabel="Delete"
+      cancelLabel="Cancel"
+      tone="danger"
+      busy={sending}
+      onConfirm={() => void confirmDelete()}
+      onCancel={() => setPendingDeleteNote(null)}
+    />
+    </>
   );
 }
 

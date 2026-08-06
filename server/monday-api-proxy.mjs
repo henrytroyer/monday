@@ -136,17 +136,22 @@ async function readJsonBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString() || '{}');
 }
 
-async function mondayGraphql(query, variables) {
+async function mondayGraphql(query, variables, apiVersion = API_VERSION) {
   if (!TOKEN) {
     throw new Error('Set MONDAY_API_TOKEN in environment');
   }
+
+  const version =
+    typeof apiVersion === 'string' && apiVersion.trim()
+      ? apiVersion.trim()
+      : API_VERSION;
 
   const res = await fetch(MONDAY_API, {
     method: 'POST',
     headers: {
       Authorization: TOKEN,
       'Content-Type': 'application/json',
-      'API-Version': API_VERSION,
+      'API-Version': version,
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -305,7 +310,11 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       await enforceCrmMutationAcl(req, body.query);
-      const result = await mondayGraphql(body.query, body.variables);
+      const result = await mondayGraphql(
+        body.query,
+        body.variables,
+        body.apiVersion,
+      );
       sendJson(res, 200, result);
       return;
     }

@@ -3,6 +3,7 @@ import { useEmailTemplates } from '../../hooks/useEmailTemplates';
 import { useEmailAccounts } from '../../hooks/useEmailAccounts';
 import { useEmailMasterLog } from '../../hooks/useEmailMasterLog';
 import type { EmailAdminTab } from '../../types/emailAdmin';
+import CrmPageLoading from '../shared/CrmPageLoading';
 
 interface EmailOverviewSectionProps {
   onNavigateTab: (tab: EmailAdminTab) => void;
@@ -89,7 +90,10 @@ export default function EmailOverviewSection({
           )}
         </div>
         {logLoading ? (
-          <p className="mt-4 text-sm text-crm-slate">Loading…</p>
+          <CrmPageLoading
+            label="i58 Volunteer portal · Email"
+            className="mt-4 min-h-[160px]"
+          />
         ) : recentOutbound.length === 0 ? (
           <p className="mt-4 text-sm text-crm-slate">
             No outbound email in the log yet. Send from an application or contact to

@@ -23,6 +23,7 @@ export function filterContacts(
       const haystack = [
         contact.name,
         contact.email,
+        contact.altEmail,
         contact.phone,
         contact.spouseName,
         contact.connectedTo,

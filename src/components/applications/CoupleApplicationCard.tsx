@@ -28,6 +28,7 @@ interface CoupleApplicationCardProps {
   boardId?: string | null;
   canUploadFiles?: boolean;
   onFilesUploaded?: () => void;
+  showFiles?: boolean;
 }
 
 export default function CoupleApplicationCard({
@@ -40,6 +41,7 @@ export default function CoupleApplicationCard({
   boardId = null,
   canUploadFiles = false,
   onFilesUploaded,
+  showFiles = true,
 }: CoupleApplicationCardProps) {
   const couple = detail.couple!;
   const [activeTab, setActiveTab] = useState<CoupleTab>('shared');
@@ -123,6 +125,7 @@ export default function CoupleApplicationCard({
             boardId={boardId}
             canUploadFiles={canUploadFiles}
             onFilesUploaded={onFilesUploaded}
+            showFiles={showFiles}
           />
         )}
         {activeTab === 'primary' && (
@@ -137,6 +140,7 @@ export default function CoupleApplicationCard({
             childSafeguardingFile={detail.childSafeguardingFile}
             onEmailClick={onEmailClick ? () => onEmailClick('primary') : undefined}
             onPhoneClick={onPhoneClick ? () => onPhoneClick('primary') : undefined}
+            showFiles={showFiles}
           />
         )}
         {activeTab === 'spouse' && (
@@ -151,6 +155,7 @@ export default function CoupleApplicationCard({
             childSafeguardingFile={couple.partner.childSafeguardingFile}
             onEmailClick={onEmailClick ? () => onEmailClick('spouse') : undefined}
             onPhoneClick={onPhoneClick ? () => onPhoneClick('spouse') : undefined}
+            showFiles={showFiles}
           />
         )}
       </div>
@@ -166,6 +171,7 @@ function SharedTab({
   boardId,
   canUploadFiles,
   onFilesUploaded,
+  showFiles = true,
 }: {
   detail: VolunteerDetail;
   sharedContent?: ReactNode;
@@ -174,11 +180,12 @@ function SharedTab({
   boardId?: string | null;
   canUploadFiles?: boolean;
   onFilesUploaded?: () => void;
+  showFiles?: boolean;
 }) {
   return (
     <div className="space-y-5">
       {sharedContent}
-      {splitFilesRow ? (
+      {showFiles && splitFilesRow ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-stretch">
           <VolunteerFilesSection
             volunteerName={detail.name}
@@ -192,7 +199,7 @@ function SharedTab({
           />
           {besideFiles}
         </div>
-      ) : (
+      ) : showFiles ? (
         <div className="md:w-1/2">
           <VolunteerFilesSection
             volunteerName={detail.name}
@@ -204,7 +211,9 @@ function SharedTab({
             onUploaded={onFilesUploaded}
           />
         </div>
-      )}
+      ) : besideFiles ? (
+        <div>{besideFiles}</div>
+      ) : null}
     </div>
   );
 }
@@ -220,6 +229,7 @@ function PersonTab({
   childSafeguardingFile,
   onEmailClick,
   onPhoneClick,
+  showFiles = true,
 }: {
   name: string;
   email?: string;
@@ -231,6 +241,7 @@ function PersonTab({
   childSafeguardingFile?: VolunteerDetail['childSafeguardingFile'];
   onEmailClick?: () => void;
   onPhoneClick?: () => void;
+  showFiles?: boolean;
 }) {
   const formattedAddress = demographics
     ? formatContactAddress(demographics)
@@ -310,16 +321,18 @@ function PersonTab({
         </Field>
       </dl>
 
-      <div className="md:w-1/2">
-        <VolunteerFilesSection
-          volunteerName={name}
-          profilePhotoUrl={profilePhotoUrl}
-          passportFile={passportFile}
-          childSafeguardingFile={childSafeguardingFile}
-          files={[]}
-          showOtherFiles={false}
-        />
-      </div>
+      {showFiles && (
+        <div className="md:w-1/2">
+          <VolunteerFilesSection
+            volunteerName={name}
+            profilePhotoUrl={profilePhotoUrl}
+            passportFile={passportFile}
+            childSafeguardingFile={childSafeguardingFile}
+            files={[]}
+            showOtherFiles={false}
+          />
+        </div>
+      )}
     </div>
   );
 }

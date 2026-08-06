@@ -44,6 +44,7 @@ export interface MondayContactItem {
   id: string;
   name: string;
   created_at?: string;
+  updated_at?: string;
   column_values: MondayColumnValue[];
   updates?: import('./termNotes').MondayItemUpdateRaw[];
 }

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { canEditEmailTemplates } from '../../config/boards';
 import { emailTemplateMap } from '../../config/emailTemplateMap';
 import EmailTemplateEditor from '../email-templates/EmailTemplateEditor';
+import CrmPageLoading from '../shared/CrmPageLoading';
 import { useEmailTemplates } from '../../hooks/useEmailTemplates';
 import type { EmailTemplate, EmailTemplateInput } from '../../types/emailTemplate';
 
@@ -155,7 +156,10 @@ export default function EmailTemplatesSection() {
             All templates
           </h3>
           {loading ? (
-            <p className="mt-4 text-sm text-crm-slate">Loading templates…</p>
+            <CrmPageLoading
+              label="i58 Volunteer portal · Templates"
+              className="mt-4 min-h-[160px]"
+            />
           ) : error ? (
             <p className="mt-4 text-sm text-amber-800">{error}</p>
           ) : templates.length === 0 ? (

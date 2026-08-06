@@ -4,19 +4,26 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import SignatureManagerDialog from '../components/email/dialogs/SignatureManagerDialog';
-import PermissionGate from '../components/shared/PermissionGate';
-import { useCurrentUser } from '../context/CurrentUserContext';
-import { usePermissions } from '../context/PermissionsContext';
-import { showPermissionDenied } from '../permissions/PermissionDeniedToast';
-import { CRM_ROLE_META } from '../permissions/roles';
-import { updateOwnOperatorProfile } from '../services/crmRbacBoard';
+import PrivateNotesSecurityCard from '../components/settings/PrivateNotesSecurityCard';
+import { useCurrentUser } from '../context/useCurrentUser';
+import { useWorkFocus } from '../hooks/useWorkFocus';
+import {
+  WORK_FOCUSES,
+  WORK_FOCUS_META,
+  defaultLandingPageForFocus,
+  type WorkFocus,
+} from '../preferences/workFocus';
+import {
+  hasExplicitLandingPreference,
+  readLandingPreference,
+  writeLandingPreference,
+} from '../preferences/workFocusStorage';
+import { updateOwnOperatorProfile } from '../services/crmOperatorProfile';
 import {
   getDefaultEmailSignature,
   listEmailSignatures,
 } from '../utils/emailSignatures';
 import { resizeImageForAvatar } from '../utils/resizeImageForAvatar';
-
-const LANDING_PAGE_KEY = 'crm-user-default-landing-v1';
 
 const LANDING_OPTIONS = [
   { id: 'contacts', label: 'Contacts' },
@@ -28,29 +35,24 @@ const LANDING_OPTIONS = [
   { id: 'history', label: 'History' },
 ] as const;
 
-function readLanding(): string {
-  try {
-    return localStorage.getItem(LANDING_PAGE_KEY) || 'contacts';
-  } catch {
-    return 'contacts';
+export function getUserDefaultLandingPage(focus?: WorkFocus): string {
+  if (hasExplicitLandingPreference()) {
+    return readLandingPreference() || 'contacts';
   }
-}
-
-export function getUserDefaultLandingPage(): string {
-  return readLanding();
+  if (focus) return defaultLandingPageForFocus(focus);
+  return 'contacts';
 }
 
 export default function UserSettingsPage() {
-  return (
-    <PermissionGate permission="contacts.view">
-      <UserSettingsInner />
-    </PermissionGate>
-  );
-}
-
-function UserSettingsInner() {
   const { user, displayName } = useCurrentUser();
-  const { roles, operator, hasPermission, refresh } = usePermissions();
+  const {
+    focus,
+    derivedFocus,
+    override,
+    label: focusLabel,
+    description: focusDescription,
+    setOverride,
+  } = useWorkFocus();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [nameDraft, setNameDraft] = useState(displayName);
@@ -60,11 +62,18 @@ function UserSettingsInner() {
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [signatureCount, setSignatureCount] = useState(0);
   const [defaultSigName, setDefaultSigName] = useState<string | null>(null);
-  const [landing, setLanding] = useState(readLanding);
+  const [landing, setLanding] = useState(() => getUserDefaultLandingPage(focus));
   const [savedNote, setSavedNote] = useState<string | null>(null);
   const [landingNote, setLandingNote] = useState<string | null>(null);
+  const [focusNote, setFocusNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (!hasExplicitLandingPreference()) {
+      setLanding(defaultLandingPageForFocus(focus));
+    }
+  }, [focus]);
 
   useEffect(() => {
     setNameDraft(displayName);
@@ -83,7 +92,6 @@ function UserSettingsInner() {
       });
   }, []);
 
-  const canEditProfile = hasPermission('contacts.profile.self_edit');
   const initials =
     nameDraft
       .split(/\s+/)
@@ -95,10 +103,26 @@ function UserSettingsInner() {
   function saveLanding(next: string) {
     setLanding(next);
     try {
-      localStorage.setItem(LANDING_PAGE_KEY, next);
+      writeLandingPreference(next);
       setLandingNote('Default page saved for this browser.');
     } catch {
       setLandingNote('Could not save preference in this browser.');
+    }
+  }
+
+  function saveWorkFocus(next: string) {
+    if (next === 'auto') {
+      setOverride(null);
+      setFocusNote(
+        `Using default focus (${WORK_FOCUS_META[derivedFocus].label}).`,
+      );
+      return;
+    }
+    if (WORK_FOCUSES.includes(next as WorkFocus)) {
+      setOverride(next as WorkFocus);
+      setFocusNote(
+        `Work focus set to ${WORK_FOCUS_META[next as WorkFocus].label} for this browser.`,
+      );
     }
   }
 
@@ -106,10 +130,6 @@ function UserSettingsInner() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (!canEditProfile) {
-      showPermissionDenied();
-      return;
-    }
     setError(null);
     try {
       const dataUrl = await resizeImageForAvatar(file);
@@ -121,10 +141,6 @@ function UserSettingsInner() {
 
   async function handleSaveProfile(event: FormEvent) {
     event.preventDefault();
-    if (!canEditProfile) {
-      showPermissionDenied();
-      return;
-    }
     setSavingProfile(true);
     setError(null);
     setSavedNote(null);
@@ -133,15 +149,11 @@ function UserSettingsInner() {
         displayName: nameDraft.trim() || displayName,
         photoUrl: photoDraft ?? null,
       });
-      await refresh();
       setSavedNote('Profile saved.');
     } catch (err) {
-      const text =
-        err instanceof Error
-          ? err.message
-          : 'Permission denied. Reach out to the developer.';
-      setError(text);
-      showPermissionDenied(text);
+      setError(
+        err instanceof Error ? err.message : 'Could not save profile.',
+      );
     } finally {
       setSavingProfile(false);
     }
@@ -152,9 +164,12 @@ function UserSettingsInner() {
       <header>
         <h1 className="text-3xl font-semibold text-crm-heading">User settings</h1>
         <p className="mt-2 text-sm text-crm-slate">
-          Your CRM profile, email signature, and personal preferences.
+          Your CRM profile, private notes security, email signature, and
+          personal preferences.
         </p>
       </header>
+
+      <PrivateNotesSecurityCard />
 
       <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
@@ -177,26 +192,24 @@ function UserSettingsInner() {
                   {initials}
                 </span>
               )}
-              {canEditProfile && (
-                <div className="mt-2 flex flex-col gap-1">
+              <div className="mt-2 flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-lg border border-crm-taupe/30 px-2 py-1 text-[11px] text-crm-heading hover:bg-crm-taupe-50"
+                >
+                  Change photo
+                </button>
+                {photoDraft && (
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="rounded-lg border border-crm-taupe/30 px-2 py-1 text-[11px] text-crm-heading hover:bg-crm-taupe-50"
+                    onClick={() => setPhotoDraft(undefined)}
+                    className="rounded-lg px-2 py-1 text-[11px] text-crm-slate hover:bg-crm-taupe-50"
                   >
-                    Change photo
+                    Remove
                   </button>
-                  {photoDraft && (
-                    <button
-                      type="button"
-                      onClick={() => setPhotoDraft(undefined)}
-                      className="rounded-lg px-2 py-1 text-[11px] text-crm-slate hover:bg-crm-taupe-50"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -212,55 +225,32 @@ function UserSettingsInner() {
                 <input
                   type="text"
                   value={nameDraft}
-                  disabled={!canEditProfile}
                   onChange={(e) => setNameDraft(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm disabled:bg-crm-taupe-50"
+                  className="mt-1 w-full rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm"
                 />
               </label>
               <div>
                 <p className="text-crm-slate">Email</p>
                 <p className="font-medium text-crm-heading">
-                  {user?.email?.trim() || operator?.email || '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-crm-slate">Roles</p>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {roles.map((role) => (
-                    <span
-                      key={role}
-                      className="rounded-lg bg-crm-indigo-50 px-2 py-0.5 text-xs font-medium text-crm-heading"
-                      title={CRM_ROLE_META[role].description}
-                    >
-                      {CRM_ROLE_META[role].displayName}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-crm-slate">Status</p>
-                <p className="font-medium capitalize text-crm-heading">
-                  {operator?.status || 'active'}
+                  {user?.email?.trim() || '—'}
                 </p>
               </div>
             </div>
           </div>
 
-          {canEditProfile && (
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={savingProfile}
-                className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-60"
-              >
-                {savingProfile ? 'Saving…' : 'Save profile'}
-              </button>
-              {error && <p className="text-xs text-amber-800">{error}</p>}
-              {savedNote && !error && (
-                <p className="text-xs text-crm-heading">{savedNote}</p>
-              )}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={savingProfile}
+              className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-60"
+            >
+              {savingProfile ? 'Saving…' : 'Save profile'}
+            </button>
+            {error && <p className="text-xs text-amber-800">{error}</p>}
+            {savedNote && !error && (
+              <p className="text-xs text-crm-heading">{savedNote}</p>
+            )}
+          </div>
         </form>
       </section>
 
@@ -290,6 +280,44 @@ function UserSettingsInner() {
 
       <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
+          Work focus
+        </h2>
+        <p className="mt-2 text-sm text-crm-heading">
+          Work focus: {focusLabel}
+        </p>
+        <p className="mt-1 text-xs text-crm-slate">{focusDescription}</p>
+        <p className="mt-1 text-xs text-crm-slate">
+          Browser preference
+          {override
+            ? ` · custom (default: ${WORK_FOCUS_META[derivedFocus].label})`
+            : ' · default layout'}
+          . Detail panels put your job first (Finance → donations/billing; HR →
+          applications/terms).
+        </p>
+        <label className="mt-4 block text-sm text-crm-heading">
+          Focus for this browser
+          <select
+            value={override ?? 'auto'}
+            onChange={(e) => saveWorkFocus(e.target.value)}
+            className="mt-1.5 w-full max-w-md rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm"
+          >
+            <option value="auto">
+              Default ({WORK_FOCUS_META[derivedFocus].label})
+            </option>
+            {WORK_FOCUSES.map((id) => (
+              <option key={id} value={id}>
+                {WORK_FOCUS_META[id].label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {focusNote && (
+          <p className="mt-2 text-xs text-crm-heading">{focusNote}</p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
           Preferences
         </h2>
         <label className="mt-4 block text-sm text-crm-heading">
@@ -308,6 +336,13 @@ function UserSettingsInner() {
         </label>
         <p className="mt-2 text-xs text-crm-slate">
           Used when this browser opens the CRM with no saved navigation state.
+          {!hasExplicitLandingPreference()
+            ? ` Currently seeded from work focus (${focusLabel} → ${
+                LANDING_OPTIONS.find(
+                  (o) => o.id === defaultLandingPageForFocus(focus),
+                )?.label ?? 'Contacts'
+              }).`
+            : ''}
         </p>
         {landingNote && (
           <p className="mt-2 text-xs text-crm-heading">{landingNote}</p>

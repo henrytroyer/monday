@@ -18,6 +18,7 @@ import {
   readReferenceEmailSentAt,
   readReferenceReviewStatus,
 } from './longtermReferenceStorage';
+import { normalizePersonName } from '../utils/personNameMatch';
 
 function normalizeTitle(title: string): string {
   return title.trim().toLowerCase();
@@ -25,14 +26,6 @@ function normalizeTitle(title: string): string {
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
-}
-
-function normalizePersonName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ');
 }
 
 /** Match when reference form applicant name corresponds to the application item. */

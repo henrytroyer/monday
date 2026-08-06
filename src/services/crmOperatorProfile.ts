@@ -1,11 +1,12 @@
 /**
- * crmOperatorProfile.ts — Local + Portal Things overlay for operator name/photo.
+ * crmOperatorProfile.ts — Local overlay for operator name/photo.
  *
  * Session identity (Firebase / monday / local picker) stays the source of email;
- * display name and avatar can be customized and synced to the Operators item.
+ * display name and avatar can be customized in this browser.
  */
 
 import type { CurrentMondayUser } from './resolveMondayUsers';
+import { resolveCrmOperatorEmail } from './crmOperatorEmail';
 
 const STORAGE_KEY = 'crm-operator-profile-overlay-v1';
 
@@ -86,4 +87,24 @@ export function applyOperatorProfileOverlay(
     name: overlay.displayName?.trim() || user.name,
     photoUrl: overlay.photoUrl?.trim() || user.photoUrl,
   };
+}
+
+/** Self-service profile update (local overlay; CRM is open-access). */
+export async function updateOwnOperatorProfile(input: {
+  displayName: string;
+  photoUrl?: string | null;
+}): Promise<{ email: string; displayName: string; photoUrl?: string }> {
+  const email = resolveCrmOperatorEmail()?.trim().toLowerCase();
+  if (!email) {
+    throw new Error('No signed-in operator email.');
+  }
+  const displayName = input.displayName.trim() || email.split('@')[0] || email;
+  const photoUrl =
+    input.photoUrl === null ? undefined : input.photoUrl?.trim() || undefined;
+  setOperatorProfileOverlay({
+    email,
+    displayName,
+    photoUrl,
+  });
+  return { email, displayName, photoUrl };
 }

@@ -1,10 +1,8 @@
 /**
  * ContactMergeOpsPage.tsx — Admin view for daily merge reports, audits, undo.
- * Gated by contacts.merge / settings.logs.view.
  */
 
 import { useMemo, useState } from 'react';
-import { usePermissions } from '../context/PermissionsContext';
 import {
   listMergeAudits,
   listMergeRunReports,
@@ -12,24 +10,11 @@ import {
 } from '../services/contactUpsert/merge';
 
 export default function ContactMergeOpsPage() {
-  const { hasPermission } = usePermissions();
-  const canView =
-    hasPermission('contacts.merge') || hasPermission('settings.logs.view');
-  const canUndo = hasPermission('contacts.merge');
-
   const [tick, setTick] = useState(0);
   const reports = useMemo(() => listMergeRunReports(), [tick]);
   const audits = useMemo(() => listMergeAudits(), [tick]);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  if (!canView) {
-    return (
-      <div className="p-6 text-sm text-crm-slate">
-        You do not have permission to view contact merge operations.
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 p-6">
@@ -110,7 +95,7 @@ export default function ContactMergeOpsPage() {
                     {audit.fieldConflicts.length} field conflict(s) logged
                   </p>
                 )}
-                {canUndo && audit.reversalStatus !== 'reversed' && (
+                {audit.reversalStatus !== 'reversed' && (
                   <button
                     type="button"
                     disabled={busyId === audit.auditId}

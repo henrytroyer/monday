@@ -1,10 +1,17 @@
+/**
+ * ContactInternalNotesSection.tsx — Contact hub internal notes (public + private E2E).
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { useContactInternalNotes } from '../../hooks/useContactInternalNotes';
 import { useNoteReview, openNoteReviewInbox } from '../../hooks/useNoteReview';
+import { usePrivateNotesVault } from '../../hooks/usePrivateNotesVault';
 import { formatNoteTimestamp } from '../../services/termNotes';
 import NoteBodyContent from '../shared/NoteBodyContent';
+import RecoveryKeyReveal from '../settings/RecoveryKeyReveal';
 import type {
   ContactInternalNote,
+  ContactInternalNoteVisibility,
   CurrentApplicationSummary,
 } from '../../types/contact';
 import { targetKey } from '../../utils/contactInternalNoteTargets';
@@ -30,6 +37,7 @@ export default function ContactInternalNotesSection({
 }: ContactInternalNotesSectionProps) {
   const {
     notes,
+    privateLockedCount,
     loading,
     sending,
     error,
@@ -40,10 +48,18 @@ export default function ContactInternalNotesSection({
     reload,
   } = useContactInternalNotes(contactId, serviceTerms, currentApplication);
 
+  const vault = usePrivateNotesVault();
   const { pendingForContact } = useNoteReview();
   const pendingReview = pendingForContact(contactId);
 
   const [draft, setDraft] = useState('');
+  const [visibility, setVisibility] =
+    useState<ContactInternalNoteVisibility>('public');
+  const [passphrase, setPassphrase] = useState('');
+  const [passphraseConfirm, setPassphraseConfirm] = useState('');
+  const [pendingRecoveryKey, setPendingRecoveryKey] = useState<string | null>(
+    null,
+  );
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +68,14 @@ export default function ContactInternalNotesSection({
     defaultTarget;
 
   const showTargetPicker = targets.length > 1;
+  const canWriteNotes = canWrite;
+  const privateDisabled = !vault.storeAvailable || !vault.ownerUid;
+  const needsVaultUi =
+    visibility === 'private' &&
+    !vault.isUnlocked &&
+    (vault.status === 'needs_setup' ||
+      vault.status === 'locked' ||
+      vault.status === 'loading');
 
   useEffect(() => {
     setSelectedKey(targetKey(defaultTarget));
@@ -64,15 +88,46 @@ export default function ContactInternalNotesSection({
     }
   }, [notes.length]);
 
-  const canWriteNotes = canWrite;
+  useEffect(() => {
+    if (privateDisabled && visibility === 'private') {
+      setVisibility('public');
+    }
+  }, [privateDisabled, visibility]);
+
+  const handleVaultSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (vault.status === 'needs_setup') {
+      if (passphrase !== passphraseConfirm) {
+        return;
+      }
+      try {
+        const { recoveryKey } = await vault.setup(passphrase);
+        setPassphrase('');
+        setPassphraseConfirm('');
+        setPendingRecoveryKey(recoveryKey);
+        void reload({ silent: true });
+      } catch {
+        // error surfaced on vault.error
+      }
+      return;
+    }
+    try {
+      await vault.unlock(passphrase);
+      setPassphrase('');
+      void reload({ silent: true });
+    } catch {
+      // error surfaced on vault.error
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!draft.trim() || sending || !canWriteNotes) return;
+    if (visibility === 'private' && !vault.isUnlocked) return;
     const text = draft;
     setDraft('');
     try {
-      await addNote(text, selectedTarget);
+      await addNote(text, selectedTarget, visibility);
     } catch {
       setDraft(text);
     }
@@ -87,17 +142,29 @@ export default function ContactInternalNotesSection({
               Internal notes
             </h3>
             <p className="mt-1 text-sm text-crm-slate">
-              Notes for this contact save to their contact record.
+              Public notes save to the contact record on monday.com. Private
+              notes stay encrypted on your account only.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void reload({ silent: true })}
-            disabled={loading}
-            className="shrink-0 rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-          >
-            Refresh notes
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {vault.isUnlocked && (
+              <button
+                type="button"
+                onClick={() => void vault.lock().then(() => reload({ silent: true }))}
+                className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
+              >
+                Lock private notes
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void reload({ silent: true })}
+              disabled={loading}
+              className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+            >
+              Refresh notes
+            </button>
+          </div>
         </div>
       </div>
 
@@ -116,6 +183,15 @@ export default function ContactInternalNotesSection({
         </div>
       )}
 
+      {privateLockedCount > 0 && !vault.isUnlocked && (
+        <div className="mt-4 rounded-2xl border border-crm-taupe/30 bg-crm-surface px-4 py-3 text-sm text-crm-heading">
+          {privateLockedCount === 1
+            ? '1 private note is locked.'
+            : `${privateLockedCount} private notes are locked.`}{' '}
+          Unlock with your passphrase to view them on this device.
+        </div>
+      )}
+
       <div
         ref={scrollRef}
         className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-crm-taupe/20 bg-crm-surface p-4"
@@ -126,7 +202,7 @@ export default function ContactInternalNotesSection({
           </p>
         )}
 
-        {!loading && notes.length === 0 && (
+        {!loading && notes.length === 0 && privateLockedCount === 0 && (
           <p className="text-center text-sm text-crm-slate">
             No internal notes yet. Add the first note below.
           </p>
@@ -142,6 +218,11 @@ export default function ContactInternalNotesSection({
                 <span className="font-semibold text-crm-heading">
                   {note.authorName ?? 'Coordinator'}
                 </span>
+                {note.visibility === 'private' ? (
+                  <span className="rounded-full bg-crm-heading px-2.5 py-0.5 text-xs font-medium text-white">
+                    Private
+                  </span>
+                ) : null}
                 <span className={sourcePillClass(note.source)}>
                   {note.sourceLabel}
                 </span>
@@ -160,9 +241,9 @@ export default function ContactInternalNotesSection({
         ))}
       </div>
 
-      {error && (
+      {(error || vault.error) && (
         <p className="mt-3 text-sm text-red-600" role="alert">
-          {error}
+          {error || vault.error}
         </p>
       )}
 
@@ -192,6 +273,129 @@ export default function ContactInternalNotesSection({
           </div>
         )}
 
+        <div>
+          <span className="text-xs font-medium uppercase tracking-wide text-crm-slate">
+            Visibility
+          </span>
+          <div className="mt-1 inline-flex rounded-xl border border-crm-taupe/20 bg-crm-surface p-0.5">
+            <button
+              type="button"
+              onClick={() => setVisibility('public')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                visibility === 'public'
+                  ? 'bg-crm-white text-crm-heading shadow-sm'
+                  : 'text-crm-slate hover:text-crm-heading'
+              }`}
+            >
+              Public
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility('private')}
+              disabled={privateDisabled}
+              title={
+                privateDisabled
+                  ? 'Private notes need a signed-in user and a notes store'
+                  : undefined
+              }
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                visibility === 'private'
+                  ? 'bg-crm-white text-crm-heading shadow-sm'
+                  : 'text-crm-slate hover:text-crm-heading'
+              }`}
+            >
+              Private
+            </button>
+          </div>
+          {visibility === 'private' && (
+            <p className="mt-1 text-xs text-crm-slate">
+              Not copied to monday.com. Only you can decrypt this note — even
+              admins see ciphertext only. If you forget your passphrase, use
+              your recovery key under User settings. Lose both and notes cannot
+              be recovered.
+              {vault.storeMode === 'localStorage'
+                ? ' This browser store does not sync across devices; run private-notes:proxy or set VITE_PRIVATE_NOTES_URL for sync.'
+                : ''}
+            </p>
+          )}
+          {privateDisabled && (
+            <p className="mt-1 text-xs text-amber-800">
+              Private notes unavailable until you are signed in (session user
+              id) and a store is configured.
+            </p>
+          )}
+        </div>
+
+        {pendingRecoveryKey && (
+          <RecoveryKeyReveal
+            recoveryKey={pendingRecoveryKey}
+            onContinue={() => setPendingRecoveryKey(null)}
+          />
+        )}
+
+        {needsVaultUi && !pendingRecoveryKey && (
+          <div className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-4">
+            <p className="text-sm font-medium text-crm-heading">
+              {vault.status === 'needs_setup'
+                ? 'Set a private notes passphrase'
+                : 'Unlock private notes'}
+            </p>
+            <p className="mt-1 text-xs text-crm-slate">
+              {vault.status === 'needs_setup'
+                ? 'This passphrase encrypts private notes on your devices. You will also get a recovery key to save offline.'
+                : 'Enter the passphrase you set for private notes. Unlock once per device. Forgot it? Use your recovery key in User settings.'}
+            </p>
+            <div className="mt-3 space-y-2">
+              <label className="sr-only" htmlFor="private-notes-passphrase">
+                Passphrase
+              </label>
+              <input
+                id="private-notes-passphrase"
+                type="password"
+                autoComplete="new-password"
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value)}
+                placeholder="Passphrase (min 8 characters)"
+                className="w-full rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-2 text-sm outline-none focus:border-crm-slate"
+                disabled={vault.busy}
+              />
+              {vault.status === 'needs_setup' && (
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={passphraseConfirm}
+                  onChange={(e) => setPassphraseConfirm(e.target.value)}
+                  placeholder="Confirm passphrase"
+                  className="w-full rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-2 text-sm outline-none focus:border-crm-slate"
+                  disabled={vault.busy}
+                />
+              )}
+              {vault.status === 'needs_setup' &&
+                passphraseConfirm &&
+                passphrase !== passphraseConfirm && (
+                  <p className="text-xs text-red-600">Passphrases do not match</p>
+                )}
+              <button
+                type="button"
+                onClick={(e) => void handleVaultSubmit(e)}
+                disabled={
+                  vault.busy ||
+                  passphrase.trim().length < 8 ||
+                  (vault.status === 'needs_setup' &&
+                    passphrase !== passphraseConfirm)
+                }
+                className="rounded-xl bg-crm-heading px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {vault.busy
+                  ? 'Working…'
+                  : vault.status === 'needs_setup'
+                    ? 'Create vault'
+                    : 'Unlock'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {!canWrite && (
           <p className="text-xs text-amber-800">
             Contact notes are read-only. Set VITE_CONTACTS_WRITABLE=true in
@@ -208,13 +412,26 @@ export default function ContactInternalNotesSection({
             rows={2}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Write an internal note…"
+            placeholder={
+              visibility === 'private'
+                ? 'Write a private note (encrypted, not synced to monday)…'
+                : 'Write an internal note…'
+            }
             className="min-h-[4rem] flex-1 resize-y rounded-2xl border border-crm-taupe/20 px-4 py-3 text-sm outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
-            disabled={sending || !canWriteNotes}
+            disabled={
+              sending ||
+              !canWriteNotes ||
+              (visibility === 'private' && !vault.isUnlocked)
+            }
           />
           <button
             type="submit"
-            disabled={sending || !draft.trim() || !canWriteNotes}
+            disabled={
+              sending ||
+              !draft.trim() ||
+              !canWriteNotes ||
+              (visibility === 'private' && !vault.isUnlocked)
+            }
             className="shrink-0 rounded-2xl bg-crm-indigo px-5 py-3 text-sm font-medium text-white transition hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50 sm:self-end"
           >
             {sending ? 'Sending…' : 'Add note'}

@@ -1,3 +1,8 @@
+/**
+ * pastorReferenceBoard.ts — Detect pastor-reference form receipt via the
+ * Contacts board "Pastor Reference" connect (board_relation) column.
+ */
+
 import { columnMap } from '../config/columnMap';
 import { useMockData } from '../config/boards';
 import { buildPastorReferenceBoardFormFields } from './applicationFormFields';
@@ -14,6 +19,8 @@ export interface PastorReferenceReceivedSnapshot {
   received: boolean;
   receivedDate?: string;
   linkedItemId?: string;
+  /** Fingerprint of linked pastor-reference item ids (for change watching). */
+  linkFingerprint?: string;
 }
 
 function findColumnByTitle(
@@ -36,10 +43,21 @@ function toIsoDateFromTimestamp(value: string | undefined): string | undefined {
   return `${y}-${m}-${day}`;
 }
 
-function formFieldsHaveAnswers(
-  fields: Array<{ answer: string }>,
+/** Ignore contact-directory fields when deciding the form was actually filled. */
+function formFieldsIndicateCompletedReference(
+  fields: Array<{ question: string; answer: string }>,
 ): boolean {
-  return fields.some((field) => field.answer.trim().length > 0);
+  return fields.some((field) => {
+    if (!field.answer.trim()) return false;
+    const q = field.question.trim().toLowerCase();
+    if (
+      /\b(name|phone|mobile|cell|email|e-mail|address)\b/.test(q) &&
+      !/\breference\b/.test(q)
+    ) {
+      return false;
+    }
+    return true;
+  });
 }
 
 async function snapshotFromLinkedItem(
@@ -47,16 +65,24 @@ async function snapshotFromLinkedItem(
 ): Promise<PastorReferenceReceivedSnapshot | undefined> {
   const item = await fetchContactItem(linkedItemId);
   const fields = buildPastorReferenceBoardFormFields(item.column_values);
-  if (!formFieldsHaveAnswers(fields)) return undefined;
+  if (!formFieldsIndicateCompletedReference(fields)) return undefined;
+
+  const receivedDate =
+    toIsoDateFromTimestamp(item.updated_at) ||
+    toIsoDateFromTimestamp(item.created_at) ||
+    toIsoDateFromTimestamp(new Date().toISOString());
 
   return {
     received: true,
-    receivedDate:
-      toIsoDateFromTimestamp(item.created_at) ?? toIsoDateFromTimestamp(new Date().toISOString()),
+    receivedDate,
     linkedItemId,
   };
 }
 
+/**
+ * Received when the Contacts "Pastor Reference" connect column links at least
+ * one pastor-reference board item that has substantive form answers.
+ */
 export async function fetchPastorReferenceReceivedSnapshot(
   applicationItemId: string,
   applicationColumnValues?: MondayColumnValue[],
@@ -66,6 +92,7 @@ export async function fetchPastorReferenceReceivedSnapshot(
       received: true,
       receivedDate: '2026-05-10',
       linkedItemId: 'mock-pastor-ref',
+      linkFingerprint: 'mock-pastor-ref',
     };
   }
 
@@ -77,18 +104,27 @@ export async function fetchPastorReferenceReceivedSnapshot(
 
   const contactsCol = findColumnByTitle(columnValues, columnMap.contactsLink);
   const contactItemId = parseLinkedBoardRelationIds(contactsCol)[0];
-  if (!contactItemId) return undefined;
+  if (!contactItemId) {
+    return { received: false, linkFingerprint: '' };
+  }
 
   const contact = await fetchContactItem(contactItemId);
   const linkedItemIds = parseLinkedPastorReferenceItemIds(contact.column_values);
-  if (linkedItemIds.length === 0) return undefined;
+  const linkFingerprint = linkedItemIds.slice().sort().join(',');
+
+  if (linkedItemIds.length === 0) {
+    return { received: false, linkFingerprint };
+  }
 
   for (const linkedItemId of linkedItemIds) {
     const snapshot = await snapshotFromLinkedItem(linkedItemId);
-    if (snapshot) return snapshot;
+    if (snapshot) {
+      return { ...snapshot, linkFingerprint };
+    }
   }
 
-  return undefined;
+  // Connect column has links, but form answers are not filled yet.
+  return { received: false, linkFingerprint };
 }
 
 /** Env hint for optional dedicated pastor reference board polling. */

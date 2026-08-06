@@ -90,10 +90,6 @@ export function deriveStepHints(
   }
 
   const slots = resolveVolunteerFileSlots(detail.profilePhotoUrl, detail.files);
-  const hasPastorRef =
-    detail.pastorReferenceFormFields.some((f) => f.answer.trim() !== '') ||
-    detail.files.some((f) => /pastor.*reference|reference/i.test(f.name)) ||
-    legacyStepComplete(detail, 'Pastor Reference');
   const hasApplication =
     detail.applicationFormFields.some((f) => f.answer.trim() !== '') ||
     legacyStepComplete(detail, 'Application Submitted');
@@ -113,11 +109,9 @@ export function deriveStepHints(
         }
         break;
       case 'pastor_reference':
-        if (hasPastorRef) {
-          step.status = 'received';
-          step.waitingDate = addDays(appDate, 1);
-          step.receivedDate = addDays(appDate, 5);
-        } else if (volunteer.status.toLowerCase().includes('reference')) {
+        // Received is set only by live sync when the Contacts connect column
+        // links a filled pastor-reference form — never from status/name fields.
+        if (volunteer.status.toLowerCase().includes('reference')) {
           step.status = 'waiting';
           step.waitingDate = addDays(appDate, 2);
         }

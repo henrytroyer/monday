@@ -1,59 +1,45 @@
 /**
- * navItems.ts — Volunteer Portal sidebar navigation (permission-aware sections).
+ * navItems.ts — Volunteer Portal sidebar navigation.
  *
- * Default permission keys match `nav.*` rows in sectionCatalog.
- * Runtime gating uses section overrides via permissionForPage / canViewSection.
+ * CRM RBAC removed; all operators see the full nav. Users / Roles pages omitted.
  */
 
-import {
-  getSectionVisibilityOverrides,
-} from '../permissions/crmPermissionsRuntime';
-import type { PermissionKey } from '../permissions/permissionKeys';
-import { getRequiredPermissionForSection } from '../permissions/resolveSectionPermission';
-import { navSectionIdForPage } from '../permissions/sectionCatalog';
-
 export const PRIMARY_NAV_ITEMS = [
-  ['contacts', 'Contacts', 'contacts.view'],
-  ['applications', 'Short-term applications', 'hr.applications.view'],
-  ['recruitment', 'Recruitment', 'hr.recruitment.view'],
-  ['longterm-applications', 'Long-term applications', 'hr.longterm.view'],
-] as const satisfies ReadonlyArray<readonly [string, string, PermissionKey]>;
+  ['contacts', 'Contacts'],
+  ['applications', 'Short-term applications'],
+  ['recruitment', 'Recruitment'],
+  ['longterm-applications', 'Long-term applications'],
+] as const satisfies ReadonlyArray<readonly [string, string]>;
 
 export const COMMUNICATIONS_NAV_ITEMS = [
-  ['email-templates', 'Email templates', 'communications.email.view'],
-  ['email-campaigns', 'Email campaigns', 'communications.campaigns.view'],
-] as const satisfies ReadonlyArray<readonly [string, string, PermissionKey]>;
+  ['email-templates', 'Email templates'],
+  ['email-campaigns', 'Email campaigns'],
+] as const satisfies ReadonlyArray<readonly [string, string]>;
 
 export const HISTORY_NAV_ITEMS = [
-  ['history', 'History', 'history.view'],
-] as const satisfies ReadonlyArray<readonly [string, string, PermissionKey]>;
+  ['history', 'History'],
+] as const satisfies ReadonlyArray<readonly [string, string]>;
 
-export const USERS_NAV_ITEMS = [
-  ['users', 'Users', 'users.view'],
-] as const satisfies ReadonlyArray<readonly [string, string, PermissionKey]>;
-
-/** Admin top-level tools (same level as History / Users) */
+/** Admin top-level tools (same level as History) */
 export const ADMIN_TOOL_NAV_ITEMS = [
-  ['forms', 'Forms', 'settings.view'],
-  ['automations', 'Automations', 'settings.view'],
-] as const satisfies ReadonlyArray<readonly [string, string, PermissionKey]>;
+  ['forms', 'Forms'],
+  ['automations', 'Automations'],
+] as const satisfies ReadonlyArray<readonly [string, string]>;
 
 /** Account menu — not listed in main sidebar (opened from user card). */
 export const ACCOUNT_NAV_ITEMS = [
-  ['user-settings', 'User settings', 'contacts.view'],
-] as const satisfies ReadonlyArray<readonly [string, string, PermissionKey]>;
+  ['user-settings', 'User settings'],
+] as const satisfies ReadonlyArray<readonly [string, string]>;
 
-/** DEV-only Settings children */
+/** Settings children (audit + merge ops). */
 export const SETTINGS_NAV_ITEMS = [
-  ['roles-permissions', 'Roles & permissions', 'settings.permissions.manage'],
-  ['audit-log', 'Audit log', 'settings.logs.view'],
-  ['contact-merge-ops', 'Contact merge ops', 'contacts.merge'],
-] as const satisfies ReadonlyArray<readonly [string, string, PermissionKey]>;
+  ['audit-log', 'Audit log'],
+  ['contact-merge-ops', 'Contact merge ops'],
+] as const satisfies ReadonlyArray<readonly [string, string]>;
 
 export type PrimaryPageId = (typeof PRIMARY_NAV_ITEMS)[number][0];
 export type CommunicationsPageId = (typeof COMMUNICATIONS_NAV_ITEMS)[number][0];
 export type HistoryPageId = (typeof HISTORY_NAV_ITEMS)[number][0];
-export type UsersPageId = (typeof USERS_NAV_ITEMS)[number][0];
 export type AdminToolPageId = (typeof ADMIN_TOOL_NAV_ITEMS)[number][0];
 export type AccountPageId = (typeof ACCOUNT_NAV_ITEMS)[number][0];
 export type SettingsPageId = (typeof SETTINGS_NAV_ITEMS)[number][0];
@@ -61,7 +47,6 @@ export type PageId =
   | PrimaryPageId
   | CommunicationsPageId
   | HistoryPageId
-  | UsersPageId
   | AdminToolPageId
   | AccountPageId
   | SettingsPageId;
@@ -74,32 +59,11 @@ export function isSettingsPage(id: PageId): id is SettingsPageId {
   return (SETTINGS_PAGE_IDS as readonly string[]).includes(id);
 }
 
-export function permissionForPage(id: PageId): PermissionKey {
-  const sectionId = navSectionIdForPage(id);
-  if (sectionId) {
-    return getRequiredPermissionForSection(
-      sectionId,
-      getSectionVisibilityOverrides(),
-    );
-  }
-  const all = [
-    ...PRIMARY_NAV_ITEMS,
-    ...COMMUNICATIONS_NAV_ITEMS,
-    ...HISTORY_NAV_ITEMS,
-    ...USERS_NAV_ITEMS,
-    ...ADMIN_TOOL_NAV_ITEMS,
-    ...ACCOUNT_NAV_ITEMS,
-    ...SETTINGS_NAV_ITEMS,
-  ] as ReadonlyArray<readonly [PageId, string, PermissionKey]>;
-  return all.find((row) => row[0] === id)?.[2] ?? 'contacts.view';
-}
-
 /** @deprecated Use section arrays instead. */
 export const NAV_ITEMS = [
   ...PRIMARY_NAV_ITEMS,
   ...COMMUNICATIONS_NAV_ITEMS,
   ...HISTORY_NAV_ITEMS,
-  ...USERS_NAV_ITEMS,
   ...ADMIN_TOOL_NAV_ITEMS,
   ...ACCOUNT_NAV_ITEMS,
   ...SETTINGS_NAV_ITEMS,

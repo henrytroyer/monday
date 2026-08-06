@@ -1,146 +1,135 @@
 /**
  * PermissionsContext.tsx — Effective CRM permissions for the signed-in operator.
+ *
+ * When CRM_PERMISSIONS_DISABLED: no Portal Things RBAC fetch; every operator
+ * gets full access immediately after identity resolves.
+ *
+ * Context object lives in permissionsContextBase (usePermissions reads it).
  */
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
-import { useCurrentUser } from './CurrentUserContext';
-import { DEFAULT_ROLE_PERMISSIONS } from '../permissions/defaults';
+import { useCurrentUser } from './useCurrentUser';
 import {
-  hasPermission as hasPerm,
-  resolveEffectivePermissions,
-} from '../permissions/resolveEffectivePermissions';
-import type { PermissionKey } from '../permissions/permissionKeys';
-import type { CrmRole } from '../permissions/roles';
+  PermissionsContext,
+  type PermissionsContextValue,
+} from './permissionsContextBase';
+import { DEFAULT_ROLE_PERMISSIONS } from '../permissions/defaults';
+import { CRM_PERMISSIONS_DISABLED } from '../permissions/crmPermissionsDisabled';
+import { hasPermission as hasPerm } from '../permissions/resolveEffectivePermissions';
+import {
+  PERMISSION_KEYS,
+  type PermissionKey,
+} from '../permissions/permissionKeys';
 import { normalizeCrmRoles } from '../permissions/roles';
+import { canViewSection as canViewSectionResolved } from '../permissions/resolveSectionPermission';
 import type { CrmOperatorRecord, RolePermissionsPayload } from '../permissions/types';
 import { setCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
 import { showPermissionDenied } from '../permissions/PermissionDeniedToast';
-import { setOperatorProfileOverlay } from '../services/crmOperatorProfile';
-import {
-  ensureOperatorForEmail,
-  loadRolePermissionsPayload,
-} from '../services/crmRbacBoard';
 import { CrmPermissionError } from '../permissions/devGuards';
+import { usePermissions } from './usePermissions';
 
-interface PermissionsContextValue {
-  ready: boolean;
-  operator: CrmOperatorRecord | null;
-  roles: CrmRole[];
-  permissions: Set<PermissionKey>;
-  rolePermissions: RolePermissionsPayload;
-  hasPermission: (key: PermissionKey) => boolean;
-  hasRole: (role: CrmRole) => boolean;
-  requirePermission: (key: PermissionKey) => void;
-  refresh: () => Promise<void>;
-}
+export type { PermissionsContextValue };
 
-const PermissionsContext = createContext<PermissionsContextValue | null>(null);
+const OPEN_MATRIX: RolePermissionsPayload = {
+  version: 1,
+  roles: [],
+  permissions: [],
+  rolePermissions: DEFAULT_ROLE_PERMISSIONS,
+  sectionVisibilityOverrides: {},
+};
+
+const ALL_PERMISSIONS = new Set<PermissionKey>(PERMISSION_KEYS);
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const { user } = useCurrentUser();
+  const { user, isLoading: userLoading } = useCurrentUser();
   const [ready, setReady] = useState(false);
   const [operator, setOperator] = useState<CrmOperatorRecord | null>(null);
-  const [rolePermissions, setRolePermissions] = useState<RolePermissionsPayload>(
-    {
-      version: 1,
-      roles: [],
-      permissions: [],
-      rolePermissions: DEFAULT_ROLE_PERMISSIONS,
-    },
-  );
 
-  const refresh = useCallback(async () => {
-    // Keep prior permissions on screen — never flash "Checking permissions…".
-    try {
-      const matrix = await loadRolePermissionsPayload();
-      setRolePermissions(matrix);
-      const email = user?.email?.trim();
-      if (!email) {
-        setOperator({
-          email: 'anonymous',
-          displayName: user?.name || 'Coordinator',
-          roles: ['BASIC'],
-          status: 'active',
-        });
-        return;
-      }
-      const op = await ensureOperatorForEmail(email, user?.name);
-      setOperator(op);
-      if (op.displayName || op.photoUrl) {
-        setOperatorProfileOverlay({
-          email: op.email,
-          displayName: op.displayName,
-          photoUrl: op.photoUrl,
-        });
-      }
-    } catch (err) {
-      console.warn(
-        'CRM permissions load failed:',
-        err instanceof Error ? err.message : err,
-      );
-      setOperator((prev) =>
-        prev ?? {
-          email: user?.email || 'anonymous',
-          displayName: user?.name || 'Coordinator',
-          roles: ['BASIC'],
-          status: 'active',
-        },
-      );
-    } finally {
-      setReady(true);
-    }
+  const applyOpenAccess = useCallback(() => {
+    const email = user?.email?.trim() || 'anonymous';
+    const op: CrmOperatorRecord = {
+      email,
+      displayName: user?.name?.trim() || 'Coordinator',
+      roles: ['DEV'],
+      status: 'active',
+    };
+    setCrmPermissionsRuntime({
+      ready: true,
+      email: email === 'anonymous' ? null : email,
+      roles: ['DEV'],
+      permissions: ALL_PERMISSIONS,
+      sectionVisibilityOverrides: {},
+    });
+    setReady(true);
+    return op;
   }, [user?.email, user?.name]);
 
+  const refresh = useCallback(async () => {
+    setOperator(applyOpenAccess());
+  }, [applyOpenAccess]);
+
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (userLoading) {
+      setReady(false);
+      return;
+    }
+    setOperator(applyOpenAccess());
+  }, [userLoading, applyOpenAccess]);
 
   const roles = useMemo(
-    () => normalizeCrmRoles(operator?.roles),
+    () => normalizeCrmRoles(operator?.roles ?? ['DEV']),
     [operator?.roles],
   );
 
-  const permissions = useMemo(
-    () =>
-      resolveEffectivePermissions(roles, rolePermissions.rolePermissions),
-    [roles, rolePermissions.rolePermissions],
+  const sectionVisibilityOverrides = useMemo(
+    () => OPEN_MATRIX.sectionVisibilityOverrides ?? {},
+    [],
   );
 
-  useEffect(() => {
-    setCrmPermissionsRuntime({
-      ready,
-      email: operator?.email ?? user?.email ?? null,
-      roles,
-      permissions,
-    });
-  }, [ready, operator?.email, user?.email, roles, permissions]);
+  const readyForUser = !userLoading && ready;
 
   const value = useMemo<PermissionsContextValue>(
     () => ({
-      ready,
+      ready: readyForUser,
       operator,
       roles,
-      permissions,
-      rolePermissions,
-      hasPermission: (key) => hasPerm(permissions, key),
-      hasRole: (role) => roles.includes(role),
+      permissions: ALL_PERMISSIONS,
+      rolePermissions: OPEN_MATRIX,
+      sectionVisibilityOverrides,
+      hasPermission: (key) =>
+        CRM_PERMISSIONS_DISABLED ? true : hasPerm(ALL_PERMISSIONS, key),
+      hasRole: (role) =>
+        CRM_PERMISSIONS_DISABLED ? true : roles.includes(role),
+      canViewSection: (sectionId) =>
+        CRM_PERMISSIONS_DISABLED
+          ? true
+          : canViewSectionResolved(
+              sectionId,
+              ALL_PERMISSIONS,
+              sectionVisibilityOverrides,
+            ),
       requirePermission: (key) => {
-        if (!hasPerm(permissions, key)) {
+        if (CRM_PERMISSIONS_DISABLED) return;
+        if (!hasPerm(ALL_PERMISSIONS, key)) {
           showPermissionDenied();
           throw new CrmPermissionError();
         }
       },
       refresh,
     }),
-    [ready, operator, roles, permissions, rolePermissions, refresh],
+    [
+      readyForUser,
+      operator,
+      roles,
+      sectionVisibilityOverrides,
+      refresh,
+    ],
   );
 
   return (
@@ -150,13 +139,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function usePermissions(): PermissionsContextValue {
-  const ctx = useContext(PermissionsContext);
-  if (!ctx) {
-    throw new Error('usePermissions must be used within PermissionsProvider');
-  }
-  return ctx;
-}
+export { usePermissions };
 
 export function Can({
   permission,

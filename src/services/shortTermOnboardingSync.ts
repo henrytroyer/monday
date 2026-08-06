@@ -197,7 +197,8 @@ export function syncShortTermOnboarding(
     });
   }
 
-  // Pastor reference — email sent + board received
+  // Pastor reference — email sent; Received only when Contacts "Pastor Reference"
+  // connect column links a filled form item (pastorReference snapshot).
   const pastorSent = findFirstOutboundEmailDate(messages, 'pastor_reference');
   let pastorStep = steps.find((s) => s.stepId === 'pastor_reference');
   if (pastorStep) {
@@ -207,10 +208,16 @@ export function syncShortTermOnboarding(
         pastorStep,
         pastorReference.receivedDate ?? todayIso(),
       );
-    } else if (
-      detail.pastorReferenceFormFields.some((f) => f.answer.trim() !== '')
-    ) {
-      pastorStep = applyAsyncReceived(pastorStep, applicationReceivedAt ?? todayIso());
+    } else if (pastorStep.status === 'received') {
+      // Clear stale Received from localStorage / old status-column heuristics.
+      const sentDate = pastorStep.sentDate ?? pastorSent;
+      pastorStep = {
+        ...pastorStep,
+        status: sentDate ? 'waiting' : 'not_started',
+        sentDate,
+        waitingDate: sentDate ?? pastorStep.waitingDate,
+        receivedDate: undefined,
+      };
     }
     steps = updateStep(steps, 'pastor_reference', pastorStep);
   }

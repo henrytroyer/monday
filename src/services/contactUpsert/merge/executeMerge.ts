@@ -173,7 +173,7 @@ export async function executeMerge(
     const { changeMultipleColumnsByTitle } = await import(
       '../../mondayColumnWrite'
     );
-    const { appendAuditEvent } = await import('../../crmRbacBoard');
+    const { appendAuditEvent } = await import('../../crmAuditBoard');
 
     const mergeContacts = [survivor, ...losers];
     const fieldPlan = applyFieldMergeOverrides(

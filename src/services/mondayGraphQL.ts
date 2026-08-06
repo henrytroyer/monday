@@ -1,6 +1,6 @@
 import mondaySdk from 'monday-sdk-js';
-import { getCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
 import type { MondayResponse } from '../types/monday';
+import { resolveCrmOperatorEmail } from './crmOperatorEmail';
 import {
   getMondayProxyAuthToken,
   getMondayProxyBaseOverride,
@@ -44,10 +44,38 @@ function useMondayApiProxy(): boolean {
   return Boolean(resolveProxyBase());
 }
 
+function isTimeoutError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const name = 'name' in err ? String((err as { name?: unknown }).name) : '';
+  const message =
+    'message' in err ? String((err as { message?: unknown }).message) : '';
+  return name === 'TimeoutError' || /timed out after \d+ms/i.test(message);
+}
+
+/** True only for browser/SW aborts — NOT our own timeouts (those must not retry). */
+function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  if (isTimeoutError(err)) return false;
+  const name = 'name' in err ? String((err as { name?: unknown }).name) : '';
+  const message =
+    'message' in err ? String((err as { message?: unknown }).message) : '';
+  return (
+    name === 'AbortError' ||
+    /fetch was aborted|signal is aborted|aborted without reason|The user aborted/i.test(
+      message,
+    )
+  );
+}
+
 function proxyFetchError(err: unknown): Error {
-  if (err instanceof DOMException && err.name === 'TimeoutError') {
+  if (isTimeoutError(err)) {
     return new Error(
       'Could not reach the API proxy. Run `npm run monday:proxy` in a second terminal.',
+    );
+  }
+  if (isAbortError(err)) {
+    return new Error(
+      'Request was aborted (page reload or service worker update). Retrying usually works.',
     );
   }
   if (err instanceof TypeError) {
@@ -88,7 +116,7 @@ export async function mondayGraphQL<T>(
   if (useMondayApiProxy()) {
     const base = resolveProxyBase()!;
     const idToken = await getMondayProxyAuthToken();
-    const operatorEmail = getCrmPermissionsRuntime().email;
+    const operatorEmail = resolveCrmOperatorEmail();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -101,16 +129,54 @@ export async function mondayGraphQL<T>(
 
     const body = JSON.stringify({ query, variables, apiVersion });
 
+    // Own AbortController for timeouts only. Do not use AbortSignal.timeout —
+    // iOS/PWA can abort those during UI transitions. Never leave orphaned
+    // fetches after a timeout (Promise.race alone caused a retry storm).
+    async function postOnce(
+      hdrs: Record<string, string>,
+    ): Promise<Response> {
+      const controller = new AbortController();
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort('proxy-timeout');
+      }, PROXY_FETCH_TIMEOUT_MS);
+      try {
+        return await fetch(`${base}/graphql`, {
+          method: 'POST',
+          headers: hdrs,
+          body,
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if (timedOut || controller.signal.reason === 'proxy-timeout') {
+          throw new DOMException(
+            `Proxy fetch timed out after ${PROXY_FETCH_TIMEOUT_MS}ms`,
+            'TimeoutError',
+          );
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     let res: Response;
     try {
-      res = await fetch(`${base}/graphql`, {
-        method: 'POST',
-        headers,
-        body,
-        signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS),
-      });
+      res = await postOnce(headers);
     } catch (err) {
-      throw proxyFetchError(err);
+      if (isTimeoutError(err)) {
+        throw proxyFetchError(err);
+      }
+      if (isAbortError(err)) {
+        try {
+          res = await postOnce(headers);
+        } catch (retryErr) {
+          throw proxyFetchError(retryErr);
+        }
+      } else {
+        throw proxyFetchError(err);
+      }
     }
 
     // One refresh retry on 401 when using Firebase auth
@@ -118,17 +184,12 @@ export async function mondayGraphQL<T>(
       const refreshed = await getMondayProxyAuthToken(true);
       if (refreshed) {
         try {
-          res = await fetch(`${base}/graphql`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${refreshed}`,
-              ...(operatorEmail
-                ? { 'X-Crm-Operator-Email': operatorEmail }
-                : {}),
-            },
-            body,
-            signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS),
+          res = await postOnce({
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${refreshed}`,
+            ...(operatorEmail
+              ? { 'X-Crm-Operator-Email': operatorEmail }
+              : {}),
           });
         } catch (err) {
           throw proxyFetchError(err);

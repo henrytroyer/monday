@@ -248,6 +248,13 @@ export default function ContactProfileCard({
                 <span className="text-crm-slate">Not provided</span>
               )}
             </Field>
+            {detail.altEmail?.trim() ? (
+              <Field label="Alt Email">
+                <span className="font-medium text-crm-heading">
+                  {detail.altEmail}
+                </span>
+              </Field>
+            ) : null}
             <Field label="Phone">
               {editing ? (
                 <input

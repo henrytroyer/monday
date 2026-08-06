@@ -41,8 +41,26 @@ import {
   resolveVolunteerTermDateRange,
   type VolunteerTermDateRange,
 } from '../utils/volunteerTerm';
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
+function normalizeEmail(email: string | undefined | null): string {
+  if (!email) return '';
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed || trimmed === '—') return '';
+  return trimmed;
+}
+
+/** Primary + Alt Email addresses for matching parent/pastor links. */
+function contactMatchEmails(contact: {
+  email?: string;
+  altEmail?: string;
+}): Set<string> {
+  const emails = new Set<string>();
+  const primary = normalizeEmail(contact.email);
+  if (primary) emails.add(primary);
+  for (const part of (contact.altEmail ?? '').split(/[,;]/)) {
+    const email = normalizeEmail(part);
+    if (email) emails.add(email);
+  }
+  return emails;
 }
 
 function isStepComplete(value: string): boolean {
@@ -219,6 +237,7 @@ export function enrichContactDetail(
       keyof ContactListItem,
       | 'demographics'
       | 'tags'
+      | 'altEmail'
       | 'spouseName'
       | 'connectedTo'
       | 'pastorName'
@@ -229,6 +248,7 @@ export function enrichContactDetail(
 > {
   const base = mapItemToContactListItem(contactItem);
   const emailNorm = normalizeEmail(base.email);
+  const matchEmails = contactMatchEmails(base);
   const linkedAppIds = parseLinkedApplicationIds(contactItem.column_values);
 
   const serviceTerms: VolunteerTerm[] = [];
@@ -253,7 +273,9 @@ export function enrichContactDetail(
     const term = mapApplicationToTerm(app);
 
     const isVolunteerApp =
-      linkedAppIds.includes(app.id) || volunteerEmail === emailNorm;
+      linkedAppIds.includes(app.id) ||
+      (volunteerEmail !== '' && matchEmails.has(volunteerEmail)) ||
+      volunteerEmail === emailNorm;
 
     if (isVolunteerApp) {
       serviceTerms.push({ ...term, notes: [] });
@@ -267,7 +289,7 @@ export function enrichContactDetail(
       }
     }
 
-    if (parentEmail === emailNorm) {
+    if (parentEmail && matchEmails.has(parentEmail)) {
       isParentByEmail = true;
       linkedVolunteers.push({
         contactId: contactByEmail.get(volunteerEmail)?.id,
@@ -280,7 +302,7 @@ export function enrichContactDetail(
       });
     }
 
-    if (pastorEmail === emailNorm) {
+    if (pastorEmail && matchEmails.has(pastorEmail)) {
       isPastorByEmail = true;
       linkedVolunteers.push({
         contactId: contactByEmail.get(volunteerEmail)?.id,
@@ -292,6 +314,91 @@ export function enrichContactDetail(
         referenceStatus: term.pastorReferenceStatus,
         relationship: 'reference',
       });
+    }
+  }
+
+  // Fallbacks when app email columns don't match (merged Alt Email / name links).
+  if (base.tags.includes('parent') || base.tags.includes('pastor')) {
+    const seenNames = new Set(
+      linkedVolunteers.map((link) => link.volunteerName.trim().toLowerCase()),
+    );
+
+    const pushLinked = (
+      volunteer: ContactListItem,
+      relationship: 'child' | 'reference',
+      source: string,
+    ) => {
+      const key = volunteer.name.trim().toLowerCase();
+      if (!key || seenNames.has(key) || volunteer.id === base.id) return;
+      seenNames.add(key);
+      linkedVolunteers.push({
+        contactId: volunteer.id,
+        applicationItemId: `${source}:${volunteer.id}`,
+        volunteerName: volunteer.name,
+        timelineLabel: 'Connected volunteer',
+        status: '—',
+        pipelineStage: '—',
+        relationship,
+      });
+    };
+
+    // This contact's Connected to: lists volunteer names (e.g. Haley Wagler).
+    const connectedLabels = (base.connectedTo ?? '')
+      .split(/[,;]/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .filter(
+        (label) =>
+          label.toLowerCase() !== base.name.trim().toLowerCase() &&
+          !/^couple:/i.test(label),
+      );
+    for (const label of connectedLabels) {
+      const matched = allContacts.find(
+        (c) =>
+          c.id !== base.id &&
+          c.name.trim().toLowerCase() === label.toLowerCase() &&
+          c.tags.includes('volunteer'),
+      );
+      if (!matched) continue;
+      pushLinked(
+        matched,
+        base.tags.includes('parent') ? 'child' : 'reference',
+        'connected-to',
+      );
+    }
+
+    // Reverse: volunteers that name this person in Connected to: / pastor / spouse.
+    const selfNames = new Set(
+      [
+        base.name,
+        // Couple records like "Gary and Becky Wagler" — also match "Gary Wagler".
+        ...base.name.split(/\s+&\s+|\s+and\s+/i).map((part) => part.trim()),
+      ]
+        .map((name) => name.toLowerCase())
+        .filter(Boolean),
+    );
+    for (const volunteer of allContacts) {
+      if (!volunteer.tags.includes('volunteer') || volunteer.id === base.id) {
+        continue;
+      }
+      const haystack = [
+        volunteer.connectedTo,
+        volunteer.pastorName,
+        volunteer.spouseName,
+      ]
+        .filter(Boolean)
+        .join(' , ')
+        .toLowerCase();
+      if (!haystack) continue;
+      const mentions = [...selfNames].some(
+        (name) => name.length >= 3 && haystack.includes(name),
+      );
+      if (!mentions) continue;
+      pushLinked(
+        volunteer,
+        base.tags.includes('parent') ? 'child' : 'reference',
+        'reverse-link',
+      );
     }
   }
 

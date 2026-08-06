@@ -83,6 +83,80 @@ describe('syncShortTermOnboarding', () => {
     assert.equal(step?.sentDate, '2026-03-05');
   });
 
+  it('marks pastor reference received only from connect-column snapshot', () => {
+    const pipeline = createDefaultPipeline(baseVolunteer(), false);
+    const synced = syncShortTermOnboarding(pipeline, {
+      volunteer: baseVolunteer(),
+      detail: baseDetail(),
+      messages: [],
+      pastorReference: {
+        received: true,
+        receivedDate: '2026-06-20',
+        linkedItemId: 'pastor-ref-1',
+        linkFingerprint: 'pastor-ref-1',
+      },
+    });
+
+    const step = synced.steps.find((s) => s.stepId === 'pastor_reference');
+    assert.equal(step?.status, 'received');
+    assert.equal(step?.receivedDate, '2026-06-20');
+  });
+
+  it('clears stale pastor reference received when connect column has no link', () => {
+    const pipeline = createDefaultPipeline(baseVolunteer(), false);
+    const withStale = {
+      ...pipeline,
+      steps: pipeline.steps.map((step) =>
+        step.stepId === 'pastor_reference'
+          ? {
+              ...step,
+              status: 'received' as const,
+              sentDate: '2026-06-01',
+              waitingDate: '2026-06-01',
+              receivedDate: '2026-06-20',
+            }
+          : step,
+      ),
+    };
+
+    const synced = syncShortTermOnboarding(withStale, {
+      volunteer: baseVolunteer(),
+      detail: baseDetail(),
+      messages: [],
+      pastorReference: { received: false, linkFingerprint: '' },
+    });
+
+    const step = synced.steps.find((s) => s.stepId === 'pastor_reference');
+    assert.equal(step?.status, 'waiting');
+    assert.equal(step?.sentDate, '2026-06-01');
+    assert.equal(step?.receivedDate, undefined);
+  });
+
+  it('does not mark pastor received from pastor name/phone form fields alone', () => {
+    const pipeline = createDefaultPipeline(baseVolunteer(), false);
+    const detail = {
+      ...baseDetail(),
+      pastorReferenceFormFields: [
+        { id: '1', question: 'Pastor Name', answer: 'Rev Smith' },
+        { id: '2', question: 'Pastor Phone', answer: '555-0100' },
+      ],
+      onboardingSteps: [
+        { title: 'Pastor Reference', status: 'Complete' },
+      ],
+    };
+
+    const synced = syncShortTermOnboarding(pipeline, {
+      volunteer: baseVolunteer(),
+      detail,
+      messages: [],
+      // No connect-column snapshot → must stay not received.
+    });
+
+    const step = synced.steps.find((s) => s.stepId === 'pastor_reference');
+    assert.notEqual(step?.status, 'received');
+    assert.equal(step?.receivedDate, undefined);
+  });
+
   it('auto-fills flight info from itinerary', () => {
     const pipeline = createDefaultPipeline(baseVolunteer(), false);
     const synced = syncShortTermOnboarding(pipeline, {

@@ -87,6 +87,33 @@ describe('merge grouping and classify', () => {
     assert.ok(classified.reviewReasons.includes('EXACT_EMAIL_DIFF_NAME'));
   });
 
+  it('unrelated names sharing email are ignored (not suggested)', () => {
+    const groups = findDuplicateGroupCandidates([
+      contact({
+        id: '1',
+        name: 'Clarence and Erla',
+        email: 'shared@example.com',
+        phone: '+1 519 638 2592',
+      }),
+      contact({
+        id: '2',
+        name: 'Kristalyn Martin',
+        email: 'shared@example.com',
+        phone: '+1 519 500 0366',
+        demographics: {
+          address: '18 Caroline Street',
+          city: 'Moorefield',
+          state: 'ON',
+          zip: 'N0G 2K0',
+          country: 'CA',
+        },
+      }),
+    ]);
+    const classified = classifyDuplicateGroup(groups[0]!);
+    assert.equal(classified.disposition, 'ignore');
+    assert.ok(classified.reviewReasons.includes('UNRELATED_NAMES'));
+  });
+
   it('Wagler solo vs couple same email goes to review', () => {
     const groups = findDuplicateGroupCandidates([
       contact({

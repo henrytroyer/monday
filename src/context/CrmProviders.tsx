@@ -1,23 +1,24 @@
 /**
  * CrmProviders.tsx — Self-contained CRM providers for Admin embed + standalone.
  *
- * deploy-monday-crm rebuilds hosting with the monday clone but does not always
- * ship i58finance MondayProjectAdmin changes. Dashboard must not require the
- * host to wrap PermissionsProvider.
+ * Mounted from App at site start so CurrentUser spools before the Dashboard shell.
  */
 
 import type { ReactNode } from 'react';
+import { useWorkFocus } from '../hooks/useWorkFocus';
 import { CurrentUserProvider } from './CurrentUserContext';
-import { PermissionsProvider } from './PermissionsContext';
-import PermissionDeniedToast from '../permissions/PermissionDeniedToast';
+
+/** Keeps work-focus cache warm for cold-start landing page seeding. */
+function WorkFocusSync() {
+  useWorkFocus();
+  return null;
+}
 
 export default function CrmProviders({ children }: { children: ReactNode }) {
   return (
     <CurrentUserProvider>
-      <PermissionsProvider>
-        {children}
-        <PermissionDeniedToast />
-      </PermissionsProvider>
+      <WorkFocusSync />
+      {children}
     </CurrentUserProvider>
   );
 }
