@@ -122,6 +122,40 @@ async function sendViaSmtp({ from, to, cc, bcc, subject, html, text, replyTo }) 
   return { provider: 'smtp', id: info.messageId || null };
 }
 
+/** Comma-separated domains allowed as From (default i58global.org). */
+function allowedFromDomains() {
+  const raw =
+    process.env.EMAIL_FROM_ALLOWED_DOMAINS?.trim() || 'i58global.org';
+  return new Set(
+    raw
+      .split(/[,;]+/)
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+function extractEmailAddress(value) {
+  const raw = String(value || '').trim();
+  const angle = raw.match(/<([^>]+)>/);
+  return (angle?.[1] || raw).trim().toLowerCase();
+}
+
+function assertAllowedFromAddress(fromAddress) {
+  const email = extractEmailAddress(fromAddress);
+  const at = email.lastIndexOf('@');
+  if (at < 1) {
+    throw new Error(`Invalid From address: ${fromAddress}`);
+  }
+  const domain = email.slice(at + 1);
+  if (!allowedFromDomains().has(domain)) {
+    throw new Error(
+      `From domain "${domain}" is not allowed. Set EMAIL_FROM_ALLOWED_DOMAINS or use an approved address.`,
+    );
+  }
+}
+
+const MAX_RECIPIENTS = Number(process.env.EMAIL_MAX_RECIPIENTS || 25);
+
 /**
  * @param {{
  *   to: string|string[],
@@ -149,10 +183,17 @@ export async function sendOutboundEmail(input) {
   if (!html) throw new Error('Email body is required');
 
   const fromAddress = (input.from || getEmailFromAddress()).trim();
+  assertAllowedFromAddress(fromAddress);
   const fromName = getEmailFromName();
   const from = fromName ? `${fromName} <${fromAddress}>` : fromAddress;
   const cc = splitAddresses(input.cc);
   const bcc = splitAddresses(input.bcc);
+  const recipientCount = to.length + cc.length + bcc.length;
+  if (recipientCount > MAX_RECIPIENTS) {
+    throw new Error(
+      `Too many recipients (${recipientCount}). Max is ${MAX_RECIPIENTS}.`,
+    );
+  }
   const text = input.text ? String(input.text) : undefined;
   const replyTo = input.replyTo?.trim() || undefined;
 

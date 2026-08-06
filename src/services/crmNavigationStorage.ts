@@ -8,8 +8,13 @@ const VALID_PAGES = new Set<PageId>([
   'applications',
   'recruitment',
   'longterm-applications',
-  'email',
+  'email-templates',
+  'email-campaigns',
   'history',
+  'users',
+  'user-settings',
+  'roles-permissions',
+  'audit-log',
   'forms',
   'automations',
 ]);
@@ -26,7 +31,10 @@ export interface CrmNavigationState {
 }
 
 function normalizePageId(value: string): PageId | null {
-  const migrated = value === 'email-templates' ? 'email' : value;
+  const migrated =
+    value === 'email' || value === 'email-control'
+      ? 'email-templates'
+      : value;
   return isPageId(migrated) ? migrated : null;
 }
 
@@ -40,9 +48,8 @@ function migrateWorkspaces(
   if (!workspaces) return {};
   const raw = workspaces as Record<string, CrmPageWorkspaceState | undefined>;
   const next: CrmNavigationState['workspaces'] = { ...workspaces };
-  if (raw['email-templates']) {
-    next.email = raw['email-templates'];
-    delete raw['email-templates'];
+  if (raw.email && !raw['email-templates']) {
+    next['email-templates'] = raw.email;
   }
   return next;
 }
@@ -99,7 +106,15 @@ export function patchCrmNavigationState(
 }
 
 export function getInitialActivePage(): PageId {
-  return readCrmNavigationState()?.activePage ?? 'applications';
+  const saved = readCrmNavigationState()?.activePage;
+  if (saved) return saved;
+  try {
+    const preferred = localStorage.getItem('crm-user-default-landing-v1');
+    if (preferred && isPageId(preferred)) return preferred;
+  } catch {
+    // ignore
+  }
+  return 'contacts';
 }
 
 export function getInitialMountedPages(): Set<PageId> {
@@ -109,7 +124,10 @@ export function getInitialMountedPages(): Set<PageId> {
   if (!saved) return initial;
 
   for (const [page, workspace] of Object.entries(saved.workspaces)) {
-    const normalized = page === 'email-templates' ? 'email' : page;
+    const normalized =
+      page === 'email' || page === 'email-control'
+        ? 'email-templates'
+        : page;
     if (isPageId(normalized) && workspace?.detailOpen) {
       initial.add(normalized);
     }

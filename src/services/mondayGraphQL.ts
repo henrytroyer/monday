@@ -1,4 +1,5 @@
 import mondaySdk from 'monday-sdk-js';
+import { getCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
 import type { MondayResponse } from '../types/monday';
 import {
   getMondayProxyAuthToken,
@@ -56,11 +57,15 @@ export async function mondayGraphQL<T>(
   if (useMondayApiProxy()) {
     const base = resolveProxyBase()!;
     const idToken = await getMondayProxyAuthToken();
+    const operatorEmail = getCrmPermissionsRuntime().email;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
     if (idToken) {
       headers.Authorization = `Bearer ${idToken}`;
+    }
+    if (operatorEmail) {
+      headers['X-Crm-Operator-Email'] = operatorEmail;
     }
 
     let res: Response;
@@ -85,6 +90,9 @@ export async function mondayGraphQL<T>(
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${refreshed}`,
+              ...(operatorEmail
+                ? { 'X-Crm-Operator-Email': operatorEmail }
+                : {}),
             },
             body: JSON.stringify({ query, variables }),
             signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS),

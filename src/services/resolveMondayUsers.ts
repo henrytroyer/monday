@@ -4,6 +4,7 @@ interface MondayUserRow {
   id: string;
   name?: string | null;
   email?: string | null;
+  photo_thumb?: string | null;
 }
 
 interface MeQueryResult {
@@ -19,6 +20,7 @@ const ME_QUERY = `query {
     id
     name
     email
+    photo_thumb
   }
 }`;
 
@@ -56,6 +58,7 @@ export interface CurrentMondayUser {
   id: string;
   name: string;
   email?: string;
+  photoUrl?: string;
 }
 
 /** Cross-request cache so History pagination reuses resolved names. */
@@ -98,7 +101,12 @@ export async function fetchCurrentMondayUser(): Promise<CurrentMondayUser | null
     const name = displayNameFromUser(me);
     if (!name) return null;
     rememberUser(me);
-    return { id: String(me.id), name, email: me.email?.trim() || undefined };
+    return {
+      id: String(me.id),
+      name,
+      email: me.email?.trim() || undefined,
+      photoUrl: me.photo_thumb?.trim() || undefined,
+    };
   } catch {
     return null;
   }

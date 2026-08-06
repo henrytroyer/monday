@@ -188,15 +188,46 @@ Profile / Passport (and spouse slots) copy onto Contacts file columns through th
 ### UI
 
 - Contacts page → **Sync contacts** (recently updated items; cursor in `localStorage`)
+- Contacts page → **Full sync** (backfill all boards — use for cutover)
 - Sidebar → **Contact matches** for fuzzy/ambiguous approvals
-- After a full backfill, disable monday contact-create automations and Make file recipes
+- Board watcher (when `VITE_MONDAY_WATCH_ENABLED=true`) also refreshes recent CSE items onto Contacts
+
+### Update rules
+
+- Default upsert **fills gaps** (existing non-empty wins) and **unions tags**
+- Empty incoming values never wipe existing fields
+- **Current Service Ended** refresh prefers newer non-empty values and re-syncs Profile/Passport (`force`)
+
+### Cutover checklist (disable Monday automations + Make)
+
+Do this **after** verifying Sync contacts on a few known people (ST apply, spouse, new pastor, CSE, LT volunteer/parents/pastor, donation).
+
+1. **Local / staging verify**
+   - Run `npm run dev:live` (Vite + Monday proxy on `:4040` / `:4042`)
+   - Contacts → **Sync contacts** on recent items; open Match Review if any fuzzy hits
+   - Confirm Profile/Passport landed on Contacts without Make
+2. **Full backfill**
+   - Contacts → **Full sync** once (or when boards are quiet)
+   - Resolve remaining items in **Contact matches**
+3. **Disable Monday contact-create automations**
+   - On Applications / LT / Donations / CSE boards: turn off any automation that **creates** a Contacts item when a form is submitted or status changes
+   - Leave relation/status automations that do not create Contacts alone
+4. **Pause Make.com file-copy scenario**
+   - Pause the scenario that downloads Profile/Passport from Applications and uploads to Contacts
+   - CRM native path: `src/services/contactUpsert/syncContactFiles.ts` via Monday API proxy
+5. **QBO**
+   - Income watcher already upserts donors by email, then unique exact name (`server/mondayDonorSync.mjs`)
+   - No separate Make donor-create needed
+6. **Rollback**
+   - Re-enable Monday create automations and Make if native sync misbehaves
+   - Contacts already created by CRM remain; re-running Full sync is safe (fill-gaps + match tiers)
 
 ### Code map
 
 - `src/services/contactUpsert/contactMatch.ts` — match tiers  
 - `src/services/contactUpsert/contactUpsert.ts` — create/update/queue review  
 - `src/services/contactUpsert/ingestApplicationBundle.ts` — ST/LT/CSE people + files  
-- `src/services/contactUpsert/runContactIngest.ts` — board orchestrator  
+- `src/services/contactUpsert/runContactIngest.ts` — board orchestrator + CSE refresh  
 
 ## OAuth
 

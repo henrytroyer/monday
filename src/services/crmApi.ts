@@ -1263,6 +1263,14 @@ export async function syncOnboardingStepToMonday(
 ): Promise<void> {
   assertApplicationsWritable('update onboarding step');
 
+  if (stepId === 'child_safeguarding' && complete) {
+    const { markSafeguardingReceivedOnApplication } = await import(
+      './safeguardingWrite'
+    );
+    await markSafeguardingReceivedOnApplication(itemId, { boardId });
+    return;
+  }
+
   const stepToColumn: Record<string, keyof typeof columnMap> = {
     application_received: 'applicationSubmitted',
     pastor_reference: 'pastorReference',

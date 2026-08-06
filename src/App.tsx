@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { CurrentUserProvider } from './context/CurrentUserContext';
 import { LayoutProvider } from './context/LayoutContext';
 import { NavigationHistoryProvider } from './context/NavigationHistoryContext';
+import { PermissionsProvider } from './context/PermissionsContext';
+import PermissionDeniedToast from './permissions/PermissionDeniedToast';
 import Dashboard from './pages/Dashboard';
 import OAuthCallback from './pages/OAuthCallback';
 
@@ -23,9 +25,12 @@ function App() {
   return (
     <LayoutProvider>
       <CurrentUserProvider>
-        <NavigationHistoryProvider>
-          <Dashboard />
-        </NavigationHistoryProvider>
+        <PermissionsProvider>
+          <NavigationHistoryProvider>
+            <Dashboard />
+            <PermissionDeniedToast />
+          </NavigationHistoryProvider>
+        </PermissionsProvider>
       </CurrentUserProvider>
     </LayoutProvider>
   );

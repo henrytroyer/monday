@@ -37,6 +37,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * Firebase Admin embeds this app under parent styles that restore browser
+ * list bullets (Contacts, Files, mailbox, recruitment checklists). Tailwind
+ * preflight alone loses there. Reset UI lists under #root; content lists are
+ * restored below with matching #root specificity.
+ */
+#root ul,
+#root ol {
+  list-style: none !important;
+  margin: 0;
+  padding: 0;
+}
+
 h1,
 h2,
 h3,
@@ -82,18 +95,22 @@ h4 {
   margin-top: 1rem;
 }
 
-.email-body-content--plain > ul,
-.email-body-content--plain > ol {
+#root .email-body-content--plain > ul,
+#root .email-body-content--plain > ol {
   margin-top: 0.75rem;
   padding-left: 1.35rem;
 }
 
-.email-body-content--plain > ul {
-  list-style: disc;
+#root .email-body-content--plain > ul,
+#root .list-disc {
+  list-style: disc !important;
+  padding-left: 1.35rem;
 }
 
-.email-body-content--plain > ol {
-  list-style: decimal;
+#root .email-body-content--plain > ol,
+#root .list-decimal {
+  list-style: decimal !important;
+  padding-left: 1.35rem;
 }
 
 .email-body-content a {
@@ -119,18 +136,18 @@ h4 {
   margin-top: 1rem;
 }
 
-.email-body-content--html ul,
-.email-body-content--html ol {
+#root .email-body-content--html ul,
+#root .email-body-content--html ol {
   margin: 0.85rem 0;
   padding-left: 1.35rem;
 }
 
-.email-body-content--html ul {
-  list-style: disc;
+#root .email-body-content--html ul {
+  list-style: disc !important;
 }
 
-.email-body-content--html ol {
-  list-style: decimal;
+#root .email-body-content--html ol {
+  list-style: decimal !important;
 }
 
 .email-body-content--html blockquote {
@@ -173,13 +190,21 @@ h4 {
   margin: 0 0 0.75rem;
 }
 
-.email-rich-editor ul,
-.email-rich-editor ol {
+#root .email-rich-editor ul,
+#root .email-rich-editor ol {
   margin: 0 0 0.75rem 1.25rem;
   padding: 0;
 }
 
-.email-rich-editor li {
+#root .email-rich-editor ul {
+  list-style: disc !important;
+}
+
+#root .email-rich-editor ol {
+  list-style: decimal !important;
+}
+
+#root .email-rich-editor li {
   margin-bottom: 0.35rem;
 }
 

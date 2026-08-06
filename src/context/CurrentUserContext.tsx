@@ -1,8 +1,25 @@
+/**
+ * CurrentUserContext.tsx — Signed-in CRM operator (Admin session, local override, or monday me).
+ */
+
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useMockData } from '../config/boards';
 import { TEAM_MEMBERS } from '../data/mockTeamMembers';
 import { useMondayContext } from '../hooks/useMondayContext';
+import {
+  applyOperatorProfileOverlay,
+  subscribeOperatorProfileOverlay,
+} from '../services/crmOperatorProfile';
+import {
+  getCrmSessionUser,
+  subscribeCrmSessionUser,
+} from '../services/crmSessionUser';
+import {
+  getLocalUserOverride,
+  isLocalUserOverrideEnabled,
+  subscribeLocalUserOverride,
+} from '../services/crmLocalUserOverride';
 import {
   fetchCurrentMondayUser,
   type CurrentMondayUser,
@@ -12,12 +29,15 @@ interface CurrentUserContextValue {
   user: CurrentMondayUser | null;
   displayName: string;
   isLoading: boolean;
+  /** True on localhost when the operator picker is available. */
+  canSwitchLocalUser: boolean;
 }
 
 const CurrentUserContext = createContext<CurrentUserContextValue>({
   user: null,
   displayName: 'Coordinator',
   isLoading: true,
+  canSwitchLocalUser: false,
 });
 
 function mockDefaultUser(): CurrentMondayUser {
@@ -34,6 +54,19 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   const { context } = useMondayContext();
   const [user, setUser] = useState<CurrentMondayUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionTick, setSessionTick] = useState(0);
+  const [localTick, setLocalTick] = useState(0);
+  const [profileTick, setProfileTick] = useState(0);
+
+  useEffect(() => subscribeCrmSessionUser(() => setSessionTick((n) => n + 1)), []);
+  useEffect(
+    () => subscribeLocalUserOverride(() => setLocalTick((n) => n + 1)),
+    [],
+  );
+  useEffect(
+    () => subscribeOperatorProfileOverlay(() => setProfileTick((n) => n + 1)),
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -41,9 +74,27 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
     async function load() {
       setIsLoading(true);
 
+      const localOverride = getLocalUserOverride();
+      if (localOverride) {
+        if (!cancelled) {
+          setUser(applyOperatorProfileOverlay(localOverride));
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      const session = getCrmSessionUser();
+      if (session?.id) {
+        if (!cancelled) {
+          setUser(applyOperatorProfileOverlay(session));
+          setIsLoading(false);
+        }
+        return;
+      }
+
       if (isMock) {
         if (!cancelled) {
-          setUser(mockDefaultUser());
+          setUser(applyOperatorProfileOverlay(mockDefaultUser()));
           setIsLoading(false);
         }
         return;
@@ -53,16 +104,18 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
 
       if (me) {
-        setUser(me);
+        setUser(applyOperatorProfileOverlay(me));
         setIsLoading(false);
         return;
       }
 
       if (context?.userId != null) {
-        setUser({
-          id: String(context.userId),
-          name: `User ${context.userId}`,
-        });
+        setUser(
+          applyOperatorProfileOverlay({
+            id: String(context.userId),
+            name: `User ${context.userId}`,
+          }),
+        );
       } else {
         setUser(null);
       }
@@ -74,13 +127,14 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [isMock, context?.userId]);
+  }, [isMock, context?.userId, sessionTick, localTick, profileTick]);
 
   const value = useMemo<CurrentUserContextValue>(
     () => ({
       user,
       displayName: user?.name?.trim() || 'Coordinator',
       isLoading,
+      canSwitchLocalUser: isLocalUserOverrideEnabled(),
     }),
     [user, isLoading],
   );

@@ -2,7 +2,9 @@ import {
   canEditContacts,
   useMockData,
 } from '../config/boards';
+import { getCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
 import type { ContactDetail, ContactListItem, ContactTag } from '../types/contact';
+import { filterContactForPermissions } from '../utils/filterContactForPermissions';
 import { aggregateContactEmailCorrespondence } from './contactEmailAggregation';
 import {
   getPendingIncomingDonations,
@@ -357,6 +359,12 @@ async function resolveContactChildSafeguardingFile(
   }
 }
 
+function applyContactPermissionFilter(detail: ContactDetail): ContactDetail {
+  const { ready, permissions } = getCrmPermissionsRuntime();
+  if (!ready) return detail;
+  return filterContactForPermissions(detail, permissions);
+}
+
 export async function fetchContactDetail(
   contactId: string,
   options?: ContactsFetchOptions & { refresh?: boolean },
@@ -374,7 +382,7 @@ export async function fetchContactDetail(
         'This contact was compiled from other boards and is not on the Contacts board yet.',
       );
     }
-    return buildCompiledContactDetail(listItem);
+    return applyContactPermissionFilter(buildCompiledContactDetail(listItem));
   }
 
   if (useMockData()) {
@@ -408,14 +416,14 @@ export async function fetchContactDetail(
         serviceTerms,
       }));
 
-    return {
+    return applyContactPermissionFilter({
       ...detail,
       childSafeguardingFile:
         detail.childSafeguardingFile ??
         childSafeguardingFromMockFiles(detail.files),
       emailCorrespondence,
       serviceTerms,
-    };
+    });
   }
 
   const cacheKey = contactDetailCacheKey(contactId, {
@@ -474,10 +482,14 @@ export async function fetchContactDetail(
     (term) => !isRecruitmentServiceTerm(term),
   );
 
+  const { ready: permsReady, permissions } = getCrmPermissionsRuntime();
+  const canViewDonations =
+    !permsReady || permissions.has('finance.donations.view');
+
   const donationsBoardId = options?.donationsBoardId;
   let mondayDonations: Awaited<ReturnType<typeof fetchContactDonationsFromMonday>> =
     [];
-  if (donationsBoardId) {
+  if (donationsBoardId && canViewDonations) {
     try {
       mondayDonations = await fetchContactDonationsFromMonday({
         boardId: donationsBoardId,
@@ -492,7 +504,7 @@ export async function fetchContactDetail(
   const qboIncomeSyncEnabled = useQboIncomeSyncFromMonday();
   let quickbooksDonations: Awaited<ReturnType<typeof fetchContactFinancials>> =
     [];
-  if (!qboIncomeSyncEnabled) {
+  if (!qboIncomeSyncEnabled && canViewDonations) {
     try {
       quickbooksDonations = await fetchContactFinancials({
         email: base.email,
@@ -555,8 +567,9 @@ export async function fetchContactDetail(
     }
   }
 
-  setCachedContactDetail(cacheKey, result);
-  return result;
+  const filtered = applyContactPermissionFilter(result);
+  setCachedContactDetail(cacheKey, filtered);
+  return filtered;
 }
 
 export async function updateContactCoreFieldsApi(

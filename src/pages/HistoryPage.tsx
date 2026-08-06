@@ -3,6 +3,7 @@ import HistoryFilters from '../components/history/HistoryFilters';
 import ActivityLogList from '../components/history/ActivityLogList';
 import { useGlobalActivityLog } from '../hooks/useGlobalActivityLog';
 import {
+  canUndoActivityEvent,
   describeUndo,
   undoActivityEvent,
 } from '../services/undoActivityEvent';
@@ -94,7 +95,7 @@ export default function HistoryPage({
   };
 
   const handleUndo = async (event: CrmActivityEvent) => {
-    if (!event.undoable) return;
+    if (!event.undoable || !canUndoActivityEvent(event)) return;
 
     const confirmed = window.confirm(describeUndo(event));
     if (!confirmed) return;

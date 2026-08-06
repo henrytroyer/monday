@@ -65,6 +65,11 @@ export interface ContactUpsertInput extends IncomingPersonIdentity {
   forceContactId?: string;
   /** When true, create even if fuzzy match exists (review rejected). */
   forceCreate?: boolean;
+  /**
+   * When true, non-empty incoming values replace existing (CSE refresh).
+   * Default false = fill gaps only (existing wins when both set).
+   */
+  preferIncoming?: boolean;
 }
 
 export type ContactUpsertAction =
@@ -80,7 +85,20 @@ export interface ContactUpsertResult {
   message: string;
 }
 
-function preferNonEmpty(
+/** Fill gaps: keep existing when set; never wipe with empty. */
+function fillGap(
+  existing: string | undefined,
+  incoming: string | undefined,
+): string | undefined {
+  const e = existing?.trim();
+  const i = incoming?.trim();
+  if (e) return e;
+  if (i) return i;
+  return undefined;
+}
+
+/** Prefer newer non-empty incoming (CSE); never wipe with empty. */
+function preferIncomingValue(
   existing: string | undefined,
   incoming: string | undefined,
 ): string | undefined {
@@ -91,17 +109,29 @@ function preferNonEmpty(
   return undefined;
 }
 
+function mergeField(
+  existing: string | undefined,
+  incoming: string | undefined,
+  preferIncoming: boolean,
+): string | undefined {
+  return preferIncoming
+    ? preferIncomingValue(existing, incoming)
+    : fillGap(existing, incoming);
+}
+
 function mergeDemographics(
   existing?: ContactListDemographics,
   incoming?: ContactListDemographics,
+  preferIncoming = false,
 ): ContactListDemographics | undefined {
   if (!existing && !incoming) return undefined;
+  const pick = preferIncoming ? preferIncomingValue : fillGap;
   const merged = {
-    address: preferNonEmpty(existing?.address, incoming?.address),
-    city: preferNonEmpty(existing?.city, incoming?.city),
-    state: preferNonEmpty(existing?.state, incoming?.state),
-    zip: preferNonEmpty(existing?.zip, incoming?.zip),
-    country: preferNonEmpty(existing?.country, incoming?.country),
+    address: pick(existing?.address, incoming?.address),
+    city: pick(existing?.city, incoming?.city),
+    state: pick(existing?.state, incoming?.state),
+    zip: pick(existing?.zip, incoming?.zip),
+    country: pick(existing?.country, incoming?.country),
   };
   if (
     !merged.address &&
@@ -195,17 +225,25 @@ async function applyUpdate(
     return applyCreate(input);
   }
 
+  const preferIncoming = Boolean(input.preferIncoming);
   const tags = mergeTags(existing.tags, input.tags);
-  const name = preferNonEmpty(existing.name, input.name) || existing.name;
+  const name =
+    mergeField(existing.name, input.name, preferIncoming) || existing.name;
   const email =
-    preferNonEmpty(
+    mergeField(
       normalizeEmail(existing.email) ?? undefined,
       normalizeEmail(input.email) ?? undefined,
+      preferIncoming,
     ) || existing.email;
-  const phone = preferNonEmpty(existing.phone, input.phone ?? undefined);
+  const phone = mergeField(
+    existing.phone,
+    input.phone ?? undefined,
+    preferIncoming,
+  );
   const demographics = mergeDemographics(
     existing.demographics,
     input.demographics,
+    preferIncoming,
   );
 
   await updateContactFieldsOnMonday(boardId, existing.id, {
@@ -376,14 +414,20 @@ export async function upsertContactPerson(
 export async function appendConnectedToLabel(
   contactId: string,
   label: string,
+  existingConnectedTo?: string,
 ): Promise<void> {
   if (useMockData() || !canEditContacts()) return;
   const boardId = resolveContactsBoardId();
   if (!boardId || !label.trim()) return;
+  const existing = (existingConnectedTo ?? '')
+    .split(/[,;]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const merged = [...new Set([...existing, label.trim()])].join(', ');
   await changeColumnByTitle(
     boardId,
     contactId,
     contactMap.connectedTo,
-    label.trim(),
+    merged,
   ).catch(() => undefined);
 }

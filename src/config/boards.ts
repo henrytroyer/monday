@@ -1,4 +1,9 @@
 import type { MondayContext } from '../types/monday';
+import {
+  crmPermissionsReady,
+  hasCrmPermission,
+} from '../permissions/crmPermissionsRuntime';
+import type { PermissionKey } from '../permissions/permissionKeys';
 import { getMondayProxyBaseOverride } from '../services/mondayProxyAuth';
 
 export function useMockData(): boolean {
@@ -9,10 +14,17 @@ export function isMondayReadOnly(): boolean {
   return import.meta.env.VITE_MONDAY_READ_ONLY === 'true';
 }
 
+/** Portal Things RBAC gate layered on top of env soft role + board flags. */
+function allowsPermission(key: PermissionKey): boolean {
+  if (!crmPermissionsReady()) return true;
+  return hasCrmPermission(key);
+}
+
 /** Live contact profile + tag writes (independent of Applications-board read-only guard). */
 export function canEditContacts(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
+  if (!allowsPermission('contacts.edit')) return false;
   if (import.meta.env.VITE_CONTACTS_WRITABLE === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -21,6 +33,7 @@ export function canEditContacts(): boolean {
 export function canEditApplications(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
+  if (!allowsPermission('hr.applications.edit')) return false;
   if (import.meta.env.VITE_APPLICATIONS_WRITABLE === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -29,6 +42,12 @@ export function canEditApplications(): boolean {
 export function canAddApplicationNotes(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
+  if (
+    !allowsPermission('hr.confidential_notes.edit') &&
+    !allowsPermission('hr.applications.edit')
+  ) {
+    return false;
+  }
   if (import.meta.env.VITE_APPLICATION_NOTES_WRITABLE === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -163,7 +182,11 @@ export function resolveEmailTemplatesBoardId(): string | null {
 /** Email template writes on the Email Templates board. */
 export function canEditEmailTemplates(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleAllowsWrite()) return false;
+  if (crmPermissionsReady()) {
+    if (!hasCrmPermission('communications.email.templates.manage')) return false;
+  } else if (!crmRoleIsAdmin()) {
+    return false;
+  }
   if (import.meta.env.VITE_EMAIL_TEMPLATES_WRITABLE === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -172,6 +195,7 @@ export function canEditEmailTemplates(): boolean {
 export function canEditLongtermReferences(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
+  if (!allowsPermission('hr.longterm.edit')) return false;
   if (import.meta.env.VITE_LONGTERM_REFERENCES_WRITABLE === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -179,7 +203,16 @@ export function canEditLongtermReferences(): boolean {
 /** Donations board create/update. */
 export function canEditDonations(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleAllowsWrite()) return false;
+  if (crmPermissionsReady()) {
+    if (
+      !hasCrmPermission('finance.donations.create') &&
+      !hasCrmPermission('finance.donations.edit')
+    ) {
+      return false;
+    }
+  } else if (!crmRoleIsAdmin()) {
+    return false;
+  }
   if (import.meta.env.VITE_DONATIONS_WRITABLE === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -188,6 +221,12 @@ export function canEditDonations(): boolean {
 export function canEditSafeguarding(): boolean {
   if (useMockData()) return true;
   if (!crmRoleAllowsWrite()) return false;
+  if (
+    !allowsPermission('hr.documents.upload') &&
+    !allowsPermission('hr.edit')
+  ) {
+    return false;
+  }
   if (import.meta.env.VITE_SAFEGUARDING_WRITABLE === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -218,8 +257,14 @@ export function resolveCrmRole(): CrmRole {
   return 'admin';
 }
 
+/** Any non-viewer role may write coordinator-scoped boards. */
 function crmRoleAllowsWrite(): boolean {
   return resolveCrmRole() !== 'viewer';
+}
+
+/** Admin-only writes (donations ingest, email template CRUD). */
+export function crmRoleIsAdmin(): boolean {
+  return resolveCrmRole() === 'admin' || useMockData();
 }
 
 export function contactsBoardName(): string {

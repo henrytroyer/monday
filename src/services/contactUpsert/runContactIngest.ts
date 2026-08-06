@@ -19,7 +19,10 @@ import {
   extractServiceEndedBundle,
   extractShortTermBundle,
 } from './extractPeopleFromBoards';
-import { ingestApplicationBundle } from './ingestApplicationBundle';
+import {
+  ingestApplicationBundle,
+  type BundleIngestResult,
+} from './ingestApplicationBundle';
 import { upsertContactPerson, type ContactUpsertResult } from './contactUpsert';
 import { countPendingContactMatchReviews } from './contactMatchReviewStorage';
 
@@ -248,4 +251,61 @@ export async function upsertDonorViaEngine(input: {
     tags: ['donor'],
     createdAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Refresh Contacts from a single Current Service Ended item (move / CSE ingest).
+ * Applies newer non-empty fields and re-syncs Profile/Passport when present.
+ */
+export async function refreshContactFromServiceEndedItem(
+  item: MondayBoardItem,
+  contacts?: ContactListItem[],
+): Promise<BundleIngestResult> {
+  const working =
+    contacts ??
+    (await fetchContactsList({
+      applicationsBoardId: resolveApplicationsBoardId(),
+      longtermApplicationsBoardId: resolveLongtermApplicationsBoardId(),
+      serviceEndedBoardId: resolveServiceEndedBoardId(),
+      donationsBoardId: resolveDonationsBoardId(),
+      refresh: true,
+    }));
+  const bundle = extractServiceEndedBundle(item);
+  return ingestApplicationBundle(bundle, working);
+}
+
+/** Lightweight CSE refresh for the board watcher (recently updated items only). */
+export async function refreshRecentServiceEndedContacts(): Promise<{
+  scanned: number;
+  created: number;
+  updated: number;
+  queuedReview: number;
+}> {
+  const cseBoardId = resolveServiceEndedBoardId();
+  if (!cseBoardId || useMockData()) {
+    return { scanned: 0, created: 0, updated: 0, queuedReview: 0 };
+  }
+
+  const since = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+  const items = filterRecentItems(
+    await fetchApplicationsBoardItems(cseBoardId),
+    since,
+  );
+  const working = await fetchContactsList({
+    serviceEndedBoardId: cseBoardId,
+    refresh: true,
+  }).catch(() => [] as ContactListItem[]);
+
+  let created = 0;
+  let updated = 0;
+  let queuedReview = 0;
+  for (const item of items) {
+    const result = await refreshContactFromServiceEndedItem(item, working);
+    for (const entry of result.results) {
+      if (entry.action === 'created') created += 1;
+      else if (entry.action === 'updated') updated += 1;
+      else if (entry.action === 'queued_review') queuedReview += 1;
+    }
+  }
+  return { scanned: items.length, created, updated, queuedReview };
 }

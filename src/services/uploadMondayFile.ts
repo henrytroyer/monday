@@ -5,6 +5,7 @@
 
 import { canEditApplications, useMockData } from '../config/boards';
 import { columnMap } from '../config/columnMap';
+import { getCrmPermissionsRuntime } from '../permissions/crmPermissionsRuntime';
 import {
   fetchWriteBoardColumns,
   findBoardColumnByTitle,
@@ -105,6 +106,8 @@ export async function uploadFileToApplicationColumn(
   };
   const token = getCachedMondayProxyAuthToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  const operatorEmail = getCrmPermissionsRuntime().email;
+  if (operatorEmail) headers['X-Crm-Operator-Email'] = operatorEmail;
 
   const res = await fetch(`${proxyBase()}/assets/upload`, {
     method: 'POST',

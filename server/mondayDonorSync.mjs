@@ -293,6 +293,32 @@ export async function findContactByEmail(email) {
   return null;
 }
 
+/**
+ * Exact full-name match when unique (same tier as CRM contactUpsert).
+ * @param {string} displayName
+ */
+export async function findContactByExactNameUnique(displayName) {
+  const boardId = contactsBoardId();
+  if (!boardId) return null;
+  const target = displayName?.trim().toLowerCase();
+  if (!target) return null;
+
+  const matches = [];
+  let cursor = null;
+  do {
+    const page = await fetchItemsPage(boardId, [], 100, cursor);
+    for (const item of page.items) {
+      if ((item.name ?? '').trim().toLowerCase() === target) {
+        matches.push(item);
+        if (matches.length > 1) return null;
+      }
+    }
+    cursor = page.cursor;
+  } while (cursor);
+
+  return matches[0] ?? null;
+}
+
 /** @param {string} qboKey */
 export async function findDonationByQboKey(qboKey) {
   const boardId = donationsBoardId();
@@ -764,10 +790,14 @@ export async function syncIncomeTransaction(txn) {
     };
   }
 
-  // Donor upsert: email exact match (same primary tier as CRM contactUpsert),
-  // then create with Donor tag. Full fuzzy Match Review lives in the CRM UI.
+  // Donor upsert mirrors CRM contactUpsert strong tiers (email → unique exact name).
+  // Fuzzy Match Review stays in the CRM UI only.
   let contact = await findContactByEmail(txn.customerEmail);
   let contactCreated = false;
+
+  if (!contact && txn.customerName?.trim()) {
+    contact = await findContactByExactNameUnique(txn.customerName);
+  }
 
   if (!contact) {
     contact = await createContactFromQbo({

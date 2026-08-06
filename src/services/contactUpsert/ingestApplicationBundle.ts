@@ -21,6 +21,7 @@ export interface BundleIngestResult {
 async function syncFilesForPerson(
   contactId: string,
   person: ExtractedPerson,
+  options?: { force?: boolean },
 ): Promise<void> {
   const boardId = resolveContactsBoardId();
   if (!boardId || !person.files?.length) return;
@@ -43,6 +44,7 @@ async function syncFilesForPerson(
       slot,
       sourceAssetId: file.assetId,
       sourceFileName: file.fileName,
+      force: options?.force,
     }).catch(() => undefined);
   }
 }
@@ -57,6 +59,8 @@ export async function ingestApplicationBundle(
 ): Promise<BundleIngestResult> {
   const results: ContactUpsertResult[] = [];
   const pastorContactIds: string[] = [];
+  const isCseRefresh = bundle.sourceLabel === 'service-ended';
+  const preferIncoming = isCseRefresh;
 
   const currentPastor = bundle.newPastor ?? bundle.pastor;
 
@@ -72,6 +76,7 @@ export async function ingestApplicationBundle(
       zip: bundle.volunteer.demographics?.zip,
       source: bundle.sourceLabel,
       sourceItemId: bundle.sourceItemId,
+      preferIncoming,
       pastorOnVolunteer: currentPastor
         ? {
             name: currentPastor.name,
@@ -107,7 +112,9 @@ export async function ingestApplicationBundle(
     const idx = contacts.findIndex((c) => c.id === volunteerResult.contact!.id);
     if (idx >= 0) contacts[idx] = volunteerResult.contact;
     else contacts.push(volunteerResult.contact);
-    await syncFilesForPerson(volunteerResult.contact.id, bundle.volunteer);
+    await syncFilesForPerson(volunteerResult.contact.id, bundle.volunteer, {
+      force: isCseRefresh,
+    });
   }
 
   if (bundle.parents) {
@@ -119,6 +126,7 @@ export async function ingestApplicationBundle(
         tags: bundle.parents.tags,
         source: bundle.sourceLabel,
         sourceItemId: bundle.sourceItemId,
+        preferIncoming,
         connectedToLabels: volunteerContactId
           ? [bundle.volunteer.name]
           : undefined,
@@ -143,6 +151,7 @@ export async function ingestApplicationBundle(
         tags: bundle.pastor.tags,
         source: bundle.sourceLabel,
         sourceItemId: bundle.sourceItemId,
+        preferIncoming,
         connectedToLabels: [bundle.volunteer.name],
       },
       contacts,
@@ -165,6 +174,7 @@ export async function ingestApplicationBundle(
         tags: bundle.newPastor.tags,
         source: bundle.sourceLabel,
         sourceItemId: `${bundle.sourceItemId}:new-pastor`,
+        preferIncoming,
         connectedToLabels: [bundle.volunteer.name],
       },
       contacts,
@@ -218,6 +228,7 @@ export async function ingestApplicationBundle(
         tags: bundle.spouse.tags,
         source: bundle.sourceLabel,
         sourceItemId: `${bundle.sourceItemId}:spouse`,
+        preferIncoming,
         connectedToLabels: [bundle.volunteer.name],
         spouseOnVolunteer: {
           name: bundle.volunteer.name,
@@ -232,7 +243,9 @@ export async function ingestApplicationBundle(
       const idx = contacts.findIndex((c) => c.id === spouseResult.contact!.id);
       if (idx >= 0) contacts[idx] = spouseResult.contact;
       else contacts.push(spouseResult.contact);
-      await syncFilesForPerson(spouseResult.contact.id, bundle.spouse);
+      await syncFilesForPerson(spouseResult.contact.id, bundle.spouse, {
+        force: isCseRefresh,
+      });
     }
 
     // Couple merge: cross-link volunteer ↔ spouse on Connected to:

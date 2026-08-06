@@ -283,6 +283,12 @@ export default function ContactsPage({
   };
 
   const handleSyncContacts = async (full = false) => {
+    if (full) {
+      const ok = window.confirm(
+        'Run a full Contacts backfill from all source boards? This may take several minutes and will create/update many Contacts items.',
+      );
+      if (!ok) return;
+    }
     setSyncingContacts(true);
     setSyncMessage(null);
     try {
@@ -294,7 +300,7 @@ export default function ContactsPage({
         `Donations ${summary.scanned.donations}`,
       ];
       setSyncMessage(
-        `Synced ${parts.join(' · ')} — created ${summary.created}, updated ${summary.updated}, review ${summary.queuedReview}${
+        `${full ? 'Full sync' : 'Synced'} ${parts.join(' · ')} — created ${summary.created}, updated ${summary.updated}, review ${summary.queuedReview}${
           summary.errors.length ? ` · ${summary.errors.length} error(s)` : ''
         }.`,
       );
@@ -374,9 +380,18 @@ export default function ContactsPage({
                   onClick={() => void handleSyncContacts(false)}
                   disabled={syncingContacts || loading || !contactsEditable}
                   className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-                  title="Upsert volunteers, parents, pastors, spouses, and donors onto the Contacts board"
+                  title="Upsert recently updated volunteers, parents, pastors, spouses, and donors onto the Contacts board"
                 >
                   {syncingContacts ? 'Syncing…' : 'Sync contacts'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSyncContacts(true)}
+                  disabled={syncingContacts || loading || !contactsEditable}
+                  className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                  title="Full backfill from all source boards (cutover)"
+                >
+                  Full sync
                 </button>
                 <button
                   type="button"

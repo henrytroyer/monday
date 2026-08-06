@@ -30,6 +30,19 @@ export async function pollMondayBoardUpdates(): Promise<WatchPollResult | null> 
     itemLimitPerBoard: 100,
   });
 
+  // CSE move refresh: upsert recent Service Ended items onto Contacts.
+  try {
+    const { refreshRecentServiceEndedContacts } = await import(
+      './contactUpsert/runContactIngest'
+    );
+    const cse = await refreshRecentServiceEndedContacts();
+    if (cse.queuedReview > 0 && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('crm-contact-match-review'));
+    }
+  } catch {
+    // Non-fatal — note harvest still succeeds.
+  }
+
   writeWatchCursors({
     lastRunAt: new Date().toISOString(),
     knownUpdateIds: cursors.knownUpdateIds,

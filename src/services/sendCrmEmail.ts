@@ -3,6 +3,10 @@
  */
 
 import {
+  getCrmPermissionsRuntime,
+  requireCrmPermission,
+} from '../permissions/crmPermissionsRuntime';
+import {
   getMondayProxyAuthToken,
   getMondayProxyBaseOverride,
 } from './mondayProxyAuth';
@@ -58,6 +62,8 @@ async function proxyFetch(
     ...(init?.headers as Record<string, string> | undefined),
   };
   if (idToken) headers.Authorization = `Bearer ${idToken}`;
+  const operatorEmail = getCrmPermissionsRuntime().email;
+  if (operatorEmail) headers['X-Crm-Operator-Email'] = operatorEmail;
 
   try {
     return await fetch(`${base}${path}`, {
@@ -92,6 +98,7 @@ export async function fetchEmailSendStatus(): Promise<EmailSendStatus> {
 export async function sendCrmEmail(
   params: SendCrmEmailParams,
 ): Promise<SendCrmEmailResult> {
+  requireCrmPermission('communications.email.send');
   try {
     const status = await fetchEmailSendStatus();
     if (!status.configured) {

@@ -18,6 +18,16 @@ import type { CrmActivityEvent } from '../types/activityLog';
 import { mutations } from '../utils/mondayQueries';
 import { mondayGraphQL } from './mondayGraphQL';
 
+/** Whether History may show Undo for this event (same gates as the undo mutation). */
+export function canUndoActivityEvent(event: CrmActivityEvent): boolean {
+  try {
+    assertUndoAllowed(event);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function assertUndoAllowed(event: CrmActivityEvent): void {
   if (isMondayReadOnly() && !canEditContacts() && !canEditApplications()) {
     throw new Error('CRM is read-only: cannot undo changes.');

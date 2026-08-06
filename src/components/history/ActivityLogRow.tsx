@@ -7,6 +7,7 @@ import {
   resolveActivityAutomation,
   type ResolvedActivityAutomation,
 } from '../../services/resolveActivityAutomation';
+import { canUndoActivityEvent } from '../../services/undoActivityEvent';
 import type { CrmActivityCategory, CrmActivityEvent } from '../../types/activityLog';
 
 const CATEGORY_STYLES: Record<CrmActivityCategory, string> = {
@@ -62,7 +63,9 @@ export default function ActivityLogRow({
         : event.entityType === 'recruitment'
           ? 'Open prospect'
           : 'Open';
-  const canUndo = Boolean(onUndo && event.undoable);
+  const canUndo = Boolean(
+    onUndo && event.undoable && canUndoActivityEvent(event),
+  );
   const [showAutomation, setShowAutomation] = useState(false);
   const [resolved, setResolved] = useState<ResolvedActivityAutomation | null>(
     null,

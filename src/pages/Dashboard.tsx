@@ -1,7 +1,12 @@
+/**
+ * Dashboard.tsx — CRM shell with permission-gated pages.
+ */
+
 import { lazy, Suspense, useEffect, useState } from 'react';
 import AppSidebar from '../components/layout/AppSidebar';
-import { type PageId } from '../constants/navItems';
+import { permissionForPage, type PageId } from '../constants/navItems';
 import KeepAlivePage from '../components/layout/KeepAlivePage';
+import PermissionGate from '../components/shared/PermissionGate';
 import { useLayout } from '../context/LayoutContext';
 import { useMondayBoardWatcher } from '../hooks/useMondayBoardWatcher';
 import {
@@ -12,10 +17,15 @@ import {
 
 const ApplicationsPage = lazy(() => import('./ApplicationsPage'));
 const ContactsPage = lazy(() => import('./ContactsPage'));
-const EmailAdminPage = lazy(() => import('./EmailAdminPage'));
+const EmailTemplatesPage = lazy(() => import('./EmailTemplatesPage'));
+const EmailCampaignsPage = lazy(() => import('./EmailCampaignsPage'));
 const HistoryPage = lazy(() => import('./HistoryPage'));
 const RecruitmentPage = lazy(() => import('./RecruitmentPage'));
 const LongtermApplicationsPage = lazy(() => import('./LongtermApplicationsPage'));
+const CrmUsersPage = lazy(() => import('./CrmUsersPage'));
+const UserSettingsPage = lazy(() => import('./UserSettingsPage'));
+const RolesPermissionsPage = lazy(() => import('./RolesPermissionsPage'));
+const AuditLogPage = lazy(() => import('./AuditLogPage'));
 
 export default function Dashboard() {
   const [activePage, setActivePage] = useState<PageId>(getInitialActivePage);
@@ -44,7 +54,6 @@ export default function Dashboard() {
   }, [activePage]);
 
   const goToPage = (id: PageId) => {
-    // Mount before switching so focus effects can run on first visit.
     setMountedPages((prev) => {
       if (prev.has(id)) return prev;
       return new Set(prev).add(id);
@@ -87,10 +96,12 @@ export default function Dashboard() {
           mounted={mountedPages.has('applications')}
         >
           <Suspense fallback={<PageLoadFallback label="Applications" />}>
-            <ApplicationsPage
-              focusApplicationId={applicationFocusId}
-              onClearFocus={() => setApplicationFocusId(null)}
-            />
+            <PermissionGate permission={permissionForPage('applications')}>
+              <ApplicationsPage
+                focusApplicationId={applicationFocusId}
+                onClearFocus={() => setApplicationFocusId(null)}
+              />
+            </PermissionGate>
           </Suspense>
         </KeepAlivePage>
 
@@ -99,12 +110,14 @@ export default function Dashboard() {
           mounted={mountedPages.has('contacts')}
         >
           <Suspense fallback={<PageLoadFallback label="Contacts" />}>
-            <ContactsPage
-              focusContactId={contactFocusId}
-              onClearFocus={() => setContactFocusId(null)}
-              onGoToRecruitment={handleGoToRecruitment}
-              onGoToApplication={handleGoToApplication}
-            />
+            <PermissionGate permission={permissionForPage('contacts')}>
+              <ContactsPage
+                focusContactId={contactFocusId}
+                onClearFocus={() => setContactFocusId(null)}
+                onGoToRecruitment={handleGoToRecruitment}
+                onGoToApplication={handleGoToApplication}
+              />
+            </PermissionGate>
           </Suspense>
         </KeepAlivePage>
 
@@ -113,25 +126,37 @@ export default function Dashboard() {
           mounted={mountedPages.has('history')}
         >
           <Suspense fallback={<PageLoadFallback label="History" />}>
-            <HistoryPage
-              onNavigate={handleNavigate}
-              onFocusApplication={handleGoToApplication}
-              onFocusRecruitment={handleGoToRecruitment}
-              onFocusContact={handleGoToContact}
-              onFocusLongtermApplication={handleGoToLongtermApplication}
-            />
+            <PermissionGate permission={permissionForPage('history')}>
+              <HistoryPage
+                onNavigate={handleNavigate}
+                onFocusApplication={handleGoToApplication}
+                onFocusRecruitment={handleGoToRecruitment}
+                onFocusContact={handleGoToContact}
+                onFocusLongtermApplication={handleGoToLongtermApplication}
+              />
+            </PermissionGate>
           </Suspense>
         </KeepAlivePage>
 
         <KeepAlivePage
-          active={activePage === 'email'}
-          mounted={mountedPages.has('email')}
+          active={activePage === 'email-templates'}
+          mounted={mountedPages.has('email-templates')}
         >
-          <Suspense fallback={<PageLoadFallback label="Email control" />}>
-            <EmailAdminPage
-              onOpenApplication={handleGoToApplication}
-              onOpenContact={handleGoToContact}
-            />
+          <Suspense fallback={<PageLoadFallback label="Email templates" />}>
+            <PermissionGate permission={permissionForPage('email-templates')}>
+              <EmailTemplatesPage />
+            </PermissionGate>
+          </Suspense>
+        </KeepAlivePage>
+
+        <KeepAlivePage
+          active={activePage === 'email-campaigns'}
+          mounted={mountedPages.has('email-campaigns')}
+        >
+          <Suspense fallback={<PageLoadFallback label="Email campaigns" />}>
+            <PermissionGate permission={permissionForPage('email-campaigns')}>
+              <EmailCampaignsPage />
+            </PermissionGate>
           </Suspense>
         </KeepAlivePage>
 
@@ -140,10 +165,12 @@ export default function Dashboard() {
           mounted={mountedPages.has('recruitment')}
         >
           <Suspense fallback={<PageLoadFallback label="Recruitment" />}>
-            <RecruitmentPage
-              focusProspectId={recruitmentFocusId}
-              onClearFocus={() => setRecruitmentFocusId(null)}
-            />
+            <PermissionGate permission={permissionForPage('recruitment')}>
+              <RecruitmentPage
+                focusProspectId={recruitmentFocusId}
+                onClearFocus={() => setRecruitmentFocusId(null)}
+              />
+            </PermissionGate>
           </Suspense>
         </KeepAlivePage>
 
@@ -152,10 +179,48 @@ export default function Dashboard() {
           mounted={mountedPages.has('longterm-applications')}
         >
           <Suspense fallback={<PageLoadFallback label="Long-term applications" />}>
-            <LongtermApplicationsPage
-              focusApplicationId={longtermFocusId}
-              onClearFocus={() => setLongtermFocusId(null)}
-            />
+            <PermissionGate permission={permissionForPage('longterm-applications')}>
+              <LongtermApplicationsPage
+                focusApplicationId={longtermFocusId}
+                onClearFocus={() => setLongtermFocusId(null)}
+              />
+            </PermissionGate>
+          </Suspense>
+        </KeepAlivePage>
+
+        <KeepAlivePage
+          active={activePage === 'users'}
+          mounted={mountedPages.has('users')}
+        >
+          <Suspense fallback={<PageLoadFallback label="Users" />}>
+            <CrmUsersPage />
+          </Suspense>
+        </KeepAlivePage>
+
+        <KeepAlivePage
+          active={activePage === 'user-settings'}
+          mounted={mountedPages.has('user-settings')}
+        >
+          <Suspense fallback={<PageLoadFallback label="User settings" />}>
+            <UserSettingsPage />
+          </Suspense>
+        </KeepAlivePage>
+
+        <KeepAlivePage
+          active={activePage === 'roles-permissions'}
+          mounted={mountedPages.has('roles-permissions')}
+        >
+          <Suspense fallback={<PageLoadFallback label="Roles & permissions" />}>
+            <RolesPermissionsPage />
+          </Suspense>
+        </KeepAlivePage>
+
+        <KeepAlivePage
+          active={activePage === 'audit-log'}
+          mounted={mountedPages.has('audit-log')}
+        >
+          <Suspense fallback={<PageLoadFallback label="Audit log" />}>
+            <AuditLogPage />
           </Suspense>
         </KeepAlivePage>
 
@@ -163,20 +228,24 @@ export default function Dashboard() {
           active={activePage === 'forms'}
           mounted={mountedPages.has('forms')}
         >
-          <PlaceholderPage
-            title="Forms"
-            description="Application forms and references"
-          />
+          <PermissionGate permission="settings.view">
+            <PlaceholderPage
+              title="Forms"
+              description="Application forms and references"
+            />
+          </PermissionGate>
         </KeepAlivePage>
 
         <KeepAlivePage
           active={activePage === 'automations'}
           mounted={mountedPages.has('automations')}
         >
-          <PlaceholderPage
-            title="Automations"
-            description="Workflow and email automations"
-          />
+          <PermissionGate permission="settings.view">
+            <PlaceholderPage
+              title="Automations"
+              description="Workflow and email automations"
+            />
+          </PermissionGate>
         </KeepAlivePage>
       </main>
     </div>

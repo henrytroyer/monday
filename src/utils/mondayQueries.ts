@@ -572,11 +572,13 @@ export const formatColumnValue = (value: any, columnType: string): string => {
         phone: String(value ?? ''),
         countryShortName: '',
       });
+    // Text columns expect a JSON-encoded string: "\"hello\"" — not { text }.
     case 'text':
+      return JSON.stringify(String(value ?? ''));
     case 'long_text':
-      return JSON.stringify({ text: value });
+      return JSON.stringify({ text: String(value ?? '') });
     default:
-      return JSON.stringify({ text: value });
+      return JSON.stringify(String(value ?? ''));
   }
 };
 

@@ -9,7 +9,8 @@ export type NavPage =
   | 'contacts'
   | 'recruitment'
   | 'longterm-applications'
-  | 'email'
+  | 'email-templates'
+  | 'email-campaigns'
   | 'history'
   | 'forms'
   | 'automations';

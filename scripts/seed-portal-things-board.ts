@@ -19,7 +19,13 @@ dotenv.config();
 const dryRun = process.argv.includes('--dry-run');
 const BOARD_NAME = process.env.VITE_PORTAL_THINGS_BOARD_NAME || 'Portal Things';
 
-const GROUPS = ['Onboarding', 'Recruitment', 'Config'] as const;
+const GROUPS = [
+  'Onboarding',
+  'Recruitment',
+  'Config',
+  'Operators',
+  'Audit',
+] as const;
 
 const COLUMNS: Array<{ title: string; type: string }> = [
   { title: 'Kind', type: 'status' },
