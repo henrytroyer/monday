@@ -38,8 +38,7 @@
     "seed:portal-things": "tsx scripts/seed-portal-things-board.ts",
     "seed:crm-rbac": "tsx scripts/seed-crm-rbac.ts",
     "normalize:parent-tags": "tsx scripts/normalize-parent-tags.ts",
-    "import:communications-docs": "tsx scripts/import-communications-docs.ts",
-    "import:donors-xls": "tsx --import ./scripts/lib/loadEnvAndViteMeta.ts scripts/import-donors-xls.ts"
+    "import:communications-docs": "tsx scripts/import-communications-docs.ts"
   },
   "dependencies": {
     "@mailchimp/mailchimp_marketing": "^3.0.80",
