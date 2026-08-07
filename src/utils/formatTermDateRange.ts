@@ -26,7 +26,7 @@ export function formatTermDateRangeLabel(term: VolunteerTerm): string | undefine
 export function formatEndOfServiceReviewLabel(
   completedAt?: string,
 ): string {
-  if (!completedAt?.trim()) return 'No review on file';
+  if (!completedAt?.trim()) return 'No exit survey on file';
   const formatted = formatDisplayDate(completedAt) ?? completedAt;
-  return `Review completed ${formatted}`;
+  return `Left field ${formatted}`;
 }

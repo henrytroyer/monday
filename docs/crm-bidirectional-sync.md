@@ -9,11 +9,11 @@ Monday boards are the **only source of truth** for product data. The CRM (Admin 
 3. **Conflicts** — Last successful Monday write wins. Optimistic UI is allowed, then reconcile from GraphQL.
 4. **No local-only product state** — Onboarding / recruitment / signatures live on the **Portal Things** board (see [crm-portal-things.md](./crm-portal-things.md)). LT reference sent/review, contacts, donations, safeguarding, service-ended / EOS helpers write their domain boards. `localStorage` is only for caches, watermarks, and ephemeral note-review queues.
 5. **Acceptance** — Edit in CRM → see in monday.com; edit in monday.com → refocus CRM → value matches.
-6. **Roles** — Soft `VITE_CRM_ROLE` (`viewer` / `coordinator` / `admin`); see [crm-permissions.md](./crm-permissions.md).
+6. **Access** — Who can open Monday Project is the i58finance Admin allowlist. Inside the CRM, allowlisted operators have full open access. Board write toggles below still apply for read-only deploys.
 
 ## Write flags
 
-See [`.env.example`](../.env.example): `VITE_CONTACTS_WRITABLE`, `VITE_APPLICATIONS_WRITABLE`, `VITE_APPLICATION_NOTES_WRITABLE`, `VITE_LONGTERM_REFERENCES_WRITABLE`, `VITE_DONATIONS_WRITABLE`, `VITE_SAFEGUARDING_WRITABLE`, `VITE_EMAIL_TEMPLATES_WRITABLE`, `VITE_PORTAL_THINGS_WRITABLE`, plus soft `VITE_CRM_ROLE` (`viewer` | `coordinator` | `admin`).
+See [`.env.example`](../.env.example): `VITE_CONTACTS_WRITABLE`, `VITE_APPLICATIONS_WRITABLE`, `VITE_APPLICATION_NOTES_WRITABLE`, `VITE_LONGTERM_REFERENCES_WRITABLE`, `VITE_DONATIONS_WRITABLE`, `VITE_SAFEGUARDING_WRITABLE`, `VITE_EMAIL_TEMPLATES_WRITABLE`, `VITE_PORTAL_THINGS_WRITABLE`.
 
 Production values are baked in i58finance `deploy-monday-crm.yml` / `deploy-prod.yml`.
 

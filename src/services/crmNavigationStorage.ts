@@ -36,7 +36,7 @@ export interface CrmNavigationState {
 }
 
 function normalizePageId(value: string): PageId | null {
-  // Removed RBAC pages — send stale bookmarks to Contacts.
+  // Legacy Users / Roles bookmarks → Contacts.
   if (value === 'users' || value === 'roles-permissions') {
     return 'contacts';
   }

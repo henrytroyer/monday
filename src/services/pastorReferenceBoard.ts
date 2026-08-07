@@ -1,19 +1,36 @@
 /**
- * pastorReferenceBoard.ts — Detect pastor-reference form receipt via the
- * Contacts board "Pastor Reference" connect (board_relation) column.
+ * pastorReferenceBoard.ts — Pastors Reference 2.0 board fetch + Contacts matching.
+ *
+ * Received detection still prefers Contacts → Pastor Reference connect links;
+ * when that column is empty we match form items by contact link, application
+ * link, or applicant name so CRM can surface forms that exist on the board.
  */
 
 import { columnMap } from '../config/columnMap';
-import { useMockData } from '../config/boards';
+import {
+  resolvePastorReferenceBoardId,
+  useMockData,
+} from '../config/boards';
+import { pastorReferenceMap } from '../config/pastorReferenceMap';
+import { contactMap } from '../config/contactMap';
+import type { ContactPastorReference } from '../types/contact';
 import { buildPastorReferenceBoardFormFields } from './applicationFormFields';
+import { writeBoardRelationByTitle } from './boardRelationWrite';
+import { canEditContacts } from '../config/boards';
 import { fetchApplicationItem, fetchContactItem } from './crmApi';
 import {
+  parseLinkedApplicationIds,
   parseLinkedPastorReferenceItemIds,
 } from './mapMondayToContact';
 import {
-  parseLinkedBoardRelationIds,
-} from './mondayFileColumns';
+  matchPastorReferenceItemsForContact,
+  mergePastorReferenceWithMatches,
+  type PastorReferenceBoardItem,
+} from './matchPastorReferences';
+import { parseLinkedBoardRelationIds } from './mondayFileColumns';
 import type { MondayColumnValue } from './mapMondayToCrm';
+import { mondayGraphQL as api } from './mondayGraphQL';
+import { queries } from '../utils/mondayQueries';
 
 export interface PastorReferenceReceivedSnapshot {
   received: boolean;
@@ -22,6 +39,12 @@ export interface PastorReferenceReceivedSnapshot {
   /** Fingerprint of linked pastor-reference item ids (for change watching). */
   linkFingerprint?: string;
 }
+
+let boardItemsCache:
+  | { boardId: string; items: PastorReferenceBoardItem[]; fetchedAt: number }
+  | null = null;
+
+const BOARD_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function findColumnByTitle(
   columnValues: MondayColumnValue[] | undefined,
@@ -79,9 +102,112 @@ async function snapshotFromLinkedItem(
   };
 }
 
+export function invalidatePastorReferenceBoardCache(): void {
+  boardItemsCache = null;
+}
+
+export async function fetchPastorReferenceBoardItems(
+  options?: { refresh?: boolean },
+): Promise<PastorReferenceBoardItem[]> {
+  const boardId = resolvePastorReferenceBoardId();
+  if (!boardId) return [];
+
+  if (
+    !options?.refresh &&
+    boardItemsCache &&
+    boardItemsCache.boardId === boardId &&
+    Date.now() - boardItemsCache.fetchedAt < BOARD_CACHE_TTL_MS
+  ) {
+    return boardItemsCache.items;
+  }
+
+  const limit = 500;
+  let cursor: string | null = null;
+  const allItems: PastorReferenceBoardItem[] = [];
+
+  type PageResponse = {
+    boards: Array<{
+      items_page: {
+        cursor: string | null;
+        items: PastorReferenceBoardItem[];
+      };
+    }>;
+  };
+
+  do {
+    const data: PageResponse = await api<PageResponse>(
+      queries.getBoardItemsPage,
+      {
+        boardId: [boardId],
+        limit,
+        cursor: cursor ?? undefined,
+      },
+    );
+    const page = data.boards?.[0]?.items_page;
+    if (!page?.items?.length) break;
+    allItems.push(...page.items);
+    cursor = page.cursor || null;
+  } while (cursor);
+
+  boardItemsCache = { boardId, items: allItems, fetchedAt: Date.now() };
+  return allItems;
+}
+
+export async function matchPastorReferencesForContact(input: {
+  contactId: string;
+  contactName: string;
+  applicationItemIds?: string[];
+  existingPastorReference?: ContactPastorReference;
+  /** When true and Contacts are writable, persist new links onto the connect column. */
+  persistLinks?: boolean;
+  contactsBoardId?: string | null;
+}): Promise<ContactPastorReference | undefined> {
+  if (useMockData()) {
+    return input.existingPastorReference;
+  }
+
+  const items = await fetchPastorReferenceBoardItems().catch(() => []);
+  const matched = matchPastorReferenceItemsForContact(items, {
+    contactId: input.contactId,
+    contactName: input.contactName,
+    applicationItemIds: input.applicationItemIds,
+  });
+
+  const merged = mergePastorReferenceWithMatches(
+    input.existingPastorReference,
+    matched,
+  );
+
+  if (
+    input.persistLinks &&
+    input.contactsBoardId &&
+    canEditContacts() &&
+    merged?.linkedItemIds?.length
+  ) {
+    const existing = new Set(input.existingPastorReference?.linkedItemIds ?? []);
+    const missing = merged.linkedItemIds.filter((id) => !existing.has(id));
+    if (missing.length > 0) {
+      try {
+        await writeBoardRelationByTitle(
+          input.contactsBoardId,
+          input.contactId,
+          contactMap.pastorReferenceLink,
+          merged.linkedItemIds,
+          { quiet: true },
+        );
+      } catch {
+        // Soft-link in CRM still succeeds when Monday write is blocked.
+      }
+    }
+  }
+
+  return merged;
+}
+
 /**
  * Received when the Contacts "Pastor Reference" connect column links at least
- * one pastor-reference board item that has substantive form answers.
+ * one pastor-reference board item that has substantive form answers — or when
+ * a matching Pastors Reference 2.0 form is found for the contact.
  */
 export async function fetchPastorReferenceReceivedSnapshot(
   applicationItemId: string,
@@ -104,12 +230,32 @@ export async function fetchPastorReferenceReceivedSnapshot(
 
   const contactsCol = findColumnByTitle(columnValues, columnMap.contactsLink);
   const contactItemId = parseLinkedBoardRelationIds(contactsCol)[0];
-  if (!contactItemId) {
-    return { received: false, linkFingerprint: '' };
+
+  let linkedItemIds: string[] = [];
+  let contactName = '';
+  let applicationIds = [applicationItemId];
+
+  if (contactItemId) {
+    const contact = await fetchContactItem(contactItemId);
+    contactName = contact.name ?? '';
+    linkedItemIds = parseLinkedPastorReferenceItemIds(contact.column_values);
+    applicationIds = [
+      ...new Set([
+        ...applicationIds,
+        ...parseLinkedApplicationIds(contact.column_values),
+      ]),
+    ];
   }
 
-  const contact = await fetchContactItem(contactItemId);
-  const linkedItemIds = parseLinkedPastorReferenceItemIds(contact.column_values);
+  if (linkedItemIds.length === 0 && contactItemId) {
+    const matched = await matchPastorReferencesForContact({
+      contactId: contactItemId,
+      contactName,
+      applicationItemIds: applicationIds,
+    });
+    linkedItemIds = matched?.linkedItemIds ?? [];
+  }
+
   const linkFingerprint = linkedItemIds.slice().sort().join(',');
 
   if (linkedItemIds.length === 0) {
@@ -123,12 +269,12 @@ export async function fetchPastorReferenceReceivedSnapshot(
     }
   }
 
-  // Connect column has links, but form answers are not filled yet.
   return { received: false, linkFingerprint };
 }
 
-/** Env hint for optional dedicated pastor reference board polling. */
+/** Env / resolved board id for Pastors Reference 2.0. */
 export function pastorReferenceBoardId(): string | undefined {
-  const raw = import.meta.env.VITE_PASTOR_REFERENCE_BOARD_ID as string | undefined;
-  return raw?.trim() || undefined;
+  return resolvePastorReferenceBoardId() ?? undefined;
 }
+
+export { pastorReferenceMap };

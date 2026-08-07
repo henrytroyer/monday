@@ -11,7 +11,10 @@ import {
   resolveProfilePhotoUrl,
 } from './mondayFileColumns';
 import { getColumnPhone } from '../utils/phoneFormat';
-import { readMondayDateColumnText } from '../utils/formatDateOfBirth';
+import {
+  normalizeDateOfBirth,
+  readMondayDateColumnText,
+} from '../utils/formatDateOfBirth';
 import type { MondayColumnValue } from './mapMondayToCrm';
 import {
   contactTagsUseSimpleColumnValue,
@@ -72,6 +75,21 @@ const CONTACT_COLUMN_ALIASES: Partial<
   state: ['State/Providence', 'State/Province', 'State', 'Province'],
   zip: ['Zip Code', 'Zip', 'Postal Code', 'Postcode'],
   country: ['Country'],
+  /** Applications / Service Ended use Birthdate; Contacts may use either title. */
+  dateOfBirth: [
+    'Date of birth',
+    'Birthdate',
+    'BirthDate',
+    'Birth Date',
+    'Birthday',
+    'DOB',
+  ],
+  pastorReferenceLink: [
+    'link to Pastors Reference(2.0)',
+    'Pastor Reference',
+    'Pastors Reference',
+    'link to Pastors Reference',
+  ],
 };
 
 function titlesForField(fieldKey: keyof typeof contactMap): string[] {
@@ -317,6 +335,9 @@ function mapListDemographics(
   let state = getColumnText(columnValues, 'state') || undefined;
   let zip = getColumnText(columnValues, 'zip') || undefined;
   let country = getColumnText(columnValues, 'country') || undefined;
+  const dateOfBirth =
+    normalizeDateOfBirth(getContactColumnDateText(columnValues, 'dateOfBirth')) ||
+    undefined;
 
   // Fill gaps from a Monday location column (e.g. "z Mailing Address").
   if (!address || !city || !state || !zip || !country) {
@@ -333,11 +354,18 @@ function mapListDemographics(
     country = country || fromLocation.country;
   }
 
-  if (!address && !city && !state && !zip && !country) {
+  if (!address && !city && !state && !zip && !country && !dateOfBirth) {
     return undefined;
   }
 
-  return { address, city, state, zip, country };
+  return {
+    address,
+    city,
+    state,
+    zip,
+    country,
+    ...(dateOfBirth ? { dateOfBirth } : {}),
+  };
 }
 
 export function mapItemToContactListItem(item: MondayContactItem): ContactListItem {
@@ -356,6 +384,10 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
   const tags = [...new Set([...storedTags, ...relationTags])];
   const altEmail =
     getColumnText(item.column_values, 'altEmail') || undefined;
+  const altPhone =
+    getColumnText(item.column_values, 'altPhone') || undefined;
+  const altAddress =
+    getColumnText(item.column_values, 'altAddress') || undefined;
   const spouseName =
     getColumnText(item.column_values, 'spouseName') || undefined;
   const connectedTo =
@@ -366,6 +398,8 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
     getColumnText(item.column_values, 'parentName') || undefined;
   const searchHints = [
     altEmail,
+    altPhone,
+    altAddress,
     spouseName,
     connectedTo,
     pastorName,
@@ -384,6 +418,8 @@ export function mapItemToContactListItem(item: MondayContactItem): ContactListIt
     tags,
     demographics: mapListDemographics(item.column_values),
     ...(altEmail ? { altEmail } : {}),
+    ...(altPhone ? { altPhone } : {}),
+    ...(altAddress ? { altAddress } : {}),
     ...(spouseName ? { spouseName } : {}),
     ...(connectedTo ? { connectedTo } : {}),
     ...(pastorName ? { pastorName } : {}),

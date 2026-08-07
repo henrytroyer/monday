@@ -8,6 +8,8 @@ import type {
 } from '../types/contact';
 import type { VolunteerTerm, VolunteerFile } from '../types/volunteer';
 import { getColumnText, getColumnDateText, getApplicationFilesFromColumns, type MondayBoardItem } from './mapMondayToCrm';
+import { getArrivalDepartureTimelineRange } from './mondayTimelineColumn';
+import { getArrivalDepartureTimelineRange } from './mondayTimelineColumn';
 import { normalizeDateOfBirth } from '../utils/formatDateOfBirth';
 import { mergeContactAndApplicationDemographics } from '../utils/formatContactAddress';
 import {
@@ -80,13 +82,20 @@ function mapApplicationToTerm(item: MondayBoardItem): VolunteerTerm {
   const timelineId = resolveTimelineId(timelineLabel);
   const status = getColumnText(item.column_values, 'status') || '—';
   const pastorReference = getColumnText(item.column_values, 'pastorReference');
+  const termRange = getArrivalDepartureTimelineRange(item.column_values);
 
   return {
     itemId: item.id,
     timelineId,
     timelineLabel: getTimelineLabel(timelineId) || timelineLabel || '—',
-    termStart: getColumnDateText(item.column_values, 'arrivalDate') || undefined,
-    termEnd: getColumnDateText(item.column_values, 'departureDate') || undefined,
+    termStart:
+      getColumnDateText(item.column_values, 'arrivalDate') ||
+      termRange?.from ||
+      undefined,
+    termEnd:
+      getColumnDateText(item.column_values, 'departureDate') ||
+      termRange?.to ||
+      undefined,
     status,
     pipelineStage: item.group?.title ?? '—',
     quickbooksInvoiceId:
@@ -414,6 +423,7 @@ export function enrichContactDetail(
     endOfServiceReviewItems,
     contactItem.id,
     base.email,
+    base.name,
   );
 
   const replacedAppIds = new Set(

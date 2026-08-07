@@ -1,4 +1,5 @@
 import type { VolunteerTerm } from '../types/volunteer';
+import { normalizePersonName } from '../utils/personNameMatch';
 import {
   parseFlexibleDate,
   resolveVolunteerTermDateRange,
@@ -7,10 +8,47 @@ import {
 import type { EndOfServiceReviewSummary } from './mapEndOfServiceReview';
 import { mapEndOfServiceReviewItem } from './mapEndOfServiceReview';
 import type { MondayBoardItem } from './mapMondayToCrm';
-import { isRecruitmentServiceTerm } from './contactServiceRecordStorage';
+import {
+  isRecruitmentServiceTerm,
+  isServiceEndedTerm,
+} from './contactServiceRecordStorage';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/** Match VS Exit Survey item name to the volunteer contact. */
+export function exitSurveyNamesMatch(
+  reviewName: string,
+  contactName: string,
+): boolean {
+  const a = normalizePersonName(reviewName);
+  const b = normalizePersonName(contactName);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  // Couples on the survey board: "Pete and Jan Bontrager"
+  if (a.includes(' and ') || b.includes(' and ')) {
+    const parts = a.split(/\s+and\s+/).map((p) => p.trim()).filter(Boolean);
+    if (parts.some((part) => part === b || b.includes(part) || part.includes(b))) {
+      return true;
+    }
+  }
+
+  const aParts = a.split(' ').filter(Boolean);
+  const bParts = b.split(' ').filter(Boolean);
+  if (aParts.length < 2 || bParts.length < 2) return false;
+  const aLast = aParts[aParts.length - 1]!;
+  const bLast = bParts[bParts.length - 1]!;
+  if (aLast !== bLast) return false;
+  const aFirst = aParts[0]!;
+  const bFirst = bParts[0]!;
+  if (aFirst === bFirst) return true;
+  const prefixLen = Math.min(3, aFirst.length, bFirst.length);
+  return (
+    prefixLen >= 2 &&
+    aFirst.slice(0, prefixLen) === bFirst.slice(0, prefixLen)
+  );
 }
 
 function termToVolunteerAdapter(term: VolunteerTerm) {
@@ -47,10 +85,17 @@ function reviewBelongsToContact(
   review: EndOfServiceReviewSummary,
   contactId: string,
   emailNorm: string,
+  contactName?: string,
 ): boolean {
   if (review.contactIds.includes(contactId)) return true;
   const reviewEmail = normalizeEmail(review.email);
-  return reviewEmail !== '' && reviewEmail === emailNorm;
+  if (reviewEmail !== '' && emailNorm !== '' && reviewEmail === emailNorm) {
+    return true;
+  }
+  if (contactName && exitSurveyNamesMatch(review.volunteerName, contactName)) {
+    return true;
+  }
+  return false;
 }
 
 interface TermScore {
@@ -106,13 +151,16 @@ export function collectContactEndOfServiceReviews(
   reviewItems: MondayBoardItem[],
   contactId: string,
   emailNorm: string,
+  contactName?: string,
 ): EndOfServiceReviewSummary[] {
   const reviews: EndOfServiceReviewSummary[] = [];
   const seen = new Set<string>();
 
   for (const item of reviewItems) {
     const review = mapEndOfServiceReviewItem(item);
-    if (!reviewBelongsToContact(review, contactId, emailNorm)) continue;
+    if (!reviewBelongsToContact(review, contactId, emailNorm, contactName)) {
+      continue;
+    }
     if (seen.has(review.itemId)) continue;
     seen.add(review.itemId);
     reviews.push(review);
@@ -125,9 +173,19 @@ export function attachEndOfServiceReviewsToTerms(
   terms: VolunteerTerm[],
   reviews: EndOfServiceReviewSummary[],
 ): VolunteerTerm[] {
-  const eligibleTerms = terms
+  // Prefer volunteers who have left the field (Current Service Ended terms).
+  const leftFieldTerms = terms
     .map((term, index) => ({ term, index }))
-    .filter(({ term }) => !isRecruitmentServiceTerm(term));
+    .filter(
+      ({ term }) =>
+        !isRecruitmentServiceTerm(term) && isServiceEndedTerm(term),
+    );
+  const eligibleTerms =
+    leftFieldTerms.length > 0
+      ? leftFieldTerms
+      : terms
+          .map((term, index) => ({ term, index }))
+          .filter(({ term }) => !isRecruitmentServiceTerm(term));
 
   if (eligibleTerms.length === 0 || reviews.length === 0) {
     return terms;
@@ -192,12 +250,14 @@ export function matchEndOfServiceReviewsForContact(
   reviewItems: MondayBoardItem[],
   contactId: string,
   contactEmail: string,
+  contactName?: string,
 ): VolunteerTerm[] {
   const emailNorm = normalizeEmail(contactEmail);
   const reviews = collectContactEndOfServiceReviews(
     reviewItems,
     contactId,
     emailNorm,
+    contactName,
   );
   return attachEndOfServiceReviewsToTerms(terms, reviews);
 }

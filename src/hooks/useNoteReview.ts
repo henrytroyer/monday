@@ -12,6 +12,7 @@ import {
   persistDismissedNoteToMonday,
   syncNoteReviewFromMonday,
 } from '../services/noteReviewMondaySync';
+import { mirrorApprovedNoteToContact } from '../services/approvedHarvestNotes';
 import { bootstrapNoteReviewInbox } from '../services/noteReviewBootstrap';
 import {
   clearFloodedInboxLocally,
@@ -86,6 +87,11 @@ export function useNoteReview() {
         } catch {
           // Local cache updated; Monday sync is best-effort.
         }
+        try {
+          await mirrorApprovedNoteToContact(link);
+        } catch {
+          // Fetch still merges approved links if the Contacts write fails.
+        }
       }
       refresh();
       window.dispatchEvent(new Event('crm-note-review-changed'));
@@ -111,9 +117,10 @@ export function useNoteReview() {
   const bulkApproveSuggested = useCallback(async () => {
     const result = bulkApproveSuggestedReviewItems();
     await Promise.all(
-      result.links.map((link) =>
-        persistApprovedNoteToMonday(link).catch(() => {}),
-      ),
+      result.links.map(async (link) => {
+        await persistApprovedNoteToMonday(link).catch(() => {});
+        await mirrorApprovedNoteToContact(link).catch(() => {});
+      }),
     );
     refresh();
     window.dispatchEvent(new Event('crm-note-review-changed'));

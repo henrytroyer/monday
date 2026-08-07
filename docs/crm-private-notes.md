@@ -4,7 +4,7 @@ Contact **Internal notes** support **Public** and **Private** visibility.
 
 | Visibility | Storage | Who can read the body |
 |------------|---------|------------------------|
-| **Public** | monday.com Contacts updates (`[CRM_CONTACT_NOTE …]`) | Operators with HR / internal-notes access (unchanged) |
+| **Public** | monday.com Contacts updates (`[CRM_CONTACT_NOTE …]`) | Any allowlisted CRM operator |
 | **Private** | Ciphertext only (never monday.com) | Only you, after unlocking with your passphrase (or recovery key → new passphrase) |
 
 ## Threat model
@@ -41,29 +41,37 @@ If `VITE_PRIVATE_NOTES_URL` is unset, ciphertext is kept in **localStorage**. No
 
 ### Local multi-client / shared machine sync
 
-```bash
-npm run private-notes:proxy
-```
+`npm run dev:live` starts the private-notes proxy on port **4043** together with the Monday API proxy.
 
-In `.env`:
+In `.env` (see `.env.example`):
 
 ```bash
 VITE_PRIVATE_NOTES_URL=/api/private-notes
 ```
 
+Or run the store alone:
+
+```bash
+npm run private-notes:proxy
+```
+
 Vite proxies `/api/private-notes` → `http://localhost:4043`. Data files live in `server/.private-notes/` (gitignored).
+
+**Note:** Switching from localStorage to the proxy does not migrate existing notes. Unlock on each device with the same passphrase (or recovery key once).
 
 ### Production (cross-device)
 
-Deploy an i58finance Cloud Function (same Firebase auth as `mondayApiProxy`) that stores opaque blobs in Firestore:
+i58finance Cloud Function `crmPrivateNotes` (europe-west3) stores opaque blobs in Firestore:
 
 - `crmPrivateNotes/{uid}/vault` (includes wraps + recovery fields)
 - `crmPrivateNotes/{uid}/notes/{noteId}`
 
-Rules / CF checks: `auth.uid` must match `{uid}`. Accept only ciphertext fields. Never log or decrypt bodies.
+Auth: Firebase ID token + admin role (same bar as `mondayApiProxy`); `auth.uid` must match `{uid}` (and `X-Owner-Uid`). Accept only ciphertext fields. Never log or decrypt bodies.
+
+Bake into Admin / Monday Project builds:
 
 ```bash
-VITE_PRIVATE_NOTES_URL=https://<region>-<project>.cloudfunctions.net/crmPrivateNotes
+VITE_PRIVATE_NOTES_URL=https://europe-west3-i58-finance.cloudfunctions.net/crmPrivateNotes
 ```
 
 Host may also call:

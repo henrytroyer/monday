@@ -308,20 +308,32 @@ export default function ContactInternalNotesSection({
             </button>
           </div>
           {visibility === 'private' && (
-            <p className="mt-1 text-xs text-crm-slate">
-              Not copied to monday.com. Only you can decrypt this note — even
-              admins see ciphertext only. If you forget your passphrase, use
-              your recovery key under User settings. Lose both and notes cannot
-              be recovered.
-              {vault.storeMode === 'localStorage'
-                ? ' This browser store does not sync across devices; run private-notes:proxy or set VITE_PRIVATE_NOTES_URL for sync.'
-                : ''}
-            </p>
+            <div className="mt-2 rounded-xl border border-crm-taupe/15 bg-crm-surface/80 px-3 py-2.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-crm-heading">
+                Private & secure
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-crm-slate">
+                These notes stay on your device and are never written to
+                monday.com. They are encrypted end to end and can be read only
+                by you — not by administrators or other operators.
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-crm-slate">
+                Keep your passphrase and recovery key safe. If you lose both,
+                the notes cannot be recovered. Your recovery key is available
+                under User settings.
+              </p>
+              {vault.storeMode === 'localStorage' && (
+                <p className="mt-1.5 text-xs leading-relaxed text-crm-slate">
+                  These notes stay on this device only. Cross-device sync requires
+                  a private-notes store URL for this environment.
+                </p>
+              )}
+            </div>
           )}
           {privateDisabled && (
             <p className="mt-1 text-xs text-amber-800">
-              Private notes unavailable until you are signed in (session user
-              id) and a store is configured.
+              Private notes are available after you sign in. Contact your CRM
+              administrator if this option stays unavailable.
             </p>
           )}
         </div>
@@ -398,8 +410,7 @@ export default function ContactInternalNotesSection({
 
         {!canWrite && (
           <p className="text-xs text-amber-800">
-            Contact notes are read-only. Set VITE_CONTACTS_WRITABLE=true in
-            .env to add notes from this page.
+            Contact notes are read-only for your account.
           </p>
         )}
 

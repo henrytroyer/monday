@@ -1,6 +1,8 @@
 /**
  * ContactMergeFieldPicker.tsx — Per-field keep/delete choices for contact merge.
- * Defaults match buildFieldMergePlan / richest-survivor recommendations.
+ *
+ * Email / phone / address: keep several (checkboxes) + mark one Primary.
+ * Other scalars: single radio. Defaults match buildFieldMergePlan.
  */
 
 import {
@@ -10,11 +12,14 @@ import {
 } from '../../types/contact';
 import type {
   MergeFieldChoices,
+  MergeMultiFieldKind,
+  MergeMultiValueSelection,
   MergeScalarFieldKey,
 } from '../../services/contactUpsert/merge';
 
 export interface ContactMergeFieldSelections {
   fieldValues: Partial<Record<MergeScalarFieldKey, string>>;
+  multi: Record<MergeMultiFieldKind, MergeMultiValueSelection>;
   tags: ContactTag[];
   pastorSourceId?: string;
   parentSourceId?: string;
@@ -25,7 +30,25 @@ interface ContactMergeFieldPickerProps {
   selections: ContactMergeFieldSelections;
   disabled?: boolean;
   onChange: (next: ContactMergeFieldSelections) => void;
-  onPrimaryEmailChange?: (email: string) => void;
+}
+
+function valuesEqual(
+  kind: MergeMultiFieldKind,
+  a: string,
+  b: string,
+): boolean {
+  if (kind === 'email') {
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
+  }
+  if (kind === 'phone') {
+    const da = a.replace(/\D/g, '');
+    const db = b.replace(/\D/g, '');
+    return (da || a.trim().toLowerCase()) === (db || b.trim().toLowerCase());
+  }
+  return (
+    a.trim().toLowerCase().replace(/\s+/g, ' ') ===
+    b.trim().toLowerCase().replace(/\s+/g, ' ')
+  );
 }
 
 export default function ContactMergeFieldPicker({
@@ -33,19 +56,57 @@ export default function ContactMergeFieldPicker({
   selections,
   disabled = false,
   onChange,
-  onPrimaryEmailChange,
 }: ContactMergeFieldPickerProps) {
   const choiceFields = choices.fields.filter((f) => f.needsChoice);
   const resolvedFields = choices.fields.filter((f) => !f.needsChoice);
+  const multiNeedingChoice = choices.multiFields.filter((f) => f.needsChoice);
+  const multiResolved = choices.multiFields.filter((f) => !f.needsChoice);
 
   function setFieldValue(key: MergeScalarFieldKey, value: string) {
-    if (key === 'email' && onPrimaryEmailChange) {
-      onPrimaryEmailChange(value);
-      return;
-    }
     onChange({
       ...selections,
       fieldValues: { ...selections.fieldValues, [key]: value },
+    });
+  }
+
+  function toggleKept(kind: MergeMultiFieldKind, value: string) {
+    const current = selections.multi[kind] ?? { kept: [], primary: '' };
+    const kept = [...current.kept];
+    const idx = kept.findIndex((v) => valuesEqual(kind, v, value));
+    if (idx >= 0) {
+      kept.splice(idx, 1);
+    } else {
+      kept.push(value);
+    }
+    let primary = current.primary;
+    if (kept.length === 0) {
+      primary = '';
+    } else if (
+      !primary ||
+      !kept.some((v) => valuesEqual(kind, v, primary))
+    ) {
+      primary = kept[0]!;
+    }
+    onChange({
+      ...selections,
+      multi: {
+        ...selections.multi,
+        [kind]: { kept, primary },
+      },
+    });
+  }
+
+  function setPrimary(kind: MergeMultiFieldKind, value: string) {
+    const current = selections.multi[kind] ?? { kept: [], primary: '' };
+    const kept = current.kept.some((v) => valuesEqual(kind, v, value))
+      ? current.kept
+      : [...current.kept, value];
+    onChange({
+      ...selections,
+      multi: {
+        ...selections.multi,
+        [kind]: { kept, primary: value },
+      },
     });
   }
 
@@ -74,6 +135,106 @@ export default function ContactMergeFieldPicker({
 
   return (
     <div className="space-y-4">
+      {multiNeedingChoice.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-crm-heading">
+            Keep several values
+          </h3>
+          <p className="text-xs text-crm-slate">
+            Check every value to save. Mark one as Primary (shows first); the
+            rest become Alternate.
+          </p>
+          <ul className="space-y-3">
+            {multiNeedingChoice.map((field) => {
+              const sel = selections.multi[field.kind] ?? {
+                kept: [],
+                primary: '',
+              };
+              return (
+                <li
+                  key={field.kind}
+                  className="rounded-xl border border-crm-taupe/15 bg-crm-white px-3 py-3"
+                >
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-crm-slate">
+                    {field.label}
+                  </div>
+                  <div className="space-y-2">
+                    {field.options.map((opt) => {
+                      const kept = sel.kept.some((v) =>
+                        valuesEqual(field.kind, v, opt.value),
+                      );
+                      const isPrimary =
+                        kept &&
+                        Boolean(sel.primary) &&
+                        valuesEqual(field.kind, sel.primary, opt.value);
+                      const isRecommendedPrimary = valuesEqual(
+                        field.kind,
+                        opt.value,
+                        field.recommendedPrimary,
+                      );
+                      return (
+                        <div
+                          key={`${field.kind}-${opt.contactId}-${opt.value}`}
+                          className={`rounded-lg px-2 py-1.5 text-sm ${
+                            kept
+                              ? 'bg-crm-indigo/10 text-crm-heading'
+                              : 'text-crm-slate'
+                          } ${disabled ? 'opacity-60' : ''}`}
+                        >
+                          <label className="flex cursor-pointer items-start gap-2">
+                            <input
+                              type="checkbox"
+                              className="mt-1"
+                              checked={kept}
+                              disabled={disabled}
+                              onChange={() =>
+                                toggleKept(field.kind, opt.value)
+                              }
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="whitespace-pre-wrap break-words font-medium text-crm-heading">
+                                {opt.value}
+                              </span>
+                              <span className="mt-0.5 block text-xs text-crm-slate/80">
+                                from {opt.contactName}
+                                {isRecommendedPrimary
+                                  ? ' · recommended primary'
+                                  : ''}
+                              </span>
+                            </span>
+                          </label>
+                          {kept && (
+                            <div className="mt-1.5 flex flex-wrap gap-2 pl-6">
+                              <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-crm-heading">
+                                <input
+                                  type="radio"
+                                  name={`merge-primary-${field.kind}`}
+                                  checked={isPrimary}
+                                  disabled={disabled}
+                                  onChange={() =>
+                                    setPrimary(field.kind, opt.value)
+                                  }
+                                />
+                                Primary
+                              </label>
+                              {!isPrimary && (
+                                <span className="text-xs text-crm-slate">
+                                  Alternate
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {choiceFields.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-crm-heading">
@@ -279,12 +440,22 @@ export default function ContactMergeFieldPicker({
         </section>
       )}
 
-      {resolvedFields.length > 0 && (
+      {(resolvedFields.length > 0 || multiResolved.length > 0) && (
         <section className="rounded-xl border border-crm-taupe/15 bg-crm-taupe-50/40 px-3 py-3">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-crm-slate">
             Same across contacts
           </h3>
           <dl className="grid gap-2 text-sm">
+            {multiResolved.map((field) => (
+              <div key={field.kind} className="flex gap-2">
+                <dt className="w-24 shrink-0 font-medium text-crm-heading">
+                  {field.label}
+                </dt>
+                <dd className="whitespace-pre-wrap break-words text-crm-slate">
+                  {field.recommendedPrimary || '—'}
+                </dd>
+              </div>
+            ))}
             {resolvedFields.map((field) => (
               <div key={field.key} className="flex gap-2">
                 <dt className="w-24 shrink-0 font-medium text-crm-heading">

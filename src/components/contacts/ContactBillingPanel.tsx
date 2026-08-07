@@ -1,10 +1,10 @@
 /**
- * ContactBillingPanel.tsx — Finance billing list on contact detail (no HR chrome).
+ * ContactBillingPanel.tsx — Billing line items by term dates + invoice actions.
+ * Terms of service (above) own term drill-down; this panel only tracks invoices.
  */
 
 import { useState } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
-import { isServiceEndedTerm } from '../../services/contactServiceRecordStorage';
 import type { VolunteerTerm } from '../../types/volunteer';
 import { formatTermDateRangeLabel } from '../../utils/formatTermDateRange';
 import InvoiceDetailModal from '../applications/InvoiceDetailModal';
@@ -13,14 +13,11 @@ import BillingTermInvoiceStatus from './BillingTermInvoiceStatus';
 interface ContactBillingPanelProps {
   volunteerName: string;
   serviceTerms: VolunteerTerm[];
-  /** Open full term drill-down when available (HR or finance term view). */
-  onOpenTerm?: (term: VolunteerTerm) => void;
 }
 
 export default function ContactBillingPanel({
   volunteerName,
   serviceTerms,
-  onOpenTerm,
 }: ContactBillingPanelProps) {
   const [invoiceTerm, setInvoiceTerm] = useState<VolunteerTerm | null>(null);
 
@@ -40,8 +37,8 @@ export default function ContactBillingPanel({
         Billing & invoices
       </h3>
       <p className="mt-2 text-sm text-crm-slate">
-        Service terms with QuickBooks invoice links. Open a term for payment
-        details without needing full HR access.
+        Invoices by term of service — view status and payment without opening
+        the term.
       </p>
 
       {billableTerms.length === 0 ? (
@@ -49,58 +46,43 @@ export default function ContactBillingPanel({
           No service terms with billing data yet.
         </p>
       ) : (
-        <ul className="mt-4 space-y-3">
+        <ul className="mt-4 divide-y divide-crm-taupe/15 rounded-xl border border-crm-taupe/15">
           {billableTerms.map((term) => {
             const dateRange = formatTermDateRangeLabel(term);
             const invoiceId = term.quickbooksInvoiceId?.trim();
+            const termLabel =
+              dateRange || term.timelineLabel?.trim() || 'Term of service';
+
             return (
               <li
                 key={`${term.itemId}-${term.timelineId}`}
-                className="rounded-2xl bg-crm-surface p-4 ring-1 ring-crm-taupe/20"
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-crm-heading">
-                      {term.timelineLabel}
-                    </p>
-                    {dateRange && (
-                      <p className="mt-1 text-sm text-crm-slate">{dateRange}</p>
-                    )}
-                    <p className="mt-1 text-sm text-crm-slate">
-                      {term.pipelineStage ?? '—'} · {term.status ?? '—'}
-                      {isServiceEndedTerm(term) ? ' · Service ended' : ''}
-                    </p>
-                    {invoiceId ? (
-                      <BillingTermInvoiceStatus
-                        invoiceId={invoiceId}
-                        volunteerName={volunteerName}
-                      />
-                    ) : (
-                      <p className="mt-1 text-sm text-crm-slate">
-                        No invoice linked
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    {invoiceId && (
-                      <button
-                        type="button"
-                        onClick={() => setInvoiceTerm(term)}
-                        className="rounded-xl bg-crm-indigo px-3 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
-                      >
-                        View invoice
-                      </button>
-                    )}
-                    {onOpenTerm && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenTerm(term)}
-                        className="rounded-xl border border-crm-taupe/30 px-3 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
-                      >
-                        Open term
-                      </button>
-                    )}
-                  </div>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-sm font-semibold text-crm-heading">
+                    {termLabel}
+                  </p>
+                  {invoiceId ? (
+                    <BillingTermInvoiceStatus
+                      invoiceId={invoiceId}
+                      volunteerName={volunteerName}
+                    />
+                  ) : (
+                    <p className="text-sm text-crm-slate">No invoice linked</p>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  {invoiceId ? (
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceTerm(term)}
+                      className="rounded-xl bg-crm-indigo px-3 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
+                    >
+                      View invoice
+                    </button>
+                  ) : (
+                    <span className="text-xs text-crm-slate">—</span>
+                  )}
                 </div>
               </li>
             );

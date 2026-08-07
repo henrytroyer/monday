@@ -4,6 +4,7 @@ import type { VolunteerTerm } from '../types/volunteer';
 import {
   attachEndOfServiceReviewsToTerms,
   collectContactEndOfServiceReviews,
+  exitSurveyNamesMatch,
 } from './matchEndOfServiceReviews';
 import type { MondayBoardItem } from './mapMondayToCrm';
 
@@ -39,21 +40,21 @@ function makeReviewItem(
 
   if (options.contactIds?.length) {
     columnValues.push({
-      id: 'contacts',
+      id: 'connect_boards__1',
       text: '',
       type: 'board_relation',
       linked_item_ids: options.contactIds,
-      column: { title: 'Contacts' },
+      column: { title: 'Contacts 2.0' },
     });
   }
 
   if (options.completedDate) {
     columnValues.push({
-      id: 'completed',
+      id: 'date',
       text: options.completedDate,
       type: 'date',
       value: JSON.stringify({ date: options.completedDate }),
-      column: { title: 'Date Volunteer left' },
+      column: { title: 'Date Volunteer left:' },
     });
   }
 
@@ -88,6 +89,26 @@ describe('collectContactEndOfServiceReviews', () => {
 
     assert.equal(reviews.length, 1);
     assert.equal(reviews[0].itemId, 'r1');
+  });
+
+  it('matches VS Exit Survey items by volunteer name when unlinked', () => {
+    assert.equal(
+      exitSurveyNamesMatch('Trenton Hochstetler', 'Trenton Hochstetler'),
+      true,
+    );
+    const items = [
+      makeReviewItem('r-name', 'Trenton Hochstetler', {
+        completedDate: '2024-02-10',
+      }),
+    ];
+    const reviews = collectContactEndOfServiceReviews(
+      items,
+      'contact-x',
+      '',
+      'Trenton Hochstetler',
+    );
+    assert.equal(reviews.length, 1);
+    assert.equal(reviews[0]?.itemId, 'r-name');
   });
 });
 

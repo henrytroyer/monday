@@ -18,6 +18,8 @@ function countPopulated(contact: ContactListItem): number {
   if (normalizeEmailForMerge(contact.email)) n += 1;
   if (contact.altEmail?.trim()) n += 1;
   if (contact.phone?.trim()) n += 1;
+  if (contact.altPhone?.trim()) n += 1;
+  if (contact.altAddress?.trim()) n += 1;
   if (contact.spouseName?.trim()) n += 1;
   if (contact.connectedTo?.trim()) n += 1;
   if (contact.pastorName?.trim()) n += 1;
@@ -59,6 +61,8 @@ export function scoreContact(contact: ContactListItem): SurvivorScoreBreakdown {
   if (normalizeEmailForMerge(contact.email)) extras += 4;
   if (contact.altEmail?.trim()) extras += 3;
   if (contact.phone?.trim()) extras += 5;
+  if (contact.altPhone?.trim()) extras += 3;
+  if (contact.altAddress?.trim()) extras += 3;
   if (contact.spouseName?.trim()) extras += 6;
   if (contact.pastorName?.trim()) extras += 3;
   if (contact.profilePhotoUrl?.trim()) extras += 5;

@@ -10,7 +10,9 @@ import {
 } from './fieldMergeChoices';
 import {
   buildFieldMergePlan,
+  combineAddresses,
   combineEmails,
+  combinePhones,
 } from './fieldMergePlan';
 import {
   normalizeEmailForMerge,
@@ -240,7 +242,54 @@ describe('survivor scoring', () => {
     assert.ok(combined.altEmail?.includes('b@example.com'));
   });
 
-  it('logs scalar conflicts without overwriting', () => {
+  it('keeps both phones via Alt Phone', () => {
+    const combined = combinePhones(
+      contact({
+        id: '1',
+        name: 'A',
+        email: 'a@example.com',
+        phone: '111',
+        altPhone: '333',
+      }),
+      [contact({ id: '2', name: 'A', email: 'a@example.com', phone: '222' })],
+    );
+    assert.equal(combined.primary, '111');
+    assert.ok(combined.altPhone?.includes('222'));
+    assert.ok(combined.altPhone?.includes('333'));
+  });
+
+  it('keeps both addresses via Alt Address', () => {
+    const combined = combineAddresses(
+      contact({
+        id: '1',
+        name: 'A',
+        email: 'a@example.com',
+        demographics: {
+          address: '1 Main',
+          city: 'Town',
+          state: 'OH',
+          zip: '43000',
+          country: 'US',
+        },
+      }),
+      [
+        contact({
+          id: '2',
+          name: 'A',
+          email: 'a@example.com',
+          demographics: {
+            address: '2 Oak',
+            city: 'Athens',
+            country: 'GR',
+          },
+        }),
+      ],
+    );
+    assert.equal(combined.demographics.address, '1 Main');
+    assert.ok(combined.altAddress?.includes('2 Oak'));
+  });
+
+  it('logs phone conflicts while keeping both via Alt Phone', () => {
     const plan = buildFieldMergePlan(
       contact({
         id: '1',
@@ -258,10 +307,11 @@ describe('survivor scoring', () => {
       ],
     );
     assert.equal(plan.phone, '111');
+    assert.ok(plan.altPhone?.includes('222'));
     assert.ok(plan.conflicts.some((c) => c.field === 'phone'));
   });
 
-  it('field choices flag phone conflict and apply reviewer override', () => {
+  it('multi-field choices keep phones and apply reviewer override', () => {
     const survivor = contact({
       id: '1',
       name: 'A',
@@ -277,9 +327,10 @@ describe('survivor scoring', () => {
       tags: ['volunteer'],
     });
     const choices = buildMergeFieldChoices(survivor, [loser]);
-    const phoneChoice = choices.fields.find((f) => f.key === 'phone');
+    const phoneChoice = choices.multiFields.find((f) => f.kind === 'phone');
     assert.ok(phoneChoice?.needsChoice);
-    assert.equal(phoneChoice?.recommendedValue, '111');
+    assert.equal(phoneChoice?.recommendedPrimary, '111');
+    assert.ok(phoneChoice?.recommendedKept.includes('222'));
 
     const nameChoice = choices.fields.find((f) => f.key === 'name');
     assert.ok(nameChoice?.needsChoice);
@@ -291,21 +342,37 @@ describe('survivor scoring', () => {
     const plan = buildFieldMergePlan(survivor, [loser]);
     const overridden = applyFieldMergeOverrides(plan, {
       phone: '222',
+      altPhone: '111',
       resultingName: 'B',
       resultingTags: ['volunteer'],
     });
     assert.equal(overridden.phone, '222');
+    assert.equal(overridden.altPhone, '111');
     assert.equal(overridden.resultingName, 'B');
     assert.deepEqual(overridden.resultingTags, ['volunteer']);
   });
 
-  it('selectionsToFieldOverrides maps UI picks into execute overrides', () => {
+  it('selectionsToFieldOverrides maps multi UI picks into execute overrides', () => {
     const overrides = selectionsToFieldOverrides({
       fieldValues: {
         name: 'Kept Name',
-        email: 'kept@example.com',
-        phone: '999',
-        city: 'Athens',
+      },
+      multi: {
+        email: {
+          kept: ['kept@example.com', 'alt@example.com'],
+          primary: 'kept@example.com',
+        },
+        phone: {
+          kept: ['999', '111'],
+          primary: '999',
+        },
+        address: {
+          kept: [
+            '1 Oak St\nAthens\nGR',
+            '1 Main\nTown, OH 43000\nUS',
+          ],
+          primary: '1 Oak St\nAthens\nGR',
+        },
       },
       tags: ['pastor', 'parent'],
       pastorSourceId: 'p1',
@@ -313,14 +380,18 @@ describe('survivor scoring', () => {
     });
     assert.equal(overrides.resultingName, 'Kept Name');
     assert.equal(overrides.resultingEmail, 'kept@example.com');
+    assert.equal(overrides.resultingAltEmail, 'alt@example.com');
     assert.equal(overrides.phone, '999');
+    assert.equal(overrides.altPhone, '111');
+    assert.equal(overrides.demographics?.address, '1 Oak St');
     assert.equal(overrides.demographics?.city, 'Athens');
+    assert.ok(overrides.altAddress?.includes('1 Main'));
     assert.deepEqual(overrides.resultingTags, ['pastor', 'parent']);
     assert.equal(overrides.pastorSourceId, 'p1');
     assert.equal(overrides.parentSourceId, 'p2');
   });
 
-  it('identical phone values do not need a choice', () => {
+  it('identical phone values do not need a multi choice', () => {
     const choices = buildMergeFieldChoices(
       contact({
         id: '1',
@@ -337,10 +408,11 @@ describe('survivor scoring', () => {
         }),
       ],
     );
-    const phoneChoice = choices.fields.find((f) => f.key === 'phone');
+    const phoneChoice = choices.multiFields.find((f) => f.kind === 'phone');
     assert.ok(phoneChoice);
     assert.equal(phoneChoice!.needsChoice, false);
-    assert.equal(phoneChoice!.resolvedValue, '555');
+    assert.equal(phoneChoice!.recommendedPrimary, '555');
+    assert.deepEqual(phoneChoice!.recommendedKept, ['555']);
   });
 });
 

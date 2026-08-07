@@ -1,7 +1,7 @@
 /**
  * navItems.ts — Volunteer Portal sidebar navigation.
  *
- * CRM RBAC removed; all operators see the full nav. Users / Roles pages omitted.
+ * All allowlisted operators see the full nav.
  */
 
 export const PRIMARY_NAV_ITEMS = [

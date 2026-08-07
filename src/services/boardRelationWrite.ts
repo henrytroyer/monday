@@ -67,7 +67,7 @@ export async function writeBoardRelationsByTitle(
 
 export async function readBoardRelationIdsByTitle(
   boardId: string,
-  itemId: string,
+  _itemId: string,
   columnTitle: string,
   columnValues: Array<{
     id?: string;

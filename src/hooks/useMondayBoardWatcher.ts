@@ -4,6 +4,12 @@ import { harvestMondayNotes } from '../services/mondayNoteHarvest';
 import { seedNoteReviewWithoutHistoricalHarvest } from '../services/noteReviewBootstrap';
 import { notifyContactNotesChanged, pollMondayBoardUpdates, watchIntervalMs, watchIsEnabled } from '../services/mondayBoardWatcher';
 import { pollEmailTimelineUpdates } from '../services/emailTimelineWatcher';
+import {
+  eosReviewWatchIntervalMs,
+  pollEosReviewBoardUpdates,
+  registerWatchedContactForEosReviews,
+  unregisterWatchedContactForEosReviews,
+} from '../services/eosReviewBoardWatcher';
 import { pollReferenceBoardUpdates } from '../services/referenceBoardWatcher';
 import { notifyNoteReviewChanged } from './useNoteReview';
 
@@ -59,6 +65,7 @@ export function useMondayBoardWatcher() {
         }
         await pollEmailTimelineUpdates();
         await pollReferenceBoardUpdates();
+        await pollEosReviewBoardUpdates();
       } catch {
         // Watcher is best-effort during prototype
       } finally {
@@ -76,4 +83,41 @@ export function useMondayBoardWatcher() {
       window.clearInterval(interval);
     };
   }, []);
+}
+
+/**
+ * While contact detail is open, poll VS Exit Survey even if global Monday
+ * watch is off — so new exit surveys can match without a full page reload.
+ */
+export function useEosReviewBoardWatcherWhileContactOpen(
+  contactId: string | null,
+  onChanged: () => void,
+): void {
+  useEffect(() => {
+    if (!contactId || useMockData()) return;
+
+    registerWatchedContactForEosReviews(contactId);
+
+    const onEos = (event: Event) => {
+      const detail = (event as CustomEvent<{ contactIds?: string[] }>).detail;
+      const ids = detail?.contactIds ?? [];
+      if (ids.length === 0 || ids.includes(contactId)) {
+        onChanged();
+      }
+    };
+    window.addEventListener('crm-eos-reviews-changed', onEos);
+
+    const timer = window.setInterval(() => {
+      void pollEosReviewBoardUpdates();
+    }, eosReviewWatchIntervalMs());
+
+    // Seed fingerprint on open so the next change is detected.
+    void pollEosReviewBoardUpdates();
+
+    return () => {
+      window.removeEventListener('crm-eos-reviews-changed', onEos);
+      window.clearInterval(timer);
+      unregisterWatchedContactForEosReviews(contactId);
+    };
+  }, [contactId, onChanged]);
 }

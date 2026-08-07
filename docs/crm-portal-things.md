@@ -12,26 +12,16 @@ Dedicated monday.com board for CRM-only infrastructure that does not belong on C
 |-------|----------|
 | Onboarding | One item per application — pipeline JSON in Payload JSON |
 | Recruitment | One item per prospect |
-| Config | Singletons: Note Review Registry, Email Signatures, Portal Settings, **Role Permissions** |
-| Operators | One item per CRM operator (`Kind=operator`) — Email + role payload |
-| Audit | Append-only CRM RBAC / admin audit events |
+| Config | Singletons: Note Review Registry, Email Signatures, Portal Settings |
+| Audit | Append-only CRM admin / merge audit events |
 
-## CRM RBAC seed
-
-```bash
-npm run seed:crm-rbac
-```
-
-Creates Operators / Audit groups (if missing), seeds the Role Permissions config item, and bootstraps `henry@i58global.org` + `lesvos@i58global.org` as `BASIC`+`DEV`.
-
-See [crm-permissions.md](./crm-permissions.md).
+Who can open Monday Project is controlled by the i58finance Admin email allowlist + `mondayApiProxy`. Inside the CRM, allowlisted operators have full open access (no role matrix).
 
 ## Local workflow
 
 1. Ensure live monday mode in `.env` (`VITE_USE_MOCK_DATA=false`, proxy + token).
 2. Run `npm run seed:portal-things` — creates board, groups, columns, Config items; patches local `.env`.
-3. Run `npm run seed:crm-rbac` for Operators / Role Permissions / Audit.
-4. Restart `npm run dev:live` → http://localhost:4040.
-5. Confirm board in monday.com; onboarding/recruitment saves write to Portal Things.
+3. Restart `npm run dev:live` → http://localhost:4040.
+4. Confirm board in monday.com; onboarding/recruitment saves write to Portal Things.
 
 See also [crm-bidirectional-sync.md](./crm-bidirectional-sync.md).

@@ -39,9 +39,35 @@ export function findEndOfServiceReviewColumn(
   const target = normalizeTitle(endOfServiceReviewColumnMap[fieldKey]);
   if (!target) return undefined;
 
-  return columnValues.find(
+  const exact = columnValues.find(
     (col) => normalizeTitle(columnTitle(col)) === target,
   );
+  if (exact) return exact;
+
+  // VS Exit Survey title is "Contacts 2.0"; older boards used "Contacts".
+  if (fieldKey === 'contactLink') {
+    return columnValues.find((col) => {
+      const title = normalizeTitle(columnTitle(col));
+      return (
+        title === 'contacts' ||
+        title === 'contacts 2.0' ||
+        (title.includes('contact') && col.type === 'board_relation')
+      );
+    });
+  }
+
+  // "Date Volunteer left:" vs without trailing colon.
+  if (fieldKey === 'completedDate') {
+    return columnValues.find((col) => {
+      const title = normalizeTitle(columnTitle(col)).replace(/:+$/, '');
+      return (
+        title === target.replace(/:+$/, '') ||
+        title.includes('date volunteer left')
+      );
+    });
+  }
+
+  return undefined;
 }
 
 export function getEndOfServiceReviewColumnText(

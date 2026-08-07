@@ -160,208 +160,214 @@ export default function UserSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
-      <header>
-        <h1 className="text-3xl font-semibold text-crm-heading">User settings</h1>
-        <p className="mt-2 text-sm text-crm-slate">
-          Your CRM profile, private notes security, email signature, and
-          personal preferences.
-        </p>
-      </header>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+        <div className="mx-auto max-w-3xl space-y-8 pb-8">
+          <header>
+            <h1 className="text-3xl font-semibold text-crm-heading">
+              User settings
+            </h1>
+            <p className="mt-2 text-sm text-crm-slate">
+              Your CRM profile, email signature, personal preferences, and
+              private notes security.
+            </p>
+          </header>
 
-      <PrivateNotesSecurityCard />
+          <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
+              Profile
+            </h2>
+            <form
+              onSubmit={(e) => void handleSaveProfile(e)}
+              className="mt-4 space-y-4"
+            >
+              <div className="flex items-start gap-4">
+                <div className="relative shrink-0">
+                  {photoDraft ? (
+                    <img
+                      src={photoDraft}
+                      alt=""
+                      className="h-16 w-16 rounded-full object-cover ring-1 ring-crm-taupe/25"
+                    />
+                  ) : (
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-crm-indigo-100 text-sm font-semibold text-crm-heading ring-1 ring-crm-taupe/20">
+                      {initials}
+                    </span>
+                  )}
+                  <div className="mt-2 flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-lg border border-crm-taupe/30 px-2 py-1 text-[11px] text-crm-heading hover:bg-crm-taupe-50"
+                    >
+                      Change photo
+                    </button>
+                    {photoDraft && (
+                      <button
+                        type="button"
+                        onClick={() => setPhotoDraft(undefined)}
+                        className="rounded-lg px-2 py-1 text-[11px] text-crm-slate hover:bg-crm-taupe-50"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => void onPickPhoto(e)}
+                  />
+                </div>
 
-      <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
-          Profile
-        </h2>
-        <form
-          onSubmit={(e) => void handleSaveProfile(e)}
-          className="mt-4 space-y-4"
-        >
-          <div className="flex items-start gap-4">
-            <div className="relative shrink-0">
-              {photoDraft ? (
-                <img
-                  src={photoDraft}
-                  alt=""
-                  className="h-16 w-16 rounded-full object-cover ring-1 ring-crm-taupe/25"
-                />
-              ) : (
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-crm-indigo-100 text-sm font-semibold text-crm-heading ring-1 ring-crm-taupe/20">
-                  {initials}
-                </span>
-              )}
-              <div className="mt-2 flex flex-col gap-1">
+                <div className="min-w-0 flex-1 space-y-3 text-sm">
+                  <label className="block text-crm-heading">
+                    Name
+                    <input
+                      type="text"
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <div>
+                    <p className="text-crm-slate">Email</p>
+                    <p className="font-medium text-crm-heading">
+                      {user?.email?.trim() || '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
                 <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-lg border border-crm-taupe/30 px-2 py-1 text-[11px] text-crm-heading hover:bg-crm-taupe-50"
+                  type="submit"
+                  disabled={savingProfile}
+                  className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-60"
                 >
-                  Change photo
+                  {savingProfile ? 'Saving…' : 'Save profile'}
                 </button>
-                {photoDraft && (
-                  <button
-                    type="button"
-                    onClick={() => setPhotoDraft(undefined)}
-                    className="rounded-lg px-2 py-1 text-[11px] text-crm-slate hover:bg-crm-taupe-50"
-                  >
-                    Remove
-                  </button>
+                {error && <p className="text-xs text-amber-800">{error}</p>}
+                {savedNote && !error && (
+                  <p className="text-xs text-crm-heading">{savedNote}</p>
                 )}
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => void onPickPhoto(e)}
-              />
-            </div>
+            </form>
+          </section>
 
-            <div className="min-w-0 flex-1 space-y-3 text-sm">
-              <label className="block text-crm-heading">
-                Name
-                <input
-                  type="text"
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm"
-                />
-              </label>
+          <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-crm-slate">Email</p>
-                <p className="font-medium text-crm-heading">
-                  {user?.email?.trim() || '—'}
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
+                  Email signature
+                </h2>
+                <p className="mt-1 text-sm text-crm-slate">
+                  {signatureCount === 0
+                    ? 'No signatures saved yet.'
+                    : `${signatureCount} signature${signatureCount === 1 ? '' : 's'}${
+                        defaultSigName ? ` · default: ${defaultSigName}` : ''
+                      }`}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setSignatureOpen(true)}
+                className="rounded-xl bg-crm-indigo px-3 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
+              >
+                Manage signatures
+              </button>
             </div>
-          </div>
+          </section>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="submit"
-              disabled={savingProfile}
-              className="rounded-xl bg-crm-indigo px-4 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark disabled:opacity-60"
-            >
-              {savingProfile ? 'Saving…' : 'Save profile'}
-            </button>
-            {error && <p className="text-xs text-amber-800">{error}</p>}
-            {savedNote && !error && (
-              <p className="text-xs text-crm-heading">{savedNote}</p>
-            )}
-          </div>
-        </form>
-      </section>
-
-      <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
-              Email signature
+              Work focus
             </h2>
-            <p className="mt-1 text-sm text-crm-slate">
-              {signatureCount === 0
-                ? 'No signatures saved yet.'
-                : `${signatureCount} signature${signatureCount === 1 ? '' : 's'}${
-                    defaultSigName ? ` · default: ${defaultSigName}` : ''
-                  }`}
+            <p className="mt-2 text-sm text-crm-heading">
+              Work focus: {focusLabel}
             </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSignatureOpen(true)}
-            className="rounded-xl bg-crm-indigo px-3 py-2 text-sm font-medium text-white hover:bg-crm-indigo-dark"
-          >
-            Manage signatures
-          </button>
+            <p className="mt-1 text-xs text-crm-slate">{focusDescription}</p>
+            <p className="mt-1 text-xs text-crm-slate">
+              Browser preference
+              {override
+                ? ` · custom (default: ${WORK_FOCUS_META[derivedFocus].label})`
+                : ' · default layout'}
+              . Detail panels put your job first (Finance → donations/billing; HR →
+              applications/terms).
+            </p>
+            <label className="mt-4 block text-sm text-crm-heading">
+              Focus for this browser
+              <select
+                value={override ?? 'auto'}
+                onChange={(e) => saveWorkFocus(e.target.value)}
+                className="mt-1.5 w-full max-w-md rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm"
+              >
+                <option value="auto">
+                  Default ({WORK_FOCUS_META[derivedFocus].label})
+                </option>
+                {WORK_FOCUSES.map((id) => (
+                  <option key={id} value={id}>
+                    {WORK_FOCUS_META[id].label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {focusNote && (
+              <p className="mt-2 text-xs text-crm-heading">{focusNote}</p>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
+              Preferences
+            </h2>
+            <label className="mt-4 block text-sm text-crm-heading">
+              Default landing page
+              <select
+                value={landing}
+                onChange={(e) => saveLanding(e.target.value)}
+                className="mt-1.5 w-full max-w-md rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm"
+              >
+                {LANDING_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="mt-2 text-xs text-crm-slate">
+              Used when this browser opens the CRM with no saved navigation state.
+              {!hasExplicitLandingPreference()
+                ? ` Currently seeded from work focus (${focusLabel} → ${
+                    LANDING_OPTIONS.find(
+                      (o) => o.id === defaultLandingPageForFocus(focus),
+                    )?.label ?? 'Contacts'
+                  }).`
+                : ''}
+            </p>
+            {landingNote && (
+              <p className="mt-2 text-xs text-crm-heading">{landingNote}</p>
+            )}
+          </section>
+
+          <PrivateNotesSecurityCard />
+
+          <SignatureManagerDialog
+            open={signatureOpen}
+            onClose={() => {
+              setSignatureOpen(false);
+              setSignatureCount(listEmailSignatures().length);
+              setDefaultSigName(getDefaultEmailSignature()?.name ?? null);
+            }}
+            onInsert={() => setSignatureOpen(false)}
+            onSignaturesChange={() => {
+              setSignatureCount(listEmailSignatures().length);
+              setDefaultSigName(getDefaultEmailSignature()?.name ?? null);
+            }}
+          />
         </div>
-      </section>
-
-      <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
-          Work focus
-        </h2>
-        <p className="mt-2 text-sm text-crm-heading">
-          Work focus: {focusLabel}
-        </p>
-        <p className="mt-1 text-xs text-crm-slate">{focusDescription}</p>
-        <p className="mt-1 text-xs text-crm-slate">
-          Browser preference
-          {override
-            ? ` · custom (default: ${WORK_FOCUS_META[derivedFocus].label})`
-            : ' · default layout'}
-          . Detail panels put your job first (Finance → donations/billing; HR →
-          applications/terms).
-        </p>
-        <label className="mt-4 block text-sm text-crm-heading">
-          Focus for this browser
-          <select
-            value={override ?? 'auto'}
-            onChange={(e) => saveWorkFocus(e.target.value)}
-            className="mt-1.5 w-full max-w-md rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm"
-          >
-            <option value="auto">
-              Default ({WORK_FOCUS_META[derivedFocus].label})
-            </option>
-            {WORK_FOCUSES.map((id) => (
-              <option key={id} value={id}>
-                {WORK_FOCUS_META[id].label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {focusNote && (
-          <p className="mt-2 text-xs text-crm-heading">{focusNote}</p>
-        )}
-      </section>
-
-      <section className="rounded-2xl border border-crm-taupe/20 bg-crm-surface p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-crm-slate">
-          Preferences
-        </h2>
-        <label className="mt-4 block text-sm text-crm-heading">
-          Default landing page
-          <select
-            value={landing}
-            onChange={(e) => saveLanding(e.target.value)}
-            className="mt-1.5 w-full max-w-md rounded-xl border border-crm-taupe/30 bg-crm-white px-3 py-2 text-sm"
-          >
-            {LANDING_OPTIONS.map((opt) => (
-              <option key={opt.id} value={opt.id}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="mt-2 text-xs text-crm-slate">
-          Used when this browser opens the CRM with no saved navigation state.
-          {!hasExplicitLandingPreference()
-            ? ` Currently seeded from work focus (${focusLabel} → ${
-                LANDING_OPTIONS.find(
-                  (o) => o.id === defaultLandingPageForFocus(focus),
-                )?.label ?? 'Contacts'
-              }).`
-            : ''}
-        </p>
-        {landingNote && (
-          <p className="mt-2 text-xs text-crm-heading">{landingNote}</p>
-        )}
-      </section>
-
-      <SignatureManagerDialog
-        open={signatureOpen}
-        onClose={() => {
-          setSignatureOpen(false);
-          setSignatureCount(listEmailSignatures().length);
-          setDefaultSigName(getDefaultEmailSignature()?.name ?? null);
-        }}
-        onInsert={() => setSignatureOpen(false)}
-        onSignaturesChange={() => {
-          setSignatureCount(listEmailSignatures().length);
-          setDefaultSigName(getDefaultEmailSignature()?.name ?? null);
-        }}
-      />
+      </div>
     </div>
   );
 }

@@ -62,6 +62,24 @@ describe('mapItemToContactListItem demographics', () => {
     });
   });
 
+  it('reads Birthdate column aliases into dateOfBirth', () => {
+    const mapped = mapItemToContactListItem({
+      id: '3',
+      name: 'Birthday Person',
+      column_values: [
+        {
+          id: 'dob',
+          text: '1990-03-14',
+          type: 'date',
+          value: JSON.stringify({ date: '1990-03-14' }),
+          column: { title: 'Birthdate' },
+        },
+      ],
+    });
+
+    assert.equal(mapped.demographics?.dateOfBirth, 'March 14, 1990');
+  });
+
   it('fills gaps from a location mailing column', () => {
     const mapped = mapItemToContactListItem({
       id: '2',

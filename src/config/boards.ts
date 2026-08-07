@@ -33,7 +33,6 @@ export function isMondayReadOnly(): boolean {
 /** Live contact profile + tag writes (independent of Applications-board read-only guard). */
 export function canEditContacts(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleAllowsWrite()) return false;
   if (viteEnv('VITE_CONTACTS_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -41,7 +40,6 @@ export function canEditContacts(): boolean {
 /** Application status + column writes. */
 export function canEditApplications(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleAllowsWrite()) return false;
   if (viteEnv('VITE_APPLICATIONS_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -49,7 +47,6 @@ export function canEditApplications(): boolean {
 /** Term-note writes on Applications items while status changes stay read-only. */
 export function canAddApplicationNotes(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleAllowsWrite()) return false;
   if (viteEnv('VITE_APPLICATION_NOTES_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -149,7 +146,8 @@ export function resolveEndOfServiceReviewBoardId(
   const envBoardId = viteEnv('VITE_EOS_REVIEW_BOARD_ID');
   if (envBoardId?.trim()) return String(envBoardId.trim());
 
-  return null;
+  // Live default — VS Exit Survey (staff reviews for volunteers who left).
+  return '2506931747';
 }
 
 export function resolveLongtermApplicationsBoardId(
@@ -172,6 +170,17 @@ export function resolveLongtermReferencesBoardId(): string | null {
   return null;
 }
 
+/** Pastors Reference 2.0 form board (linked from Contacts). */
+export function resolvePastorReferenceBoardId(): string | null {
+  if (useMockData()) return null;
+
+  const envBoardId = viteEnv('VITE_PASTOR_REFERENCE_BOARD_ID');
+  if (envBoardId?.trim()) return String(envBoardId.trim());
+
+  // Live default — Contacts column link_to_pastors_reference7 → boardIds[3561493558]
+  return '3561493558';
+}
+
 export function resolveEmailTemplatesBoardId(): string | null {
   if (useMockData()) return null;
 
@@ -184,7 +193,6 @@ export function resolveEmailTemplatesBoardId(): string | null {
 /** Email template writes on the Email Templates board. */
 export function canEditEmailTemplates(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleIsAdmin()) return false;
   if (viteEnv('VITE_EMAIL_TEMPLATES_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -192,7 +200,6 @@ export function canEditEmailTemplates(): boolean {
 /** Reference sent/review writes while applications board stay read-only. */
 export function canEditLongtermReferences(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleAllowsWrite()) return false;
   if (viteEnv('VITE_LONGTERM_REFERENCES_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -200,7 +207,6 @@ export function canEditLongtermReferences(): boolean {
 /** Donations board create/update. */
 export function canEditDonations(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleIsAdmin()) return false;
   if (viteEnv('VITE_DONATIONS_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -208,7 +214,6 @@ export function canEditDonations(): boolean {
 /** Safeguarding board / certificate link writes. */
 export function canEditSafeguarding(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleAllowsWrite()) return false;
   if (viteEnv('VITE_SAFEGUARDING_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
 }
@@ -223,30 +228,8 @@ export function resolvePortalThingsBoardId(): string | null {
 
 export function canEditPortalThings(): boolean {
   if (useMockData()) return true;
-  if (!crmRoleAllowsWrite()) return false;
   if (viteEnv('VITE_PORTAL_THINGS_WRITABLE') === 'true') return true;
   return !isMondayReadOnly();
-}
-
-export type CrmRole = 'viewer' | 'coordinator' | 'admin';
-
-/** Soft CRM role from env (password-gated Admin still applies). Default admin. */
-export function resolveCrmRole(): CrmRole {
-  const raw = String(viteEnv('VITE_CRM_ROLE') ?? 'admin')
-    .trim()
-    .toLowerCase();
-  if (raw === 'viewer' || raw === 'coordinator' || raw === 'admin') return raw;
-  return 'admin';
-}
-
-/** Any non-viewer role may write coordinator-scoped boards. */
-function crmRoleAllowsWrite(): boolean {
-  return resolveCrmRole() !== 'viewer';
-}
-
-/** Admin-only writes (donations ingest, email template CRUD). */
-export function crmRoleIsAdmin(): boolean {
-  return resolveCrmRole() === 'admin' || useMockData();
 }
 
 export function contactsBoardName(): string {
@@ -270,7 +253,8 @@ export function resolveMonitoredBoardIds(): string[] {
   const applicationsId = viteEnv('VITE_APPLICATIONS_BOARD_ID');
   const donationsId = viteEnv('VITE_DONATIONS_BOARD_ID');
   const serviceEndedId = viteEnv('VITE_SERVICE_ENDED_BOARD_ID');
-  const eosReviewId = viteEnv('VITE_EOS_REVIEW_BOARD_ID');
+  const eosReviewId =
+    viteEnv('VITE_EOS_REVIEW_BOARD_ID') || '2506931747';
   const longtermAppsId = viteEnv('VITE_LONGTERM_APPLICATIONS_BOARD_ID');
   const longtermRefsId = viteEnv('VITE_LONGTERM_REFERENCES_BOARD_ID');
   const portalThingsId = viteEnv('VITE_PORTAL_THINGS_BOARD_ID');

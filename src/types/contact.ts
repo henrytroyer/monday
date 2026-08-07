@@ -47,6 +47,13 @@ export interface ContactListItem {
   /** Secondary email(s) kept after merge (comma-separated on Monday Alt Email). */
   altEmail?: string;
   phone?: string;
+  /** Secondary phone(s) kept after merge (comma-separated on Monday Alt Phone). */
+  altPhone?: string;
+  /**
+   * Secondary mailing address(es) kept after merge
+   * (pipe-separated on Monday Alt Address).
+   */
+  altAddress?: string;
   profilePhotoUrl?: string;
   createdAt?: string;
   tags: ContactTag[];

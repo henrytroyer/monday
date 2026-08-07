@@ -23,13 +23,20 @@ import {
 } from '../utils/contactDemographicsMerge';
 import { parseFilloutAddress } from '../utils/formatContactAddress';
 import {
+  normalizeDateOfBirth,
+  readMondayDateColumnText,
+} from '../utils/formatDateOfBirth';
+import {
   normalizePersonName,
   volunteerNameFromItemTitle,
 } from '../utils/personNameMatch';
 import { mergeTags } from './contactSyncHelpers';
 import { getDonationColumnText } from './mapMondayToDonation';
 import { getColumnText, type MondayBoardItem } from './mapMondayToCrm';
-import { getServiceEndedColumnText } from './mapServiceEndedToTerm';
+import {
+  findServiceEndedColumn,
+  getServiceEndedColumnText,
+} from './mapServiceEndedToTerm';
 
 export const COMPILED_CONTACT_ID_PREFIX = 'compiled:';
 
@@ -76,6 +83,20 @@ function getLongtermText(
   key: keyof typeof longtermColumnMap,
 ): string {
   return findColumnByTitle(columnValues, longtermColumnMap[key])?.text?.trim() || '';
+}
+
+function getLongtermDateText(
+  columnValues: MondayBoardItem['column_values'],
+  key: keyof typeof longtermColumnMap,
+): string {
+  return readMondayDateColumnText(findColumnByTitle(columnValues, longtermColumnMap[key]));
+}
+
+function getServiceEndedDateText(
+  columnValues: MondayBoardItem['column_values'],
+  fieldKey: Parameters<typeof findServiceEndedColumn>[1],
+): string {
+  return readMondayDateColumnText(findServiceEndedColumn(columnValues, fieldKey));
 }
 
 interface MutableContact {
@@ -501,13 +522,18 @@ export function compileContactsFromBoards(
     const email = getLongtermText(app.column_values, 'email');
     const phone = getLongtermText(app.column_values, 'phone');
     const homeAddress = getLongtermText(app.column_values, 'homeAddress');
-    const demographics = homeAddress
-      ? normalizeContactDemographics(
-          homeAddress.includes('\n')
-            ? parseFilloutAddress(homeAddress)
-            : { address: homeAddress },
-        )
+    const dateOfBirth = normalizeDateOfBirth(
+      getLongtermDateText(app.column_values, 'birthDate'),
+    );
+    const fromHome = homeAddress
+      ? homeAddress.includes('\n')
+        ? parseFilloutAddress(homeAddress)
+        : { address: homeAddress }
       : undefined;
+    const demographics = normalizeContactDemographics({
+      ...(dateOfBirth ? { dateOfBirth } : {}),
+      ...(fromHome ?? {}),
+    });
 
     upsert({
       email,
@@ -532,12 +558,19 @@ export function compileContactsFromBoards(
     );
     const volunteerName =
       volunteerNameFromItemTitle(item.name ?? '') || item.name;
+    const dateOfBirth = normalizeDateOfBirth(
+      getServiceEndedDateText(item.column_values, 'dateOfBirth'),
+    );
+    const demographics = normalizeContactDemographics(
+      dateOfBirth ? { dateOfBirth } : undefined,
+    );
 
     upsert({
       email,
       name: volunteerName,
       phone,
       tags: ['volunteer'],
+      demographics,
       preferId: item.id,
     });
     if (parentEmail) {

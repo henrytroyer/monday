@@ -13,9 +13,14 @@ let proxyBaseOverride: string | null = null;
 
 export function configureMondayProxyAuth(options: {
   getToken: TokenGetter;
-  proxyBase?: string;
+  /** Pass null/'' to clear a previous test override. */
+  proxyBase?: string | null;
 }): void {
   tokenGetter = options.getToken;
+  if (options.proxyBase === null || options.proxyBase === '') {
+    proxyBaseOverride = null;
+    return;
+  }
   if (options.proxyBase?.trim()) {
     proxyBaseOverride = options.proxyBase.trim().replace(/\/$/, '');
   }

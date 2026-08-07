@@ -39,9 +39,7 @@ export default function DonationsList({
   if (records.length === 0) {
     return (
       <p className="text-sm text-crm-slate">
-        {import.meta.env.VITE_QBO_INCOME_SYNC_ENABLED === 'true'
-          ? 'No donations found for this contact.'
-          : 'No donations found for this contact in Donations or QuickBooks.'}
+        No donations found for this contact.
       </p>
     );
   }

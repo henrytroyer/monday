@@ -275,6 +275,13 @@ export default function ContactProfileCard({
                 <span className="text-crm-slate">Not provided</span>
               )}
             </Field>
+            {detail.altPhone?.trim() ? (
+              <Field label="Alt Phone">
+                <span className="font-medium text-crm-heading">
+                  {detail.altPhone}
+                </span>
+              </Field>
+            ) : null}
             <Field label="Date of birth">
               {editing ? (
                 <input
@@ -345,6 +352,13 @@ export default function ContactProfileCard({
                 <span className="text-crm-slate">Not provided</span>
               )}
             </Field>
+            {detail.altAddress?.trim() ? (
+              <Field label="Alt Address">
+                <span className="whitespace-pre-line font-medium text-crm-heading">
+                  {detail.altAddress.replace(/\s*\|\s*/g, '\n')}
+                </span>
+              </Field>
+            ) : null}
           </dl>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">

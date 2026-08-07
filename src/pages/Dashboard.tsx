@@ -1,5 +1,5 @@
 /**
- * Dashboard.tsx — CRM shell (open access; no permission gates).
+ * Dashboard.tsx — CRM shell (open access for allowlisted operators).
  */
 
 import { lazy, Suspense, useEffect, useState } from 'react';

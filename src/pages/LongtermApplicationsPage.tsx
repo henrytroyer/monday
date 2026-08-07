@@ -1,13 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ApplicationDetailPanel from '../components/applications/ApplicationDetailPanel';
+import ApplicationGanttChart from '../components/applications/ApplicationGanttChart';
+import PipelineLayoutToggle from '../components/applications/PipelineLayoutToggle';
 import PipelineSection from '../components/applications/PipelineSection';
 import CrmPageLoading from '../components/shared/CrmPageLoading';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
 import { useLongtermApplicationsPipeline } from '../hooks/useLongtermApplicationsPipeline';
 import { usePersistedPageWorkspace } from '../hooks/usePersistedPageWorkspace';
+import {
+  readPipelineLayout,
+  writePipelineLayout,
+  type PipelineLayout,
+} from '../preferences/pipelineLayoutStorage';
 import type { LongtermViewMode } from '../types/longtermVolunteer';
 import type { Volunteer } from '../types/volunteer';
+import { collectGanttLocationOptions } from '../utils/applicationGantt';
 import {
   asPipelineSection,
   countLongtermVolunteers,
@@ -40,6 +48,10 @@ export default function LongtermApplicationsPage({
   const [viewMode, setViewMode] = useState<LongtermViewMode>(
     savedNav?.longtermViewMode ?? 'pipeline',
   );
+  const [layout, setLayout] = useState<PipelineLayout>(() =>
+    readPipelineLayout(),
+  );
+  const [ganttLocations, setGanttLocations] = useState<string[]>([]);
   const [selectedApplication, setSelectedApplication] =
     useState<Volunteer | null>(null);
   const [detailVisible, setDetailVisible] = useState(
@@ -116,6 +128,16 @@ export default function LongtermApplicationsPage({
   const sections =
     viewMode === 'pipeline' ? pipelineSections : fieldSections;
 
+  const ganttVolunteers = useMemo(
+    () => sections.flatMap((section) => section.volunteers),
+    [sections],
+  );
+
+  const ganttLocationOptions = useMemo(
+    () => collectGanttLocationOptions(ganttVolunteers),
+    [ganttVolunteers],
+  );
+
   const showingDetail = detailVisible && selectedApplication !== null;
   const { setDetailMode } = useLayout();
 
@@ -175,7 +197,6 @@ export default function LongtermApplicationsPage({
                 {viewMode === 'pipeline'
                   ? `${pipelineCount} in pipeline · ${onFieldCount} on field · ${totalCount} total`
                   : `${onFieldCount} on field · ${totalCount} total`}
-                {!isMock && boardId ? ' · Live' : ''}
               </p>
             </div>
             {!isMock && (
@@ -189,7 +210,14 @@ export default function LongtermApplicationsPage({
             )}
           </div>
 
-          <div className="mt-5 flex justify-center">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <PipelineLayoutToggle
+              value={layout}
+              onChange={(next) => {
+                setLayout(next);
+                writePipelineLayout(next);
+              }}
+            />
             <button
               type="button"
               onClick={() =>
@@ -229,11 +257,8 @@ export default function LongtermApplicationsPage({
           </p>
           <p className="mt-2 text-sm text-red-700">{error}</p>
           <p className="mt-3 text-sm text-red-600">
-            Set{' '}
-            <code className="rounded bg-red-100 px-1">
-              VITE_LONGTERM_APPLICATIONS_BOARD_ID
-            </code>{' '}
-            in .env or enable mock mode.
+            Try refreshing the page. If this keeps happening, contact an
+            administrator.
           </p>
         </div>
       )}
@@ -260,21 +285,37 @@ export default function LongtermApplicationsPage({
           showingDetail ? ' hidden' : ''
         }`}
       >
-        <div className="space-y-8 pb-4">
-          {sections.map((section) => (
-            <PipelineSection
-              key={`${viewMode}-${section.stage}`}
-              section={asPipelineSection(section)}
+        {layout === 'gantt' ? (
+          <div className="pb-4">
+            <ApplicationGanttChart
+              volunteers={ganttVolunteers}
+              selectedLocations={ganttLocations}
+              onSelectedLocationsChange={setGanttLocations}
+              locationOptions={ganttLocationOptions}
               onSelectVolunteer={(volunteer) => {
                 const match = findLongtermVolunteer(volunteers, volunteer.id);
                 openApplication(match ?? volunteer);
               }}
-              statusOptions={statusOptions}
-              onStatusChange={handleStatusChange}
-              statusSelectDisabled={!applicationsEditable}
             />
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-8 pb-4">
+            {sections.map((section) => (
+              <PipelineSection
+                key={`${viewMode}-${section.stage}`}
+                section={asPipelineSection(section)}
+                onSelectVolunteer={(volunteer) => {
+                  const match = findLongtermVolunteer(volunteers, volunteer.id);
+                  openApplication(match ?? volunteer);
+                }}
+                statusOptions={statusOptions}
+                onStatusChange={handleStatusChange}
+                statusSelectDisabled={!applicationsEditable}
+                layout={layout}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -75,7 +75,7 @@ type PortalRawItem = {
   column_values: ColumnValue[];
 };
 
-/** Avoid stampeding Monday while permissions/operators resolve (board is 500+ items). */
+/** Avoid stampeding Monday while the Portal Things board resolves (board is 500+ items). */
 const PORTAL_ITEMS_TTL_MS = 5 * 60_000;
 type PortalItemsCacheEntry = {
   boardId: string;

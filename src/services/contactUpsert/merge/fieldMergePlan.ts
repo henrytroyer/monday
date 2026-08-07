@@ -5,6 +5,12 @@
 import type { ContactListItem } from '../../../types/contact';
 import { mergeTags } from '../../contactSyncHelpers';
 import {
+  collectMailingBlocks,
+  joinAltAddresses,
+  mailingBlocksEqual,
+  parseMailingBlock,
+} from './mailingAddress';
+import {
   normalizeEmailForMerge,
   normalizeNameForMerge,
 } from './normalize';
@@ -60,6 +66,85 @@ export function combineEmails(
   return {
     primary: primary || survivor.email || '—',
     altEmail: altList.length > 0 ? altList.join(', ') : undefined,
+  };
+}
+
+function splitAltPhones(value: string | undefined): string[] {
+  if (!value?.trim()) return [];
+  return value
+    .split(/[,;]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function phoneKey(value: string): string {
+  return value.replace(/\D/g, '') || value.trim().toLowerCase();
+}
+
+export function combinePhones(
+  survivor: ContactListItem,
+  losers: ContactListItem[],
+): { primary?: string; altPhone?: string } {
+  const all = [survivor, ...losers];
+  const primary =
+    survivor.phone?.trim() ||
+    all.map((c) => c.phone?.trim()).find(Boolean) ||
+    undefined;
+  if (!primary) return {};
+
+  const primaryKey = phoneKey(primary);
+  const extras: string[] = [];
+  const seen = new Set<string>([primaryKey]);
+
+  for (const contact of all) {
+    for (const phone of [
+      contact.phone?.trim(),
+      ...splitAltPhones(contact.altPhone),
+    ]) {
+      if (!phone) continue;
+      const key = phoneKey(phone);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      extras.push(phone);
+    }
+  }
+
+  return {
+    primary,
+    altPhone: extras.length > 0 ? extras.join(', ') : undefined,
+  };
+}
+
+export function combineAddresses(
+  survivor: ContactListItem,
+  losers: ContactListItem[],
+): {
+  demographics: FieldMergePlan['demographics'];
+  altAddress?: string;
+} {
+  const all = [survivor, ...losers];
+  const blocks: string[] = [];
+  for (const contact of all) {
+    for (const block of collectMailingBlocks(contact)) {
+      if (!blocks.some((b) => mailingBlocksEqual(b, block))) {
+        blocks.push(block);
+      }
+    }
+  }
+
+  if (blocks.length === 0) {
+    return { demographics: {} };
+  }
+
+  const primaryBlock =
+    collectMailingBlocks(survivor)[0] || blocks[0]!;
+  const altBlocks = blocks.filter(
+    (b) => !mailingBlocksEqual(b, primaryBlock),
+  );
+
+  return {
+    demographics: parseMailingBlock(primaryBlock),
+    altAddress: joinAltAddresses(altBlocks),
   };
 }
 
@@ -153,6 +238,8 @@ export function buildFieldMergePlan(
 ): FieldMergePlan {
   const all = [survivor, ...losers];
   const emails = combineEmails(survivor, losers);
+  const phones = combinePhones(survivor, losers);
+  const addresses = combineAddresses(survivor, losers);
   let tags = [...survivor.tags];
   for (const loser of losers) {
     tags = mergeTags(tags, loser.tags);
@@ -221,10 +308,8 @@ export function buildFieldMergePlan(
     resultingEmail: emails.primary,
     resultingAltEmail: emails.altEmail,
     resultingTags: tags,
-    phone: fillGap(
-      survivor.phone,
-      losers.map((l) => l.phone).find(Boolean),
-    ),
+    phone: phones.primary,
+    altPhone: phones.altPhone,
     spouseName: fillGap(
       survivor.spouseName,
       losers.map((l) => l.spouseName).find(Boolean),
@@ -233,28 +318,8 @@ export function buildFieldMergePlan(
       connectedParts.length > 0
         ? [...new Set(connectedParts)].join(', ')
         : undefined,
-    demographics: {
-      address: fillGap(
-        survivor.demographics?.address,
-        losers.map((l) => l.demographics?.address).find(Boolean),
-      ),
-      city: fillGap(
-        survivor.demographics?.city,
-        losers.map((l) => l.demographics?.city).find(Boolean),
-      ),
-      state: fillGap(
-        survivor.demographics?.state,
-        losers.map((l) => l.demographics?.state).find(Boolean),
-      ),
-      zip: fillGap(
-        survivor.demographics?.zip,
-        losers.map((l) => l.demographics?.zip).find(Boolean),
-      ),
-      country: fillGap(
-        survivor.demographics?.country,
-        losers.map((l) => l.demographics?.country).find(Boolean),
-      ),
-    },
+    demographics: addresses.demographics,
+    altAddress: addresses.altAddress,
     conflicts,
     namesDiffer,
     willUpdatePastor,

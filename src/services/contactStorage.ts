@@ -278,6 +278,10 @@ export interface ContactCoreFields {
   /** Secondary email(s); comma-separated when multiple. */
   altEmail?: string;
   phone?: string;
+  /** Secondary phone(s); comma-separated when multiple. */
+  altPhone?: string;
+  /** Secondary mailing address(es); pipe-separated when multiple. */
+  altAddress?: string;
   tags?: ContactTag[];
   demographics?: ContactDemographics;
 }

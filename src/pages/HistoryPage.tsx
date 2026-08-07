@@ -124,8 +124,7 @@ export default function HistoryPage({
         </p>
         {isMock && (
           <p className="mt-2 text-sm text-amber-800">
-            Demo mode — showing sample activity. Connect live boards to see the
-            full history and undo changes.
+            Showing sample activity — not the live history.
           </p>
         )}
       </div>

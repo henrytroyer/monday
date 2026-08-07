@@ -389,7 +389,7 @@ export async function fetchLongtermApplicationDetail(
   }
 
   setCachedApplicationDetail(itemId, detail);
-  return applyVolunteerPermissionFilter(detail);
+  return detail;
 }
 
 export async function fetchServiceEndedDetail(
@@ -418,11 +418,11 @@ export async function fetchServiceEndedDetail(
     childSafeguardingReceivedDate = undefined;
   }
 
-  return applyVolunteerPermissionFilter({
+  return {
     ...detail,
     childSafeguardingFile,
     childSafeguardingReceivedDate,
-  });
+  };
 }
 
 export type MondayBoardColumn = {
@@ -1362,8 +1362,16 @@ const CONTACT_UPDATE_COLUMNS: Array<{
     getValue: (fields) => phoneForMondayColumn(fields.phone?.trim() ?? ''),
   },
   {
+    fieldKey: 'altPhone',
+    getValue: (fields) => fields.altPhone?.trim() || '',
+  },
+  {
     fieldKey: 'address',
     getValue: (fields) => fields.demographics?.address?.trim() || '',
+  },
+  {
+    fieldKey: 'altAddress',
+    getValue: (fields) => fields.altAddress?.trim() || '',
   },
   {
     fieldKey: 'city',
@@ -1494,7 +1502,12 @@ export async function updateContactFieldsOnMonday(
     for (const { fieldKey, getValue } of CONTACT_UPDATE_COLUMNS) {
       const value = getValue(fields);
       if (value === undefined) continue;
-      if (value === '') continue;
+      const allowClearAlt =
+        value === '' &&
+        (fieldKey === 'altEmail' ||
+          fieldKey === 'altPhone' ||
+          fieldKey === 'altAddress');
+      if (value === '' && !allowClearAlt) continue;
       if (
         typeof value === 'object' &&
         value !== null &&
@@ -1564,7 +1577,12 @@ export async function updateContactFieldsOnMonday(
   for (const { fieldKey, getValue } of CONTACT_UPDATE_COLUMNS) {
     const value = getValue(fields);
     if (value === undefined) continue;
-    if (value === '') continue;
+    const allowClearAlt =
+      value === '' &&
+      (fieldKey === 'altEmail' ||
+        fieldKey === 'altPhone' ||
+        fieldKey === 'altAddress');
+    if (value === '' && !allowClearAlt) continue;
     if (
       typeof value === 'object' &&
       value !== null &&

@@ -4,6 +4,7 @@ import { getTimelineLabel } from '../data/timelines';
 import type { VolunteerTerm } from '../types/volunteer';
 import { parseLinkedBoardRelationIds } from './mondayFileColumns';
 import type { MondayBoardItem, MondayColumnValue } from './mapMondayToCrm';
+import { parseMondayTimelineColumn } from './mondayTimelineColumn';
 
 function normalizeTitle(title: string): string {
   return title.trim().toLowerCase();
@@ -52,32 +53,11 @@ export function parseServiceEndedTermRange(
   columnValues: MondayColumnValue[],
 ): { termStart?: string; termEnd?: string } {
   const col = findServiceEndedColumn(columnValues, 'termRange');
-  if (!col) return {};
-
-  const text = col.text?.trim();
-  if (text) {
-    const parts = text.split(/\s*-\s*/);
-    if (parts.length >= 2) {
-      return { termStart: parts[0].trim(), termEnd: parts[1].trim() };
-    }
-  }
-
-  if (col.value) {
-    try {
-      const parsed = JSON.parse(col.value) as {
-        from?: string;
-        to?: string;
-      };
-      return {
-        ...(parsed.from?.trim() ? { termStart: parsed.from.trim() } : {}),
-        ...(parsed.to?.trim() ? { termEnd: parsed.to.trim() } : {}),
-      };
-    } catch {
-      // fall through
-    }
-  }
-
-  return {};
+  // Prefer JSON from/to (and ISO-safe text regex). Never split on bare "-" —
+  // that shatters "2026-06-16 - 2026-09-07" into "2026" / "06" (shows as 2001).
+  const range = parseMondayTimelineColumn(col);
+  if (!range) return {};
+  return { termStart: range.from, termEnd: range.to };
 }
 
 export function parseLinkedContactIdsFromServiceEnded(

@@ -4,7 +4,6 @@ import { applicationPipeline } from '../../data/mockApplications';
 import { useApplicationDetail } from '../../hooks/useApplicationDetail';
 import { useServiceEndedDetail } from '../../hooks/useServiceEndedDetail';
 import { useWorkFocus } from '../../hooks/useWorkFocus';
-import SectionGate from '../shared/SectionGate';
 import type { SectionId } from '../../preferences/workFocus';
 import {
   orderSectionEntries,
@@ -188,7 +187,6 @@ export default function TermDetailPanel({
                 termSectionOrder(workFocus),
                 {
                   'contact.term_files': (
-                    <SectionGate id="contact.term_files">
                       <VolunteerFilesSection
                         volunteerName={volunteerName}
                         profilePhotoUrl={recordDetail.profilePhotoUrl}
@@ -198,10 +196,8 @@ export default function TermDetailPanel({
                         showOtherFiles
                         variant="panel"
                       />
-                    </SectionGate>
                   ),
                   'contact.terms': (
-                    <SectionGate id="contact.terms">
                       <EndOfServiceReviewSection
                         completedAt={term.endOfServiceReview?.completedAt}
                         fields={term.endOfServiceReview?.fields}
@@ -211,10 +207,8 @@ export default function TermDetailPanel({
                             : undefined
                         }
                       />
-                    </SectionGate>
                   ),
                   'contact.term_notes': (
-                    <SectionGate id="contact.term_notes">
                       <section>
                         <h3 className="text-sm font-semibold text-crm-heading">
                           Internal notes
@@ -227,10 +221,8 @@ export default function TermDetailPanel({
                           />
                         </div>
                       </section>
-                    </SectionGate>
                   ),
                   'contact.email_history': (
-                    <SectionGate id="contact.email_history">
                       <section>
                         <div className="mt-3">
                           <TermEmailCorrespondence
@@ -245,10 +237,8 @@ export default function TermDetailPanel({
                           />
                         </div>
                       </section>
-                    </SectionGate>
                   ),
                   'contact.term_invoice': !isEndedRecord ? (
-                    <SectionGate id="contact.term_invoice">
                       <section className="rounded-2xl border border-crm-taupe/20 p-4">
                         <h3 className="text-sm font-semibold text-crm-heading">
                           QuickBooks invoice
@@ -267,10 +257,8 @@ export default function TermDetailPanel({
                           </p>
                         )}
                       </section>
-                    </SectionGate>
                   ) : undefined,
                   'contact.term_references': (
-                    <SectionGate id="contact.term_references">
                       <section className="rounded-2xl border border-crm-taupe/20 p-4">
                         <h3 className="text-sm font-semibold text-crm-heading">
                           References & application
@@ -292,7 +280,6 @@ export default function TermDetailPanel({
                           </button>
                         </div>
                       </section>
-                    </SectionGate>
                   ),
                 } satisfies Partial<Record<SectionId, ReactNode>>,
               ).map((node, index) => (

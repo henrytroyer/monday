@@ -24,11 +24,13 @@ export default function EndOfServiceReviewSection({
   return (
     <section className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-4">
       <h3 className="text-sm font-semibold text-crm-heading">
-        End of service review
+        Exit survey
       </h3>
 
       {!hasReview ? (
-        <p className="mt-2 text-sm text-crm-slate">No review on file for this term.</p>
+        <p className="mt-2 text-sm text-crm-slate">
+          No VS Exit Survey on file for this term.
+        </p>
       ) : (
         <>
           <p className="mt-2 text-sm text-crm-slate">

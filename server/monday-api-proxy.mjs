@@ -16,11 +16,6 @@ import {
   getEmailFromAddress,
   sendOutboundEmail,
 } from './emailSend.mjs';
-import {
-  assertOperatorMayMutate,
-  isGraphqlMutation,
-  permissionDeniedBody,
-} from './crmRbacAcl.mjs';
 
 dotenv.config();
 
@@ -28,36 +23,6 @@ const PORT = Number(process.env.PORT || 4042);
 const TOKEN = process.env.MONDAY_API_TOKEN;
 const MONDAY_API = 'https://api.monday.com/v2';
 const API_VERSION = '2025-01';
-const PORTAL_THINGS_BOARD_ID =
-  process.env.VITE_PORTAL_THINGS_BOARD_ID?.trim() ||
-  process.env.PORTAL_THINGS_BOARD_ID?.trim() ||
-  '';
-
-function operatorEmailFromRequest(req) {
-  const header =
-    req.headers['x-crm-operator-email'] ||
-    req.headers['X-Crm-Operator-Email'];
-  return typeof header === 'string' ? header.trim().toLowerCase() : '';
-}
-
-async function enforceCrmMutationAcl(req, query) {
-  if (!isGraphqlMutation(query)) return;
-  try {
-    await assertOperatorMayMutate(
-      mondayGraphql,
-      PORTAL_THINGS_BOARD_ID,
-      operatorEmailFromRequest(req),
-    );
-  } catch (err) {
-    if (err?.statusCode === 403 || err?.code === 'CRM_PERMISSION_DENIED') {
-      const denied = new Error(err.message);
-      denied.statusCode = 403;
-      denied.body = permissionDeniedBody();
-      throw denied;
-    }
-    throw err;
-  }
-}
 
 async function extractTextFromAssetBuffer(buffer) {
   if (buffer.subarray(0, 5).toString() === '%PDF-') {
@@ -309,7 +274,6 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { error: 'query string required' });
         return;
       }
-      await enforceCrmMutationAcl(req, body.query);
       const result = await mondayGraphql(
         body.query,
         body.variables,
@@ -325,10 +289,6 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 500, { error: 'Set MONDAY_API_TOKEN in environment' });
         return;
       }
-      await enforceCrmMutationAcl(
-        req,
-        'mutation { add_file_to_column }',
-      );
       const body = await readJsonBody(req);
       const itemId = body.itemId != null ? String(body.itemId).trim() : '';
       const columnId = body.columnId != null ? String(body.columnId).trim() : '';

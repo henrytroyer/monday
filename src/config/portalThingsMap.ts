@@ -38,7 +38,6 @@ export const portalThingsMap = {
 export const PORTAL_GROUP_ONBOARDING = 'Onboarding';
 export const PORTAL_GROUP_RECRUITMENT = 'Recruitment';
 export const PORTAL_GROUP_CONFIG = 'Config';
-export const PORTAL_GROUP_OPERATORS = 'Operators';
 export const PORTAL_GROUP_AUDIT = 'Audit';
 
 export const PORTAL_KIND = {
@@ -47,8 +46,6 @@ export const PORTAL_KIND = {
   noteReviewRegistry: 'note_review_registry',
   emailSignatures: 'email_signatures',
   settings: 'settings',
-  rolePermissions: 'role_permissions',
-  operator: 'operator',
   auditEvent: 'audit_event',
 } as const;
 
@@ -57,7 +54,6 @@ export const PORTAL_ENTITY_TYPE = {
   longtermApplication: 'longterm_application',
   prospect: 'prospect',
   config: 'config',
-  operator: 'operator',
   audit: 'audit',
 } as const;
 
@@ -65,7 +61,6 @@ export const PORTAL_CONFIG_ITEM = {
   noteReviewRegistry: 'Note Review Registry',
   emailSignatures: 'Email Signatures',
   portalSettings: 'Portal Settings',
-  rolePermissions: 'Role Permissions',
 } as const;
 
 export type PortalThingsMapKey = keyof typeof portalThingsMap;

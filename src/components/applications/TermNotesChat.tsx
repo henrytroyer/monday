@@ -402,11 +402,7 @@ export default function TermNotesChat({
         </form>
       ) : (
         <p className="mt-4 text-sm text-crm-slate">
-          Application notes are read-only. Set{' '}
-          <code className="rounded bg-crm-taupe-50 px-1 text-xs">
-            VITE_APPLICATION_NOTES_WRITABLE=true
-          </code>{' '}
-          when you are ready to write term notes from the portal.
+          Application notes are read-only for your account.
         </p>
       )}
     </div>

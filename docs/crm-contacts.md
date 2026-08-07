@@ -11,10 +11,11 @@ Create or use a board (default name in sync script: `Contacts Test`). Required c
 | Column title | Type | Notes |
 |--------------|------|--------|
 | Email | email | Primary match key |
-| Alt Email | text/email | Secondary address(es) kept after merge (comma-separated) |
+| Alt Email | text/email | Secondary email(s) kept after merge (comma-separated) |
 | Tags | status (multi-label) | Labels: `Volunteer`, `Pastor`, `Parents`, `Donor` (legacy `Parent` is read as Parents) |
 | type | status/text | Legacy single-value column (still read if present) |
 | Phone | phone | Optional; displayed in international format (`+1 555 123 4567`); writes use `{ phone, countryShortName }` JSON |
+| Alt Phone | text | Secondary phone(s) kept after merge (comma-separated); create on Monday if missing |
 | Profile Photo | file | Optional |
 | Passport Photo | file | Optional; shown in volunteer files panel |
 | Files | file | Optional gallery; passport matched by filename |
@@ -22,8 +23,9 @@ Create or use a board (default name in sync script: `Contacts Test`). Required c
 | Applications | board_relation | Links to Applications board items (one per term) |
 | link to Current Service Ended | board_relation | Links to completed/past volunteer terms on the Current Service Ended board |
 | Address, City, State, Zip, Country, Date of birth | text | Optional demographics |
+| Alt Address | text | Secondary full mailing block(s) kept after merge (pipe-separated); create on Monday if missing |
 | Pastor Name, Pastor Email, Pastor Phone, Church Name | text / email / phone | Optional; shown on volunteer contact detail |
-| Pastor Reference | board_relation | Links to one or more pastor reference items on separate board (`link_to_pastors_reference7`); drill-down shows a picker when multiple are linked |
+| link to Pastors Reference(2.0) | board_relation | Links to Pastors Reference 2.0 (`VITE_PASTOR_REFERENCE_BOARD_ID`, default `3561493558`; column id `link_to_pastors_reference7`). CRM also matches unlinked forms by contact link, application link, or applicant name. |
 | Donations | board_relation | Links to donation items on Donations board (`link_to_donations`); also matched by Donor Email |
 
 ### Applications board
@@ -45,6 +47,9 @@ VITE_CONTACTS_BOARD_ID=your_contacts_board_id
 # VITE_CONTACT_COL_CHURCH=Church Name
 # VITE_CONTACT_COL_PASTOR_REFERENCE_LINK=Pastor Reference
 # VITE_CONTACT_COL_PASTOR_REFERENCE_LINK_ID=link_to_pastors_reference7
+# VITE_CONTACT_COL_ALT_EMAIL=Alt Email
+# VITE_CONTACT_COL_ALT_PHONE=Alt Phone
+# VITE_CONTACT_COL_ALT_ADDRESS=Alt Address
 # VITE_APPLICATIONS_BOARD_ID=...  # required for relationship graph
 # VITE_SERVICE_ENDED_BOARD_ID=5882671161
 # VITE_CONTACT_COL_SERVICE_ENDED_LINK_ID=board_relation0
@@ -106,19 +111,18 @@ Click a term to open:
 - QuickBooks invoice (if linked on that application — active applications only)
 - Pastor reference and full application Q&A
 - For ended terms: term dates, files, and end-of-service form fields from the Current Service Ended board
-- **End of service review** from the Volunteer Feedback Form board, matched to the closest term by review completion date (item `created_at` unless `VITE_EOS_REVIEW_COL_COMPLETED_DATE` is set)
+- **Exit survey** from the **VS Exit Survey** board, matched to volunteers who left the field (prefer Current Service Ended terms) by Contacts link, name, or email; completion date from `Date Volunteer left:`
 
-### End of Service Review board
+### VS Exit Survey board
 
-Volunteer feedback / exit reviews live on a separate monday board (default: **Volunteer Feedback Form**). The CRM reads items linked to the contact (Contacts column) or matched by email, then attaches each review to the service term whose end date is closest to when the review was completed.
+Staff exit reviews live on **VS Exit Survey** (`2506931747`). The CRM matches items via **Contacts 2.0**, volunteer name, or email, then attaches each review to the closest left-field term using **Date Volunteer left:**. Open contact details watch the board for new surveys.
 
 ```bash
-# VITE_EOS_REVIEW_BOARD_ID=4399458542
-# VITE_EOS_REVIEW_COL_CONTACT_LINK=Contacts
-# VITE_EOS_REVIEW_COL_CONTACT_LINK_ID=connect_boards4
+# VITE_EOS_REVIEW_BOARD_ID=2506931747
+# VITE_EOS_REVIEW_COL_CONTACT_LINK=Contacts 2.0
+# VITE_EOS_REVIEW_COL_CONTACT_LINK_ID=connect_boards__1
 # VITE_EOS_REVIEW_COL_EMAIL=Email
-# Optional — e.g. VS Exit Survey board uses Date Volunteer left
-# VITE_EOS_REVIEW_COL_COMPLETED_DATE=Date Volunteer left
+# VITE_EOS_REVIEW_COL_COMPLETED_DATE=Date Volunteer left:
 ```
 
 ## Donations & payments
@@ -208,11 +212,12 @@ Profile / Passport (and spouse slots) copy onto Contacts file columns through th
 Shared engine: `src/services/contactUpsert/merge/` (CRM manual merge + daily job).
 
 - Tags are **always unioned** (e.g. Parents + Pastor → both on the survivor).
-- Survivor prefers the **richest** record (deterministic score; couple bonus capped); Alt Email / Connected-to keep alternate identities; Pastor/Parents push onto connected volunteers on confirmed merge.
+- Survivor prefers the **richest** record (deterministic score; couple bonus capped); Alt Email / Alt Phone / Alt Address / Connected-to keep alternate identities; Pastor/Parents push onto connected volunteers on confirmed merge.
 - **Auto-merge only** when exact normalized email **and** identical full name (or exact name + compatible email). **Same email + different names → Contact duplicates review** (never auto).
 - Losers are **archived** (not hard-deleted). Settings → **Contact merge ops** for reports / reverse.
 - **Daily job:** `Merge Contact Duplicates` at **17:00 Europe/Athens** (`npm run merge:contact-duplicates`). Defaults to **report-only** (`MERGE_REPORT_ONLY=true`) until you opt into live via workflow_dispatch `live=true`.
-- When emails differ: survivor keeps **Email**; the other address goes to **Alt Email**.
+- Manual merge UI: keep several emails / phones / mailing addresses (checkboxes), mark one **Primary** (main columns); the rest go to **Alt Email** / **Alt Phone** / **Alt Address**.
+- When values differ: survivor keeps primary Email / Phone / Address columns; extras go to the matching Alt column.
 - Compiled-only rows (`compiled:…`) cannot be merge targets.
 
 ### Update rules

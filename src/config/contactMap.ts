@@ -18,6 +18,8 @@ export const contactMap = {
   /** Legacy single-value column from Mailchimp sync */
   type: viteEnv.VITE_CONTACT_COL_TYPE || 'type',
   phone: viteEnv.VITE_CONTACT_COL_PHONE || 'Phone',
+  /** Secondary phone(s) kept when merging (text; comma-separated). */
+  altPhone: viteEnv.VITE_CONTACT_COL_ALT_PHONE || 'Alt Phone',
   profilePhoto: viteEnv.VITE_CONTACT_COL_PROFILE_PHOTO || 'Profile Photo',
   passport: viteEnv.VITE_CONTACT_COL_PASSPORT || 'Passport Photo',
   files: viteEnv.VITE_CONTACT_COL_FILES || 'Files',
@@ -42,13 +44,17 @@ export const contactMap = {
   state: viteEnv.VITE_CONTACT_COL_STATE || 'State/Providence',
   zip: viteEnv.VITE_CONTACT_COL_ZIP || 'Zip Code',
   country: viteEnv.VITE_CONTACT_COL_COUNTRY || 'Country',
+  /** Secondary mailing block(s) after merge (text; pipe-separated). */
+  altAddress: viteEnv.VITE_CONTACT_COL_ALT_ADDRESS || 'Alt Address',
   dateOfBirth: viteEnv.VITE_CONTACT_COL_DATE_OF_BIRTH || 'Date of birth',
   pastorName: viteEnv.VITE_CONTACT_COL_PASTOR_NAME || 'Pastor Name',
   pastorEmail: viteEnv.VITE_CONTACT_COL_PASTOR_EMAIL || 'Pastor Email',
   pastorPhone: viteEnv.VITE_CONTACT_COL_PASTOR_PHONE || 'Pastor Phone',
   churchName: viteEnv.VITE_CONTACT_COL_CHURCH || 'Church Name',
+  /** Live title is "link to Pastors Reference(2.0)"; aliases cover older labels. */
   pastorReferenceLink:
-    viteEnv.VITE_CONTACT_COL_PASTOR_REFERENCE_LINK || 'Pastor Reference',
+    viteEnv.VITE_CONTACT_COL_PASTOR_REFERENCE_LINK ||
+    'link to Pastors Reference(2.0)',
   donationsLink: viteEnv.VITE_CONTACT_COL_DONATIONS_LINK || 'Donations',
   parentName: viteEnv.VITE_CONTACT_COL_PARENT_NAME || "Parent's Name",
   parentEmail: viteEnv.VITE_CONTACT_COL_PARENT_EMAIL || 'Parents Email',

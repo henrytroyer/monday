@@ -92,10 +92,8 @@ export default function ContactsPage({
     loadingMore,
     error,
     isMock,
-    isReadOnly,
     contactsEditable,
     contactsBoardId,
-    compileStats,
     refetch,
     removeContacts,
   } = useContactsList();
@@ -404,32 +402,9 @@ export default function ContactsPage({
             <p className="mt-2 text-crm-slate">
               Master list of volunteers, pastors, parents, and donors.
             </p>
-            {!isMock && (
-              <p className="mt-2 text-xs text-crm-slate">
-                Compiled from Contacts
-                {contactsBoardId ? ` (${contactsBoardId})` : ''}, short-term and
-                long-term applications, Current Service Ended, and Donations.
-                {compileStats
-                  ? ` ${compileStats.fromContactsBoard} on Contacts board · ${compileStats.addedFromOtherBoards} added from other boards${
-                      compileStats.mergedDuplicates > 0
-                        ? ` · ${compileStats.mergedDuplicates} duplicates combined`
-                        : ''
-                    }${
-                      compileStats.withStreetAddress > 0
-                        ? ` · ${compileStats.withStreetAddress} with street address`
-                        : ''
-                    }.`
-                  : null}
-                {isReadOnly ? ' Read-only.' : null}
-              </p>
-            )}
             {isMock && (
               <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
-                Showing mock data — not your live Contacts list. Set{' '}
-                <code className="rounded bg-amber-100 px-1">
-                  VITE_USE_MOCK_DATA=false
-                </code>{' '}
-                in .env to load live contacts.
+                Showing sample contacts — not the live list.
               </p>
             )}
           </div>
@@ -527,11 +502,8 @@ export default function ContactsPage({
           <p className="font-semibold text-red-800">Could not load contacts</p>
           <p className="mt-2 text-sm text-red-700">{error}</p>
           <p className="mt-3 text-sm text-red-600">
-            Set{' '}
-            <code className="rounded bg-red-100 px-1">
-              VITE_CONTACTS_BOARD_ID
-            </code>{' '}
-            in .env or enable mock mode.
+            Try refreshing the page. If this keeps happening, contact an
+            administrator.
           </p>
         </div>
       )}

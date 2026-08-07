@@ -1,6 +1,6 @@
 /**
  * Main App component for monday.com application.
- * CrmProviders mount at site start so identity + permissions spool before the shell.
+ * CrmProviders mount at site start so identity spools before the shell.
  */
 
 import { useEffect, useState } from 'react';

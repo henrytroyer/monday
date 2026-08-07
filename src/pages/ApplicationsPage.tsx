@@ -2,8 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import ApplicationDetailPanel from '../components/applications/ApplicationDetailPanel';
 import ApplicationFilters from '../components/applications/ApplicationFilters';
+import ApplicationGanttChart from '../components/applications/ApplicationGanttChart';
 import ApplicationListToolbar from '../components/applications/ApplicationListToolbar';
 import PipelineSection from '../components/applications/PipelineSection';
+import { collectGanttLocationOptions } from '../utils/applicationGantt';
 import CrmPageLoading from '../components/shared/CrmPageLoading';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
@@ -24,6 +26,11 @@ import type { ApplicationSortOption } from '../utils/organizePipelineVolunteers'
 import { syncAllContactsFromPipeline } from '../services/contactApplicationSync';
 import { registerWatchedApplicationItemIds } from '../services/emailTimelineWatcher';
 import { readWorkspaceState } from '../services/crmNavigationStorage';
+import {
+  readPipelineLayout,
+  writePipelineLayout,
+  type PipelineLayout,
+} from '../preferences/pipelineLayoutStorage';
 
 export default function ApplicationsPage({
   focusApplicationId,
@@ -35,6 +42,9 @@ export default function ApplicationsPage({
   const [filters, setFilters] = useState<ApplicationFilterState>(emptyFilters);
   const [sortBy, setSortBy] =
     useState<ApplicationSortOption>('confirmed-dates');
+  const [layout, setLayout] = useState<PipelineLayout>(() =>
+    readPipelineLayout(),
+  );
   const [selectedApplication, setSelectedApplication] =
     useState<Volunteer | null>(null);
   const [detailVisible, setDetailVisible] = useState(
@@ -113,6 +123,22 @@ export default function ApplicationsPage({
   const showingDetail = detailVisible && selectedApplication !== null;
   const listReady = !loading && !error;
 
+  // Gantt applies its own location chips (confirmed or preferred); keep search/timeline.
+  const ganttVolunteers = useMemo(
+    () =>
+      filterPipeline(pipeline, { ...filters, locations: [] }).flatMap(
+        (section) => section.volunteers,
+      ),
+    [pipeline, filters],
+  );
+
+  const ganttLocationOptions = useMemo(() => {
+    if (locationOptions.length > 0) return locationOptions;
+    return collectGanttLocationOptions(
+      pipeline.flatMap((section) => section.volunteers),
+    );
+  }, [locationOptions, pipeline]);
+
   const { setDetailMode } = useLayout();
 
   const handleStatusChange = useCallback(
@@ -132,6 +158,11 @@ export default function ApplicationsPage({
     },
     [applicationsEditable, updateVolunteerStatus],
   );
+
+  const handleLayoutChange = useCallback((next: PipelineLayout) => {
+    setLayout(next);
+    writePipelineLayout(next);
+  }, []);
 
   useEffect(() => {
     setDetailMode(showingDetail);
@@ -235,11 +266,8 @@ export default function ApplicationsPage({
           </p>
           <p className="mt-2 text-sm text-red-700">{error}</p>
           <p className="mt-3 text-sm text-red-600">
-            Set{' '}
-            <code className="rounded bg-red-100 px-1">
-              VITE_APPLICATIONS_BOARD_ID
-            </code>{' '}
-            in .env or enable mock mode.
+            Try refreshing the page. If this keeps happening, contact an
+            administrator.
           </p>
         </div>
       )}
@@ -278,6 +306,8 @@ export default function ApplicationsPage({
                 onClearFilters={() => setFilters({ ...emptyFilters })}
                 sortBy={sortBy}
                 onSortByChange={setSortBy}
+                layout={layout}
+                onLayoutChange={handleLayoutChange}
               />
             </div>
 
@@ -285,7 +315,17 @@ export default function ApplicationsPage({
               ref={listScrollRef}
               className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2"
             >
-              {filteredPipeline.length === 0 ? (
+              {layout === 'gantt' ? (
+                <ApplicationGanttChart
+                  volunteers={ganttVolunteers}
+                  selectedLocations={filters.locations}
+                  onSelectedLocationsChange={(locations) =>
+                    setFilters((current) => ({ ...current, locations }))
+                  }
+                  locationOptions={ganttLocationOptions}
+                  onSelectVolunteer={openApplication}
+                />
+              ) : filteredPipeline.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-crm-taupe/28 bg-crm-surface p-12 text-center">
                   <p className="text-lg font-semibold text-crm-heading">
                     No volunteers match these filters
@@ -313,6 +353,7 @@ export default function ApplicationsPage({
                       onStatusChange={handleStatusChange}
                       statusSelectDisabled={!applicationsEditable}
                       sortBy={sortBy}
+                      layout={layout}
                     />
                   ))}
                 </div>

@@ -56,7 +56,7 @@ Legacy formats `[CRM_RECRUITMENT_NOTE …]` and Applications-board `[CRM_TERM_NO
 
 Harvested monday **free-text** updates (not CRM-tagged) are matched to contacts using board relation, exact email, CRM tags, Contacts board item, or **exact full name** from the Monday item title or email body. **SuperMail / Outgoing Email logs and Automation-authored updates are never harvested** — email stays in Email correspondence only.
 
-Matched free-text can still be approved in the review inbox, but **approved harvest is not shown in Internal Notes**. Sync also re-evaluates notes already in the inbox. Use **Approve all matched** to clear pending items that already have a suggested contact.
+Matched free-text can be approved in the review inbox. On approve (or auto-approve), the CRM mirrors the note onto the Contacts item as `[CRM_CONTACT_NOTE source=contact]` and also merges approved links into Internal Notes so they appear on the contact. Sync also re-evaluates notes already in the inbox. Use **Approve all matched** to clear pending items that already have a suggested contact.
 
 **Approve/dismiss sync:** decisions are written to a Contacts-board registry item (`CRM Note Review Registry`) as `[CRM_NOTE_REVIEW]` updates so local dev and production share the same queue. Requires `VITE_CONTACTS_WRITABLE=true`. Optional override: `VITE_CRM_NOTE_REVIEW_REGISTRY_ITEM_ID`.
 

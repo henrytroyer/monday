@@ -23,7 +23,6 @@ const GROUPS = [
   'Onboarding',
   'Recruitment',
   'Config',
-  'Operators',
   'Audit',
 ] as const;
 

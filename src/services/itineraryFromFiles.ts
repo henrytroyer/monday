@@ -45,24 +45,14 @@ export function selectItineraryFileCandidates(
 
 /**
  * Non-image files from the dedicated Itinerary column — always parse candidates
- * regardless of filename.
+ * regardless of filename (no name filter).
  */
 export function selectDedicatedItineraryFiles(
   files: VolunteerFile[],
 ): VolunteerFile[] {
   return files.filter((file) => {
     if (file.isImage) return false;
-    const name = file.name.trim();
-    if (!name) return false;
-    // Still skip obvious non-travel docs even in the itinerary column.
-    if (
-      /passport|profile|background|safeguard|reference|release\s*form|application\s*form|visa/i.test(
-        name,
-      )
-    ) {
-      return false;
-    }
-    return true;
+    return Boolean(file.name.trim());
   });
 }
 
@@ -96,6 +86,11 @@ export function forcePromoteItineraryFileNames(
 /** Clear PDF text cache (e.g. on Refresh so proxy retries are allowed). */
 export function clearAssetTextCache(): void {
   assetTextCache.clear();
+}
+
+/** Test helper: whether extracted text for an asset is session-cached. */
+export function assetTextCacheHas(assetId: string): boolean {
+  return assetTextCache.has(assetId);
 }
 
 function resolveProxyBase(): string | undefined {
@@ -165,15 +160,30 @@ async function fetchAssetExtractedText(assetId: string): Promise<string> {
   }
 }
 
-/** Parse destination arrival/departure from all itinerary PDFs/docs on the item. */
+/**
+ * Parse destination arrival/departure from itinerary PDFs/docs.
+ * Callers should force-promote dedicated Itinerary-column files first so opaque
+ * names (e.g. "Camille Bowman.pdf") remain candidates via the "Itinerary - " prefix.
+ */
 export async function parseItineraryFromVolunteerFiles(
   files: VolunteerFile[] = [],
   fieldAirport?: string,
 ): Promise<VolunteerItinerary | null> {
-  const candidates = selectItineraryFileCandidates(files);
-  const texts: string[] = [];
+  const byKey = new Map<string, VolunteerFile>();
+  for (const file of selectItineraryFileCandidates(files)) {
+    const key = assetIdFromVolunteerFile(file) ?? `${file.id}:${file.name}`;
+    byKey.set(key, file);
+  }
+  // Dedicated-column uploads may already be force-promoted; keep them even if
+  // a future name-pattern tweak would drop opaque originals.
+  for (const file of files) {
+    if (file.isImage || !/^Itinerary - /i.test(file.name)) continue;
+    const key = assetIdFromVolunteerFile(file) ?? `${file.id}:${file.name}`;
+    byKey.set(key, file);
+  }
 
-  for (const file of candidates) {
+  const texts: string[] = [];
+  for (const file of byKey.values()) {
     const assetId = assetIdFromVolunteerFile(file);
     if (!assetId) continue;
 

@@ -65,6 +65,7 @@ export interface FieldMergePlan {
   resultingAltEmail?: string;
   resultingTags: ContactTag[];
   phone?: string;
+  altPhone?: string;
   spouseName?: string;
   connectedTo?: string;
   demographics: {
@@ -74,6 +75,7 @@ export interface FieldMergePlan {
     zip?: string;
     country?: string;
   };
+  altAddress?: string;
   conflicts: MergeFieldConflict[];
   namesDiffer: boolean;
   willUpdatePastor: boolean;
@@ -83,19 +85,16 @@ export interface FieldMergePlan {
   newestUpdatedAt?: string;
 }
 
-/** Scalar profile fields the reviewer can keep/delete per value. */
-export type MergeScalarFieldKey =
-  | 'name'
-  | 'email'
-  | 'altEmail'
-  | 'phone'
-  | 'spouseName'
-  | 'connectedTo'
-  | 'address'
-  | 'city'
-  | 'state'
-  | 'zip'
-  | 'country';
+/** Scalar profile fields kept as single-choice radios in the merge UI. */
+export type MergeScalarFieldKey = 'name' | 'spouseName' | 'connectedTo';
+
+/** Multi-keep fields: checkboxes + one Primary. */
+export type MergeMultiFieldKind = 'email' | 'phone' | 'address';
+
+export interface MergeMultiValueSelection {
+  kept: string[];
+  primary: string;
+}
 
 /**
  * Optional reviewer overrides applied on top of buildFieldMergePlan().
@@ -107,6 +106,7 @@ export interface FieldMergeOverrides {
   resultingAltEmail?: string;
   resultingTags?: ContactTag[];
   phone?: string;
+  altPhone?: string;
   spouseName?: string;
   connectedTo?: string;
   demographics?: {
@@ -116,6 +116,7 @@ export interface FieldMergeOverrides {
     zip?: string;
     country?: string;
   };
+  altAddress?: string;
   /** Contact id used for pastor reference sync (must be pastor-tagged). */
   pastorSourceId?: string;
   /** Contact id used for parent field sync (must be parent-tagged). */
@@ -160,8 +161,21 @@ export interface MergeSourceChoice {
   recommendedContactId: string;
 }
 
+export interface MergeMultiFieldChoice {
+  kind: MergeMultiFieldKind;
+  label: string;
+  /** True when 2+ distinct non-empty values exist across the merge set. */
+  needsChoice: boolean;
+  options: MergeFieldValueOption[];
+  /** Default: keep all unique values. */
+  recommendedKept: string[];
+  /** Default primary (shows in main column / first). */
+  recommendedPrimary: string;
+}
+
 export interface MergeFieldChoices {
   fields: MergeFieldChoice[];
+  multiFields: MergeMultiFieldChoice[];
   tags: MergeTagChoice;
   pastorSource?: MergeSourceChoice;
   parentSource?: MergeSourceChoice;

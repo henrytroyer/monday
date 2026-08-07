@@ -14,7 +14,6 @@ import {
   formatEndOfServiceReviewLabel,
   formatTermDateRangeLabel,
 } from '../../utils/formatTermDateRange';
-import SectionGate from '../shared/SectionGate';
 import type { SectionId } from '../../preferences/workFocus';
 import {
   contactSectionOrder,
@@ -49,8 +48,17 @@ export default function ContactDetailPanel({
   onGoToApplication,
   onContactUpdated,
 }: ContactDetailPanelProps) {
-  const { detail, loading, error, saving, canEdit, updateCoreFields, updatePastorReference } =
-    useContactDetail(contact.id);
+  const {
+    detail,
+    loading,
+    refreshing,
+    extrasLoading,
+    error,
+    saving,
+    canEdit,
+    updateCoreFields,
+    updatePastorReference,
+  } = useContactDetail(contact.id, { listItem: contact });
   const { focus: workFocus } = useWorkFocus();
   const canViewEmailHistory = true;
   const canOpenTermDetail = true;
@@ -60,8 +68,8 @@ export default function ContactDetailPanel({
     error: emailError,
     refetch: refetchEmails,
   } = useContactEmailCorrespondence({
-    contactId:
-      detail && !loading && canViewEmailHistory ? detail.id : null,
+    // Start email fetch as soon as the panel opens — do not wait on core detail.
+    contactId: canViewEmailHistory ? contact.id : null,
     contactName: detail?.name ?? contact.name,
     contactEmail: detail?.email ?? contact.email,
     serviceTerms: detail?.serviceTerms ?? [],
@@ -209,7 +217,6 @@ export default function ContactDetailPanel({
       if (!showConnected) return undefined;
 
       return (
-        <SectionGate id="contact.connected_people">
           <Panel title="Connected people">
             <dl className="mt-4 space-y-3 text-sm">
               {detail.spouseName && (
@@ -327,13 +334,11 @@ export default function ContactDetailPanel({
               )}
             </dl>
           </Panel>
-        </SectionGate>
       );
     })();
 
     const sections: Partial<Record<SectionId, ReactNode>> = {
       'contact.profile': (
-        <SectionGate id="contact.profile">
           <ContactProfileCard
             detail={detail}
             saving={saving}
@@ -350,10 +355,8 @@ export default function ContactDetailPanel({
                 : undefined
             }
           />
-        </SectionGate>
       ),
       'contact.church': detail.tags.includes('volunteer') ? (
-        <SectionGate id="contact.church">
           <ChurchInfoCard
             volunteerName={detail.name}
             pastorReference={detail.pastorReference}
@@ -378,19 +381,15 @@ export default function ContactDetailPanel({
                 : undefined
             }
           />
-        </SectionGate>
       ) : undefined,
       'contact.internal_notes': (
-        <SectionGate id="contact.internal_notes">
           <ContactInternalNotesSection
             contactId={detail.id}
             serviceTerms={detail.serviceTerms}
             currentApplication={detail.currentApplication}
           />
-        </SectionGate>
       ),
       'contact.email_history': (
-        <SectionGate id="contact.email_history">
           <ContactEmailHistory
             contactId={detail.id}
             contactName={detail.name}
@@ -404,7 +403,7 @@ export default function ContactDetailPanel({
                 id: term.itemId,
                 label: term.timelineLabel || term.itemId,
               }))}
-            loading={loading || emailLoading}
+            loading={emailLoading}
             error={emailError}
             onOpenApplication={onGoToApplication}
             onSent={refetchEmails}
@@ -416,10 +415,8 @@ export default function ContactDetailPanel({
               detail.id
             }
           />
-        </SectionGate>
       ),
       'contact.files': (
-        <SectionGate id="contact.files">
           <ContactVolunteerFiles
             volunteerName={detail.name}
             profilePhotoUrl={detail.profilePhotoUrl}
@@ -427,11 +424,9 @@ export default function ContactDetailPanel({
             childSafeguardingFile={detail.childSafeguardingFile}
             files={detail.files}
           />
-        </SectionGate>
       ),
       'contact.connected_people': connectedPeopleSection,
       'contact.current_application': detail.tags.includes('volunteer') ? (
-        <SectionGate id="contact.current_application">
           <Panel title="Current application">
             {detail.currentApplication ? (
               onGoToApplication ? (
@@ -470,15 +465,13 @@ export default function ContactDetailPanel({
               </p>
             )}
           </Panel>
-        </SectionGate>
       ) : undefined,
       'contact.terms': (
-        <SectionGate id="contact.terms">
           <Panel title="Terms of service">
             {detail.serviceTerms.length === 0 ? (
               <p className="mt-4 text-sm text-crm-slate">
                 No terms of service yet. Linked applications and completed terms
-                from Current Service Ended will appear here.
+                will appear here.
               </p>
             ) : (
               <ul className="mt-4 space-y-3">
@@ -520,10 +513,8 @@ export default function ContactDetailPanel({
               </ul>
             )}
           </Panel>
-        </SectionGate>
       ),
       'contact.volunteers_referenced': detail.tags.includes('pastor') ? (
-        <SectionGate id="contact.volunteers_referenced">
           <Panel title="Volunteers referenced">
             {detail.linkedVolunteers.filter(
               (l) => l.relationship === 'reference',
@@ -546,10 +537,8 @@ export default function ContactDetailPanel({
               </ul>
             )}
           </Panel>
-        </SectionGate>
       ) : undefined,
       'contact.connected_volunteers': detail.tags.includes('parent') ? (
-        <SectionGate id="contact.connected_volunteers">
           <Panel title="Connected volunteers">
             {detail.linkedVolunteers.filter((l) => l.relationship === 'child')
               .length === 0 ? (
@@ -571,42 +560,30 @@ export default function ContactDetailPanel({
               </ul>
             )}
           </Panel>
-        </SectionGate>
       ) : undefined,
       'contact.donations': showDonations ? (
-        <SectionGate id="contact.donations">
           <Panel title="Donations & payments">
             <p className="mt-2 text-sm text-crm-slate">
-              {import.meta.env.VITE_QBO_INCOME_SYNC_ENABLED === 'true'
-                ? 'From Donations (includes QuickBooks income sync)'
-                : `From Donations${
-                    detail.quickbooksCustomerId
-                      ? ` and QuickBooks · Customer ${detail.quickbooksCustomerId}`
-                      : import.meta.env.VITE_QUICKBOOKS_PROXY_URL
-                        ? ' and QuickBooks'
-                        : ''
-                  }`}
+              Gifts and payments associated with this contact.
             </p>
             <div className="mt-4">
-              <DonationsList
-                records={detail.donations}
-                contactName={detail.name}
-                contactEmail={detail.email}
-              />
+              {extrasLoading && detail.donations.length === 0 ? (
+                <p className="text-sm text-crm-slate">Loading donations…</p>
+              ) : (
+                <DonationsList
+                  records={detail.donations}
+                  contactName={detail.name}
+                  contactEmail={detail.email}
+                />
+              )}
             </div>
           </Panel>
-        </SectionGate>
       ) : undefined,
       'contact.billing': (
-        <SectionGate id="contact.billing">
           <ContactBillingPanel
             volunteerName={detail.name}
             serviceTerms={detail.serviceTerms}
-            onOpenTerm={
-              canOpenTermDetail ? (term) => setSelectedTerm(term) : undefined
-            }
           />
-        </SectionGate>
       ),
     };
 
@@ -630,6 +607,7 @@ export default function ContactDetailPanel({
     openPastorReference,
     emailCorrespondence,
     loading,
+    extrasLoading,
     emailLoading,
     emailError,
     onGoToApplication,
@@ -653,7 +631,7 @@ export default function ContactDetailPanel({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          {loading && (
+          {loading && !detail && (
             <CrmPageLoading
               label="i58 Volunteer portal · Contact"
               className="min-h-[240px] py-8"
@@ -666,13 +644,19 @@ export default function ContactDetailPanel({
             </div>
           )}
 
-          {detail && !loading && (
+          {detail && (
             <div className="space-y-6">
+              {(refreshing || extrasLoading) && (
+                <p className="text-xs text-crm-slate">
+                  {refreshing
+                    ? 'Refreshing contact from monday…'
+                    : 'Loading donations & files…'}
+                </p>
+              )}
               {isCompiledContactId(detail.id) && (
                 <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                  This person was found on Applications, Service Ended, or
-                  Donations but is not yet an item on the Contacts board. Profile
-                  edits are limited until they are added there.
+                  This contact is not fully set up yet. Some profile edits are
+                  limited until their record is complete.
                 </div>
               )}
               {orderedContactSections.map((node, index) => (

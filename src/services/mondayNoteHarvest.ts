@@ -18,6 +18,7 @@ import {
   persistApprovedNoteToMonday,
   syncNoteReviewFromMonday,
 } from './noteReviewMondaySync';
+import { mirrorApprovedNoteToContact } from './approvedHarvestNotes';
 import {
   type NoteMatchResult,
   type RawMondayNote,
@@ -115,6 +116,7 @@ export function rematchPendingReviewItems(index: ContactMatchIndex): {
       };
       autoApproveContactItemNote(approvedLink);
       void persistApprovedNoteToMonday(approvedLink).catch(() => {});
+      void mirrorApprovedNoteToContact(approvedLink).catch(() => {});
       rematchAutoApproved += 1;
       affectedContactIds.add(match.contactId);
       continue;
@@ -295,6 +297,7 @@ export async function harvestMondayNotes(
           };
           autoApproveContactItemNote(approvedLink);
           void persistApprovedNoteToMonday(approvedLink).catch(() => {});
+          void mirrorApprovedNoteToContact(approvedLink).catch(() => {});
           autoApproved += 1;
           affectedContactIds.add(match.contactId);
           continue;

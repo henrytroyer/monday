@@ -20,6 +20,8 @@ import {
 } from './serviceRecordNoteStorage';
 import type { ServiceRecordNote } from '../types/internalNote';
 import { getLocalContactHubNotes } from './contactHubNoteStorage';
+import { approvedNotesToContactInternalNotes } from './approvedHarvestNotes';
+import { syncNoteReviewFromMonday } from './noteReviewMondaySync';
 
 const FETCH_CONCURRENCY = 3;
 
@@ -159,22 +161,32 @@ export async function migrateLocalRecruitmentNotesToMonday(
 }
 
 /**
- * Internal Notes hub: CRM-typed notes only.
- * Email correspondence (SuperMail) and harvest approvals are not merged here.
+ * Internal Notes hub: CRM-typed notes, plain monday.com Updates on the contact
+ * item (and replies), plus approved harvest linked to this contact.
+ * Email correspondence (SuperMail) stays in Email correspondence only.
  */
 export async function fetchContactInternalNotes(
   contactId: string,
   serviceTerms: VolunteerTerm[],
 ): Promise<ContactInternalNote[]> {
   if (useMockData()) {
-    return mergeContactInternalNotes(
+    const local = mergeContactInternalNotes(
       localContactHubNotesToContactInternal(contactId),
       localRecruitmentNotesToContactInternal(contactId, serviceTerms),
       localTermNotesToContactInternal(serviceTerms),
     );
+    return mergeContactInternalNotes(
+      local,
+      approvedNotesToContactInternalNotes(contactId, local),
+    );
   }
 
   await migrateLocalRecruitmentNotesToMonday(contactId, serviceTerms);
+  try {
+    await syncNoteReviewFromMonday();
+  } catch {
+    // Local approved cache is enough if registry sync fails.
+  }
 
   const contactItem = await fetchContactItem(contactId);
   const hubNotes = parseContactHubNotes(contactId, contactItem.updates);
@@ -200,7 +212,7 @@ export async function fetchContactInternalNotes(
     applicationItemIds,
     FETCH_CONCURRENCY,
     async (itemId) => {
-      const detail = await fetchApplicationDetail(itemId);
+      const detail = await fetchApplicationDetail(itemId, { refresh: true });
       return termNotesToContactInternalNotes(
         itemId,
         detail.rawUpdates,
@@ -209,10 +221,15 @@ export async function fetchContactInternalNotes(
     },
   );
 
-  return mergeContactInternalNotes(
+  const merged = mergeContactInternalNotes(
     hubNotes,
     recruitmentNotes,
     localRecruitmentWithAttachments,
     ...applicationNoteGroups,
+  );
+
+  return mergeContactInternalNotes(
+    merged,
+    approvedNotesToContactInternalNotes(contactId, merged),
   );
 }

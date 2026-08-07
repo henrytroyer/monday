@@ -16,6 +16,7 @@ import {
 import {
   forcePromoteItineraryFileNames,
   promoteItineraryFileNames,
+  selectDedicatedItineraryFiles,
 } from './itineraryFromFiles';
 import {
   buildCoupleApplication,
@@ -170,9 +171,9 @@ function getFileGallery(
   const columnFiles = getAllFilesFromColumnValues(columnValues);
 
   const dedicatedItineraryCol = findColumn(columnValues, 'itineraryFiles');
-  // Always slot dedicated Itinerary-column uploads (any filename).
+  // Always slot dedicated Itinerary-column uploads (any filename — no name filter).
   const dedicatedItineraryFiles = forcePromoteItineraryFileNames(
-    parseMondayFileColumn(dedicatedItineraryCol),
+    selectDedicatedItineraryFiles(parseMondayFileColumn(dedicatedItineraryCol)),
   );
 
   const generalFilesCol = findColumn(columnValues, 'files');

@@ -237,7 +237,7 @@ export const TERM_SECTION_ORDER: Record<WorkFocus, SectionId[]> = {
  * order after known keys.
  */
 export function orderSectionEntries<T>(
-  focus: WorkFocus,
+  _focus: WorkFocus,
   order: readonly SectionId[],
   entries: Partial<Record<SectionId, T>>,
 ): T[] {

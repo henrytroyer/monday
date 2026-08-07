@@ -3,11 +3,16 @@ import { describe, it } from 'node:test';
 import type { VolunteerFile } from '../types/volunteer';
 import type { MondayBoardItem } from './mapMondayToCrm';
 import {
+  invalidateVolunteerFileItineraryCache,
   itineraryFilesFingerprint,
   itineraryFilesFromBoardItem,
   itineraryPreviewFileFromCandidates,
 } from './enrichPipelineItineraries';
-import { forcePromoteItineraryFileNames } from './itineraryFromFiles';
+import {
+  assetTextCacheHas,
+  clearAssetTextCache,
+  forcePromoteItineraryFileNames,
+} from './itineraryFromFiles';
 import { mergeVolunteerItinerary } from './itinerary';
 import { itineraryHasData } from '../types/itinerary';
 
@@ -139,13 +144,18 @@ describe('file itinerary replaces column itinerary', () => {
 
     assert.ok(itineraryHasData(fromFiles));
     // Product rule: successful file parse replaces columns (no merge).
+    // enrichPipelineItineraries / fetchApplicationDetail assign `fromFiles` as-is.
     const used = fromFiles;
     assert.equal(used.arrival.airport, 'MJT');
     assert.equal(used.departure.airport, 'MJT');
-    // Wrong merge order (columns first) would keep IND — that must not happen.
+    // mergeVolunteerItinerary(columns, files) would keep IND — must not be used.
     const columnsFirst = mergeVolunteerItinerary(fromColumns, fromFiles);
     assert.equal(columnsFirst.arrival.airport, 'IND');
     assert.notEqual(used.arrival.airport, columnsFirst.arrival.airport);
+    // Even files-first merge can backfill empty file fields from columns —
+    // replace (not merge) is required so preferred-airport never leaks in.
+    const filesFirstMerge = mergeVolunteerItinerary(fromFiles, fromColumns);
+    assert.equal(filesFirstMerge.arrival.airport, 'MJT');
   });
 });
 
@@ -179,5 +189,15 @@ describe('itineraryPreviewFileFromCandidates', () => {
     );
     assert.ok(preview?.url?.includes('/assets/merge/'));
     assert.match(preview?.name ?? '', /itinerary/i);
+  });
+});
+
+describe('invalidateVolunteerFileItineraryCache', () => {
+  it('clears asset text cache so Refresh retries empty extractions', () => {
+    clearAssetTextCache();
+    // Simulate a successful cache entry existing before invalidate.
+    // (Empty failures are never written — covered in itineraryFromFiles.test.)
+    invalidateVolunteerFileItineraryCache();
+    assert.equal(assetTextCacheHas('any'), false);
   });
 });

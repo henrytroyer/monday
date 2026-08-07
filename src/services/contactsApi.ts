@@ -54,6 +54,7 @@ import {
 import {
   mapItemToContactListItem,
   parseContactTags,
+  parseLinkedApplicationIds,
 } from './mapMondayToContact';
 import type { MondayBoardItem } from './mapMondayToCrm';
 import { findProspectByContactId } from './recruitmentStorage';
@@ -71,6 +72,7 @@ import {
   fetchSafeguardingCertificateByEmail,
   fetchSafeguardingCertificateFromContactLink,
 } from './safeguardingCertificate';
+import { matchPastorReferencesForContact } from './pastorReferenceBoard';
 import { resolveVolunteerFileSlots } from '../utils/volunteerFileSlots';
 import type { VolunteerFile } from '../types/volunteer';
 
@@ -84,6 +86,12 @@ export interface ContactsFetchOptions {
   clearCache?: boolean;
   /** Fetch fresh data even when an in-memory cache exists (keeps showing cached list). */
   refresh?: boolean;
+  /**
+   * Skip donations / safeguarding / email aggregation so the contact panel can
+   * paint quickly. Heavy extras load via enrichContactDetailHeavyExtras.
+   * Email history is owned by useContactEmailCorrespondence.
+   */
+  skipHeavyExtras?: boolean;
   onPage?: (items: ContactListItem[], loaded: number) => void;
   /** Used to build an optimistic detail if refetch fails after a successful write. */
   fallbackDetail?: ContactDetail;
@@ -191,6 +199,11 @@ export function clearContactsLiveCache(): void {
   clearSessionDetailCache();
 }
 
+/** Drop only the VS Exit Survey / EOS review board cache (watcher refresh). */
+export function clearEndOfServiceReviewLiveCache(): void {
+  liveEndOfServiceReviewCache = null;
+}
+
 export function getContactsCompileStats(): ContactsCompileStats | null {
   return liveContactsCompileStats;
 }
@@ -245,7 +258,10 @@ async function getLiveServiceEndedItems(
   return liveServiceEndedCache;
 }
 
-function buildCompiledContactDetail(listItem: ContactListItem): ContactDetail {
+/** Minimal detail from a list row — paints the panel before Monday detail returns. */
+export function seedContactDetailFromListItem(
+  listItem: ContactListItem,
+): ContactDetail {
   return {
     ...listItem,
     emailCorrespondence: [],
@@ -254,6 +270,10 @@ function buildCompiledContactDetail(listItem: ContactListItem): ContactDetail {
     linkedVolunteers: [],
     donations: [],
   };
+}
+
+function buildCompiledContactDetail(listItem: ContactListItem): ContactDetail {
+  return seedContactDetailFromListItem(listItem);
 }
 
 async function getLiveEndOfServiceReviewItems(
@@ -474,65 +494,85 @@ export async function fetchContactDetail(
   const applicationTerms = enriched.serviceTerms.filter(
     (term) => !isRecruitmentServiceTerm(term),
   );
+  const serviceTerms = [...mergedRecruitment, ...applicationTerms];
+  const coreTags = enriched.tags ?? base.tags;
 
-  const donationsBoardId = options?.donationsBoardId;
-  let mondayDonations: Awaited<ReturnType<typeof fetchContactDonationsFromMonday>> =
-    [];
-  if (donationsBoardId) {
-    try {
-      mondayDonations = await fetchContactDonationsFromMonday({
-        boardId: donationsBoardId,
-        email: base.email,
-        linkedItemIds: enriched.linkedDonationItemIds,
-      });
-    } catch {
-      mondayDonations = [];
+  const applicationItemIds = [
+    ...new Set([
+      ...parseLinkedApplicationIds(item.column_values),
+      ...applicationTerms.map((term) => term.itemId).filter(Boolean),
+    ]),
+  ];
+  const pastorReference = await matchPastorReferencesForContact({
+    contactId,
+    contactName: base.name,
+    applicationItemIds,
+    existingPastorReference: enriched.pastorReference,
+    persistLinks: true,
+    contactsBoardId: options?.contactsBoardId,
+  }).catch(() => enriched.pastorReference);
+
+  if (options?.skipHeavyExtras) {
+    const lite: ContactDetail = {
+      ...base,
+      ...enriched,
+      pastorReference,
+      tags: coreTags,
+      emailCorrespondence: [],
+      donations: [],
+      serviceTerms,
+    };
+    setCachedContactDetail(cacheKey, lite);
+
+    const storedTags = parseContactTags(item.column_values);
+    const boardId = options?.contactsBoardId;
+    if (
+      boardId &&
+      canEditContacts() &&
+      !contactTagsEqual(storedTags, coreTags)
+    ) {
+      try {
+        await updateContactTagsOnMonday(boardId, contactId, coreTags);
+        if (liveContactsCache) {
+          liveContactsCache = liveContactsCache.map((contact) =>
+            contact.id === contactId ? { ...contact, tags: coreTags } : contact,
+          );
+          writeSessionContactsCache(boardId, liveContactsCache);
+        }
+      } catch {
+        // Keep derived tags in the CRM view even if monday write fails.
+      }
     }
+
+    return lite;
   }
 
-  const qboIncomeSyncEnabled = useQboIncomeSyncFromMonday();
-  let quickbooksDonations: Awaited<ReturnType<typeof fetchContactFinancials>> =
-    [];
-  if (!qboIncomeSyncEnabled) {
-    try {
-      quickbooksDonations = await fetchContactFinancials({
-        email: base.email,
-        quickbooksCustomerId: enriched.quickbooksCustomerId,
-      });
-    } catch {
-      quickbooksDonations = [];
-    }
-  }
-
-  const donations = qboIncomeSyncEnabled
-    ? mondayDonations
-    : mergeContactDonationRecords(mondayDonations, quickbooksDonations);
-
+  const donations = await loadContactDonations(base, enriched, options);
   const emailCorrespondence = await aggregateContactEmailCorrespondence({
     contactId,
     contactEmail: base.email,
     contactName: base.name,
-    serviceTerms: [...mergedRecruitment, ...applicationTerms],
+    serviceTerms,
   });
-
   const childSafeguardingFile = await resolveContactChildSafeguardingFile(
     contactId,
     base.email !== '—' ? base.email : undefined,
   );
 
   const mergedTags = mergeTags(
-    enriched.tags ?? base.tags,
+    coreTags,
     donations.length > 0 ? ['donor'] : [],
   );
 
   const result: ContactDetail = {
     ...base,
     ...enriched,
+    pastorReference,
     tags: mergedTags,
     childSafeguardingFile,
     emailCorrespondence,
     donations,
-    serviceTerms: [...mergedRecruitment, ...applicationTerms],
+    serviceTerms,
   };
 
   // Persist newly derived role tags (e.g. volunteer who also donates) when writable.
@@ -558,6 +598,112 @@ export async function fetchContactDetail(
 
   setCachedContactDetail(cacheKey, result);
   return result;
+}
+
+async function loadContactDonations(
+  base: ContactListItem,
+  enriched: Pick<
+    ContactDetail,
+    'linkedDonationItemIds' | 'quickbooksCustomerId'
+  >,
+  options?: ContactsFetchOptions,
+): Promise<ContactDetail['donations']> {
+  const donationsBoardId = options?.donationsBoardId;
+  let mondayDonations: Awaited<
+    ReturnType<typeof fetchContactDonationsFromMonday>
+  > = [];
+  if (donationsBoardId) {
+    try {
+      mondayDonations = await fetchContactDonationsFromMonday({
+        boardId: donationsBoardId,
+        email: base.email,
+        linkedItemIds: enriched.linkedDonationItemIds,
+      });
+    } catch {
+      mondayDonations = [];
+    }
+  }
+
+  const qboIncomeSyncEnabled = useQboIncomeSyncFromMonday();
+  if (qboIncomeSyncEnabled) return mondayDonations;
+
+  let quickbooksDonations: Awaited<ReturnType<typeof fetchContactFinancials>> =
+    [];
+  try {
+    quickbooksDonations = await fetchContactFinancials({
+      email: base.email,
+      quickbooksCustomerId: enriched.quickbooksCustomerId,
+    });
+  } catch {
+    quickbooksDonations = [];
+  }
+
+  return mergeContactDonationRecords(mondayDonations, quickbooksDonations);
+}
+
+/**
+ * Load donations + safeguarding after a lite contact detail open.
+ * Does not fetch email correspondence (panel hook owns that).
+ */
+export async function enrichContactDetailHeavyExtras(
+  contactId: string,
+  detail: ContactDetail,
+  options?: ContactsFetchOptions,
+): Promise<ContactDetail> {
+  if (useMockData() || isCompiledContactId(contactId)) {
+    return detail;
+  }
+
+  const [donations, childSafeguardingFile] = await Promise.all([
+    loadContactDonations(detail, detail, options),
+    resolveContactChildSafeguardingFile(
+      contactId,
+      detail.email !== '—' ? detail.email : undefined,
+    ),
+  ]);
+
+  const mergedTags = mergeTags(
+    detail.tags,
+    donations.length > 0 ? ['donor'] : [],
+  );
+
+  const next: ContactDetail = {
+    ...detail,
+    tags: mergedTags,
+    donations,
+    childSafeguardingFile:
+      childSafeguardingFile ?? detail.childSafeguardingFile,
+    // Keep any email already loaded by the panel hook.
+    emailCorrespondence: detail.emailCorrespondence,
+  };
+
+  const cacheKey = contactDetailCacheKey(contactId, {
+    contactsBoardId: options?.contactsBoardId,
+    applicationsBoardId: options?.applicationsBoardId,
+    donationsBoardId: options?.donationsBoardId,
+  });
+  setCachedContactDetail(cacheKey, next);
+
+  const boardId = options?.contactsBoardId;
+  if (
+    boardId &&
+    canEditContacts() &&
+    !contactTagsEqual(detail.tags, mergedTags)
+  ) {
+    try {
+      await updateContactTagsOnMonday(boardId, contactId, mergedTags);
+      if (liveContactsCache) {
+        liveContactsCache = liveContactsCache.map((contact) =>
+          contact.id === contactId ? { ...contact, tags: mergedTags } : contact,
+        );
+        writeSessionContactsCache(boardId, liveContactsCache);
+      }
+    } catch {
+      // Keep derived tags in the CRM view even if monday write fails.
+    }
+  }
+
+  return next;
 }
 
 export async function updateContactCoreFieldsApi(

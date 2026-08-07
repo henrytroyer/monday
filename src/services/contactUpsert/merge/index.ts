@@ -29,6 +29,8 @@ export {
 } from './survivorScore';
 export {
   combineEmails,
+  combinePhones,
+  combineAddresses,
   buildFieldMergePlan,
   findConnectedVolunteers,
   buildIdempotencyKey,
@@ -81,6 +83,9 @@ export type {
   FieldMergePlan,
   FieldMergeOverrides,
   MergeScalarFieldKey,
+  MergeMultiFieldKind,
+  MergeMultiValueSelection,
+  MergeMultiFieldChoice,
   MergeFieldChoice,
   MergeFieldChoices,
   MergeFieldValueOption,

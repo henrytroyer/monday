@@ -44,7 +44,6 @@ export function planMergeRun(
   const classified = classifyAllGroups(candidates, config, lockedIds);
 
   const autoGroups = classified.filter((g) => g.disposition === 'auto');
-  const reviewGroups = classified.filter((g) => g.disposition === 'review');
 
   let projectedArchives = autoGroups.reduce(
     (sum, g) => sum + g.losers.length,

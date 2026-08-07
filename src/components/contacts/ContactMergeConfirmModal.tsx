@@ -9,7 +9,6 @@ import type { MergeContactsPreview } from '../../services/contactUpsert/contactB
 import {
   buildMergeFieldChoices,
   defaultSelectionsFromChoices,
-  recomputeAltEmailForPrimary,
   selectionsToFieldOverrides,
   type FieldMergeOverrides,
 } from '../../services/contactUpsert/merge';
@@ -72,18 +71,6 @@ export default function ContactMergeConfirmModal({
 
   if (!open) return null;
 
-  function handlePrimaryEmailChange(email: string) {
-    const alt = recomputeAltEmailForPrimary(survivor, losers, email);
-    setSelections((prev) => ({
-      ...prev,
-      fieldValues: {
-        ...prev.fieldValues,
-        email,
-        altEmail: alt ?? '',
-      },
-    }));
-  }
-
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
@@ -111,9 +98,10 @@ export default function ContactMergeConfirmModal({
             {selections.fieldValues.name || preview.resultingName}”?
           </h2>
           <p className="mt-1 text-sm text-crm-slate">
-            Choose which values to keep for each field. Defaults match the
-            richest survivor. Duplicates are archived (not permanently deleted).
-            Use Keep both if these are different people.
+            Keep several emails, phones, or addresses — mark one Primary; the
+            rest become Alternate. Defaults match the richest survivor.
+            Duplicates are archived (not permanently deleted). Use Keep both if
+            these are different people.
           </p>
         </div>
 
@@ -157,7 +145,6 @@ export default function ContactMergeConfirmModal({
             selections={selections}
             disabled={busy}
             onChange={setSelections}
-            onPrimaryEmailChange={handlePrimaryEmailChange}
           />
 
           {(preview.willUpdatePastor || preview.willUpdateParents) &&

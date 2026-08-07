@@ -1,6 +1,6 @@
 /**
  * PipelineSection.tsx
- * One applications pipeline stage group with volunteer rows clustered by
+ * One applications pipeline stage group with volunteer rows or cards clustered by
  * confirmed location, destination itinerary chips, and PDF preview on click.
  */
 import { useState } from 'react';
@@ -10,25 +10,15 @@ import type {
   VolunteerFile,
 } from '../../types/volunteer';
 import {
-  displayLocationPreferenceOnly,
-  displayConfirmedLocation,
-  hasConfirmedLocation,
-} from '../../utils/volunteerLocation';
-import {
   organizePipelineVolunteers,
   showsLocationGroupHeaders,
   type ApplicationSortOption,
 } from '../../utils/organizePipelineVolunteers';
 import { isSentToFieldPipelineStage } from '../../constants/applicationStatuses';
-import { itineraryHasData } from '../../types/itinerary';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
-import VolunteerAvatar from './VolunteerAvatar';
-import CouplePipelineRow from './CouplePipelineRow';
-import DestinationItineraryVisual from './DestinationItineraryVisual';
+import type { PipelineLayout } from '../../preferences/pipelineLayoutStorage';
 import FilePreviewModal from './FilePreviewModal';
-import VolunteerStatusSelect from './VolunteerStatusSelect';
-import VolunteerTermDisplay from './VolunteerTermDisplay';
-import TermProgressBar from './TermProgressBar';
+import PipelineVolunteerEntry from './PipelineVolunteerEntry';
 
 interface PipelineSectionProps {
   section: PipelineSectionType;
@@ -37,6 +27,7 @@ interface PipelineSectionProps {
   onStatusChange: (volunteerId: string, newStatus: string) => void | Promise<void>;
   statusSelectDisabled?: boolean;
   sortBy?: ApplicationSortOption;
+  layout?: PipelineLayout;
 }
 
 export default function PipelineSection({
@@ -46,6 +37,7 @@ export default function PipelineSection({
   onStatusChange,
   statusSelectDisabled = false,
   sortBy = 'confirmed-dates',
+  layout = 'list',
 }: PipelineSectionProps) {
   const showTermProgress = isSentToFieldPipelineStage(section.stage);
   const locationGroups = organizePipelineVolunteers(section.volunteers, sortBy);
@@ -94,113 +86,35 @@ export default function PipelineSection({
                 </span>
               </div>
             ) : null}
-            <div className="divide-y divide-crm-taupe/20">
+            <div
+              className={
+                layout === 'card'
+                  ? 'grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3'
+                  : 'divide-y divide-crm-taupe/20'
+              }
+            >
               {group.volunteers.map((volunteer) => (
-                <button
+                <PipelineVolunteerEntry
                   key={volunteer.id}
-                  type="button"
-                  onClick={() =>
+                  volunteer={volunteer}
+                  pipelineStage={section.stage}
+                  layout={layout}
+                  showTermProgress={showTermProgress}
+                  statusOptions={statusOptions}
+                  onStatusChange={onStatusChange}
+                  statusSelectDisabled={statusSelectDisabled}
+                  onSelect={() =>
                     onSelectVolunteer({
                       ...volunteer,
                       pipelineStage: section.stage,
                     })
                   }
-                  className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition hover:bg-crm-taupe-50"
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-4">
-                    {volunteer.couplePreview ? (
-                      <CouplePipelineRow
-                        volunteer={volunteer}
-                        pipelineStage={section.stage}
-                        showTermProgress={showTermProgress}
-                        termProgressBar={
-                          showTermProgress ? (
-                            <TermProgressBar
-                              volunteer={volunteer}
-                              compact
-                              collapsible
-                            />
-                          ) : undefined
-                        }
-                        destinationItinerary={
-                          volunteer.itinerary &&
-                          itineraryHasData(volunteer.itinerary) ? (
-                            <DestinationItineraryVisual
-                              itinerary={volunteer.itinerary}
-                              onOpen={
-                                volunteer.itineraryPreviewFile?.url
-                                  ? () => openItineraryPreview(volunteer)
-                                  : undefined
-                              }
-                            />
-                          ) : undefined
-                        }
-                      />
-                    ) : (
-                      <>
-                        <VolunteerAvatar
-                          name={volunteer.name}
-                          profilePhotoUrl={volunteer.profilePhotoUrl}
-                          size="sm"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-crm-heading">
-                            {volunteer.name}
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1 text-sm text-crm-slate">
-                            {hasConfirmedLocation(volunteer) ? (
-                              <span className="font-medium text-green-800">
-                                Confirmed: {displayConfirmedLocation(volunteer)}
-                              </span>
-                            ) : (
-                              <span>
-                                {displayLocationPreferenceOnly(volunteer)}
-                              </span>
-                            )}
-                            <span className="text-crm-taupe/50">·</span>
-                            <div className="flex min-w-[12rem] max-w-sm flex-col items-center gap-1">
-                              {showTermProgress && (
-                                <TermProgressBar
-                                  volunteer={volunteer}
-                                  compact
-                                  collapsible
-                                />
-                              )}
-                              <VolunteerTermDisplay
-                                volunteer={volunteer}
-                                pipelineStage={section.stage}
-                              />
-                            </div>
-                            {volunteer.itinerary &&
-                              itineraryHasData(volunteer.itinerary) && (
-                                <>
-                                  <span className="text-crm-taupe/50">·</span>
-                                  <DestinationItineraryVisual
-                                    itinerary={volunteer.itinerary}
-                                    onOpen={
-                                      volunteer.itineraryPreviewFile?.url
-                                        ? () => openItineraryPreview(volunteer)
-                                        : undefined
-                                    }
-                                  />
-                                </>
-                              )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-4">
-                    <VolunteerStatusSelect
-                      volunteerId={volunteer.id}
-                      value={volunteer.status}
-                      options={statusOptions}
-                      onChange={onStatusChange}
-                      disabled={statusSelectDisabled}
-                    />
-                    <span className="text-crm-slate">→</span>
-                  </div>
-                </button>
+                  onOpenItineraryPreview={
+                    volunteer.itineraryPreviewFile?.url
+                      ? () => openItineraryPreview(volunteer)
+                      : undefined
+                  }
+                />
               ))}
             </div>
           </div>

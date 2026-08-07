@@ -38,7 +38,6 @@ import CoupleAvatarStack from './CoupleAvatarStack';
 import VolunteerTermDisplay from './VolunteerTermDisplay';
 import ContactCallModal from '../contacts/ContactCallModal';
 import { useCurrentUser } from '../../context/useCurrentUser';
-import SectionGate from '../shared/SectionGate';
 import type { SectionId } from '../../preferences/workFocus';
 import {
   applicationSectionOrder,
@@ -370,9 +369,7 @@ export default function ApplicationDetailPanel({
           </button>
         </div>
 
-        <SectionGate id="application.identity">
           <ApplicationIdentityBar display={display} volunteer={volunteer} loading={loading} />
-        </SectionGate>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {loading && (
@@ -394,55 +391,50 @@ export default function ApplicationDetailPanel({
                 workFocus,
                 applicationSectionOrder(workFocus),
                 {
-                  'application.contact_card': (
-                    <SectionGate id="application.contact_card">
-                      {display.couple ? (
-                        <CoupleApplicationCard
-                          detail={display}
-                          onEmailClick={
-                            canSendEmail
-                              ? () => setSendEmailOpen(true)
-                              : undefined
-                          }
-                          onPhoneClick={() => setCallOpen(true)}
-                          sharedContent={quickActions}
-                          splitFilesRow={quickActionsBeforeFiles}
-                          besideFiles={referencesPanel}
-                          boardId={boardId}
-                          canUploadFiles={
-                            applicationsEditable && canViewAppFiles
-                          }
-                          onFilesUploaded={() => refetch()}
-                          showFiles={canViewAppFiles}
-                        />
-                      ) : (
-                        <VolunteerContactCard
-                          detail={display}
-                          onEmailClick={
-                            canSendEmail
-                              ? () => setSendEmailOpen(true)
-                              : undefined
-                          }
-                          onPhoneClick={() => setCallOpen(true)}
-                          beforeFiles={quickActions}
-                          splitFilesRow={quickActionsBeforeFiles}
-                          besideFiles={referencesPanel}
-                          boardId={boardId}
-                          canUploadFiles={
-                            applicationsEditable && canViewAppFiles
-                          }
-                          onFilesUploaded={() => refetch()}
-                          canEdit={applicationsEditable}
-                          longterm={quickActionsBeforeFiles}
-                          onContactSaved={() => refetch()}
-                          showFiles={canViewAppFiles}
-                        />
-                      )}
-                    </SectionGate>
+                  'application.contact_card': display.couple ? (
+                    <CoupleApplicationCard
+                      detail={display}
+                      onEmailClick={
+                        canSendEmail
+                          ? () => setSendEmailOpen(true)
+                          : undefined
+                      }
+                      onPhoneClick={() => setCallOpen(true)}
+                      sharedContent={quickActions}
+                      splitFilesRow={quickActionsBeforeFiles}
+                      besideFiles={referencesPanel}
+                      boardId={boardId}
+                      canUploadFiles={
+                        applicationsEditable && canViewAppFiles
+                      }
+                      onFilesUploaded={() => refetch()}
+                      showFiles={canViewAppFiles}
+                    />
+                  ) : (
+                    <VolunteerContactCard
+                      detail={display}
+                      onEmailClick={
+                        canSendEmail
+                          ? () => setSendEmailOpen(true)
+                          : undefined
+                      }
+                      onPhoneClick={() => setCallOpen(true)}
+                      beforeFiles={quickActions}
+                      splitFilesRow={quickActionsBeforeFiles}
+                      besideFiles={referencesPanel}
+                      boardId={boardId}
+                      canUploadFiles={
+                        applicationsEditable && canViewAppFiles
+                      }
+                      onFilesUploaded={() => refetch()}
+                      canEdit={applicationsEditable}
+                      longterm={quickActionsBeforeFiles}
+                      onContactSaved={() => refetch()}
+                      showFiles={canViewAppFiles}
+                    />
                   ),
                   'application.invoice':
                     canViewInvoice && workFocus === 'finance' ? (
-                      <SectionGate id="application.invoice">
                         <ApplicationInvoiceSection
                           volunteerName={display.name}
                           invoiceId={
@@ -453,10 +445,8 @@ export default function ApplicationDetailPanel({
                           readOnly={!applicationsEditable}
                           onInvoiceLinked={() => refetch()}
                         />
-                      </SectionGate>
                     ) : undefined,
                   'application.onboarding': pipeline ? (
-                    <SectionGate id="application.onboarding">
                       <OnboardingProgressPanel
                         pipeline={pipeline}
                         variant={
@@ -484,20 +474,16 @@ export default function ApplicationDetailPanel({
                           }
                         />
                       </OnboardingProgressPanel>
-                    </SectionGate>
                   ) : undefined,
                   'application.term_notes': (
-                    <SectionGate id="application.term_notes">
                       <TermNotesChat
                         itemId={display.id}
                         timelineId={display.timelineId}
                         initialNotes={display.termNotes}
                         termNotesState={termNotesState}
                       />
-                    </SectionGate>
                   ),
                   'application.email': (
-                    <SectionGate id="application.email">
                       <TermEmailCorrespondence
                         itemId={display.id}
                         timelineId={display.timelineId}
@@ -509,16 +495,13 @@ export default function ApplicationDetailPanel({
                           emailCorrespondenceRefetch.current = refetchFn;
                         }}
                       />
-                    </SectionGate>
                   ),
                   'application.activity': (
-                    <SectionGate id="application.activity">
                       <ApplicationActivityTimeline
                         events={activityTimeline.events}
                         loading={activityTimeline.loading}
                         error={activityTimeline.error}
                       />
-                    </SectionGate>
                   ),
                 } satisfies Partial<Record<SectionId, ReactNode>>,
               ).map((node, index) => (
@@ -608,7 +591,7 @@ export default function ApplicationDetailPanel({
             emptyMessage={
               drillDown === 'application'
                 ? 'No additional application fields on this item.'
-                : 'No pastor reference fields on this item. Check column titles on the board or add titles to VITE_PASTOR_REFERENCE_COLUMNS.'
+                : 'No pastor reference fields on this item.'
             }
             pdfFile={
               drillDown === 'application'

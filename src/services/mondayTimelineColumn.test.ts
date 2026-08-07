@@ -27,6 +27,20 @@ describe('parseMondayTimelineColumn', () => {
       to: '2026-11-14',
     });
   });
+
+  it('does not shatter ISO dates when only text is available', () => {
+    const range = parseMondayTimelineColumn({
+      id: 'timeline',
+      type: 'timeline',
+      text: '2026-06-16 - 2026-09-07',
+      value: null,
+      column: { title: 'Arrival/Departure Date' },
+    });
+    assert.deepEqual(range, {
+      from: '2026-06-16',
+      to: '2026-09-07',
+    });
+  });
 });
 
 describe('getArrivalDepartureTimelineRange', () => {

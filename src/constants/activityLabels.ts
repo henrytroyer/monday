@@ -63,8 +63,12 @@ export function friendlyActivityBoardLabel(
   ) {
     return 'Service ended';
   }
-  if (env?.VITE_EOS_REVIEW_BOARD_ID && id === String(env.VITE_EOS_REVIEW_BOARD_ID)) {
-    return 'End of service review';
+  if (
+    (env?.VITE_EOS_REVIEW_BOARD_ID &&
+      id === String(env.VITE_EOS_REVIEW_BOARD_ID)) ||
+    id === '2506931747'
+  ) {
+    return 'VS Exit Survey';
   }
   if (
     env?.VITE_LONGTERM_APPLICATIONS_BOARD_ID &&
