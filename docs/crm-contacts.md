@@ -192,18 +192,45 @@ Profile / Passport (and spouse slots) copy onto Contacts file columns through th
 
 ### UI
 
-- Contacts page → **Sync contacts** (recently updated items; cursor in `localStorage`)
-- Contacts page → **Full sync** (backfill all boards — use for cutover)
+- Contacts page header → **Contacts settings** + **Refresh** only
+  - **Refresh** reloads the Contacts list (does not create/update)
+  - **Contacts settings** panel:
+    - **Full sync** — Monday boards (ST/LT/CSE/Donations); all items; create/update Contacts
+    - **Fillout sync** — short-term Fillout form; full history in batches of 10; button-only (no auto-poll)
+- Incremental Monday sync (`runContactIngest({ full: false })`) remains in code for internal/watcher use; no header button
 - Sidebar → **Contact matches** for fuzzy/ambiguous approvals
 - Sidebar → **Contact duplicates** for same-email board items (merge + delete losers)
 - Contacts list → select **exactly 2** → **Merge** (manual board merge)
 - Board watcher (when `VITE_MONDAY_WATCH_ENABLED=true`) also refreshes recent CSE items onto Contacts
 
+### Fillout contact builder (short-term)
+
+Isolated from Monday **Full sync**. Creates/updates Contacts from the Short-term Application Fillout form (volunteer + parent + pastor + spouse) with prefer-incoming merge.
+
+| | |
+|--|--|
+| Form | `FILLOUT_SHORT_TERM_FORM_ID` / `VITE_FILLOUT_SHORT_TERM_FORM_ID` (default `rmkCicr2a5us`) |
+| Creates | Volunteer + Parent + Pastor; **Spouse** when Spouse Name is present (married/engaged) |
+| Couple label | `Couple: Jack & Jane` — **male then female** (not who existed first) |
+| Merge | Fillout uses **prefer-incoming** (newer non-empty + keep missing); Monday Sync stays fill-gaps |
+| UI Full sync | Contacts settings → **Fillout sync** (proxy + batches of 10; button-only) |
+| Node watcher | `npm run fillout:watch` — incremental new submissions; first run seeds cursor to now |
+| Node once / backfill | `npm run fillout:sync-once` / `npm run fillout:sync-once -- --full` |
+| Watcher cursor | `server/.fillout-st-sync-state.json` (`FILLOUT_WATCH_STATE_PATH`) |
+| Browser cursor | `localStorage` `crm-fillout-st-cursor-v1` (UI builder only) |
+| Files | Not imported in v1 (no Monday asset ids from Fillout URLs) |
+| Browser auto-poll | None |
+
+Requires `FILLOUT_API_KEY` + `MONDAY_API_TOKEN`. Watcher talks to Fillout API directly (no proxy) and Monday via `FORCE_DIRECT_MONDAY`. Not started by `dev:live` — run in a separate terminal (same pattern as QBO income watcher).
+
+Code: `src/services/fillout/*`, `server/fillout-proxy.mjs`, `scripts/fillout-watch-contacts.ts`. Does **not** call Fillout from `runContactIngest`.
+
 ### Upsert vs board merge
 
 | Feature | What it does |
 |---------|----------------|
-| **Upsert / Sync contacts** | Create or update Contacts items from apps/donations; does **not** delete duplicates |
+| **Full sync** (settings) | Create or update Contacts from all Monday source boards; does **not** delete duplicates |
+| **Fillout sync** (settings) | Same upsert engine from Fillout ST submissions (batches of 10); does **not** delete duplicates |
 | **Compile list** | In-memory collapse by email for display; does **not** write Monday |
 | **Merge (select 2)** / **Contact duplicates** | Union tags + fields onto one survivor, keep both emails, **delete** loser Monday items |
 
@@ -225,18 +252,20 @@ Shared engine: `src/services/contactUpsert/merge/` (CRM manual merge + daily job
 - Default upsert **fills gaps** (existing non-empty wins) and **unions tags**
 - Empty incoming values never wipe existing fields
 - **Current Service Ended** refresh prefers newer non-empty values and re-syncs Profile/Passport (`force`)
+- **Fillout builder** uses **prefer-incoming** (newer submission non-empty wins; missing kept; tags union). Couples get `Couple: Jack & Jane` ordering via gender.
 - Ambiguous multi-email matches auto-update the best Contacts-board survivor when scores are clear; otherwise Match Review
 
 ### Cutover checklist (disable Monday automations + Make)
 
-Do this **after** verifying Sync contacts on a few known people (ST apply, spouse, new pastor, CSE, LT volunteer/parents/pastor, donation).
+Do this **after** verifying Full sync on a few known people (ST apply, spouse, new pastor, CSE, LT volunteer/parents/pastor, donation).
 
 1. **Local / staging verify**
    - Run `npm run dev:live` (Vite + Monday proxy on `:4040` / `:4042`)
-   - Contacts → **Sync contacts** on recent items; open Match Review if any fuzzy hits
+   - Contacts → **Contacts settings → Full sync**; open Match Review if any fuzzy hits
+   - Optionally **Fillout sync** for short-term form history
    - Confirm Profile/Passport landed on Contacts without Make
 2. **Full backfill**
-   - Contacts → **Full sync** once (or when boards are quiet)
+   - Contacts → **Contacts settings → Full sync** once (or when boards are quiet)
    - Resolve remaining items in **Contact matches**
 3. **Disable Monday contact-create automations**
    - On Applications / LT / Donations / CSE boards: turn off any automation that **creates** a Contacts item when a form is submitted or status changes
@@ -255,8 +284,12 @@ Do this **after** verifying Sync contacts on a few known people (ST apply, spous
 
 - `src/services/contactUpsert/contactMatch.ts` — match tiers  
 - `src/services/contactUpsert/contactUpsert.ts` — create/update/queue review  
-- `src/services/contactUpsert/ingestApplicationBundle.ts` — ST/LT/CSE people + files  
+- `src/services/contactUpsert/fieldMerge.ts` — fill-gaps / prefer-incoming / richest helpers  
+- `src/services/contactUpsert/ingestApplicationBundle.ts` — ST/LT/CSE/Fillout people + files  
 - `src/services/contactUpsert/runContactIngest.ts` — board orchestrator + CSE refresh  
+- `src/services/fillout/` — Fillout ST mapper + batched pages + browser/headless orchestrators  
+- `scripts/fillout-watch-contacts.ts` — Node watcher for new ST submissions  
+- `src/components/contacts/ContactSyncSettingsPanel.tsx` — Full sync + Fillout sync UI  
 - `src/services/contactUpsert/contactBoardDedupe.ts` — board merge (tags union, Alt Email, delete losers)  
 
 

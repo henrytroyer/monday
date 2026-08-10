@@ -10,7 +10,7 @@ import {
 } from '../../config/boards';
 import { contactMap } from '../../config/contactMap';
 import type {
-  ContactListDemographics,
+  ContactDemographics,
   ContactListItem,
   ContactTag,
 } from '../../types/contact';
@@ -30,10 +30,19 @@ import {
   type IncomingPersonIdentity,
 } from './contactMatch';
 import { enqueueContactMatchReview } from './contactMatchReviewStorage';
+import {
+  mergeDemographicsByMode,
+  mergeFieldByMode,
+  resolveContactFieldMergeMode,
+  type ContactFieldMergeMode,
+} from './fieldMerge';
+
+export type { ContactFieldMergeMode } from './fieldMerge';
 
 export interface ContactUpsertInput extends IncomingPersonIdentity {
   tags: ContactTag[];
-  demographics?: ContactListDemographics;
+  /** Mailing + optional DOB (written to Contacts date column when present). */
+  demographics?: ContactDemographics;
   /** Pastor fields to write onto a volunteer contact (current pastor). */
   pastorOnVolunteer?: {
     name?: string;
@@ -68,8 +77,14 @@ export interface ContactUpsertInput extends IncomingPersonIdentity {
   /**
    * When true, non-empty incoming values replace existing (CSE refresh).
    * Default false = fill gaps only (existing wins when both set).
+   * Prefer `mergeMode` for new callers; this remains for CSE.
    */
   preferIncoming?: boolean;
+  /**
+   * Field merge strategy. Default fill-gaps.
+   * `richest` is used by Fillout contact builder only.
+   */
+  mergeMode?: ContactFieldMergeMode;
 }
 
 export type ContactUpsertAction =
@@ -83,66 +98,6 @@ export interface ContactUpsertResult {
   contact?: ContactListItem;
   reviewId?: string;
   message: string;
-}
-
-/** Fill gaps: keep existing when set; never wipe with empty. */
-function fillGap(
-  existing: string | undefined,
-  incoming: string | undefined,
-): string | undefined {
-  const e = existing?.trim();
-  const i = incoming?.trim();
-  if (e) return e;
-  if (i) return i;
-  return undefined;
-}
-
-/** Prefer newer non-empty incoming (CSE); never wipe with empty. */
-function preferIncomingValue(
-  existing: string | undefined,
-  incoming: string | undefined,
-): string | undefined {
-  const e = existing?.trim();
-  const i = incoming?.trim();
-  if (i) return i;
-  if (e) return e;
-  return undefined;
-}
-
-function mergeField(
-  existing: string | undefined,
-  incoming: string | undefined,
-  preferIncoming: boolean,
-): string | undefined {
-  return preferIncoming
-    ? preferIncomingValue(existing, incoming)
-    : fillGap(existing, incoming);
-}
-
-function mergeDemographics(
-  existing?: ContactListDemographics,
-  incoming?: ContactListDemographics,
-  preferIncoming = false,
-): ContactListDemographics | undefined {
-  if (!existing && !incoming) return undefined;
-  const pick = preferIncoming ? preferIncomingValue : fillGap;
-  const merged = {
-    address: pick(existing?.address, incoming?.address),
-    city: pick(existing?.city, incoming?.city),
-    state: pick(existing?.state, incoming?.state),
-    zip: pick(existing?.zip, incoming?.zip),
-    country: pick(existing?.country, incoming?.country),
-  };
-  if (
-    !merged.address &&
-    !merged.city &&
-    !merged.state &&
-    !merged.zip &&
-    !merged.country
-  ) {
-    return undefined;
-  }
-  return merged;
 }
 
 async function writeExtraContactFields(
@@ -225,25 +180,25 @@ async function applyUpdate(
     return applyCreate(input);
   }
 
-  const preferIncoming = Boolean(input.preferIncoming);
+  const mergeMode = resolveContactFieldMergeMode(input);
   const tags = mergeTags(existing.tags, input.tags);
   const name =
-    mergeField(existing.name, input.name, preferIncoming) || existing.name;
+    mergeFieldByMode(existing.name, input.name, mergeMode) || existing.name;
   const email =
-    mergeField(
+    mergeFieldByMode(
       normalizeEmail(existing.email) ?? undefined,
       normalizeEmail(input.email) ?? undefined,
-      preferIncoming,
+      mergeMode,
     ) || existing.email;
-  const phone = mergeField(
+  const phone = mergeFieldByMode(
     existing.phone,
     input.phone ?? undefined,
-    preferIncoming,
+    mergeMode,
   );
-  const demographics = mergeDemographics(
+  const demographics = mergeDemographicsByMode(
     existing.demographics,
     input.demographics,
-    preferIncoming,
+    mergeMode,
   );
 
   await updateContactFieldsOnMonday(boardId, existing.id, {
@@ -272,13 +227,23 @@ async function applyUpdate(
       ].join(', ')
     : existing.connectedTo;
 
+  const listDemographics = demographics
+    ? {
+        address: demographics.address,
+        city: demographics.city,
+        state: demographics.state,
+        zip: demographics.zip,
+        country: demographics.country,
+      }
+    : undefined;
+
   return {
     ...existing,
     name,
     email: email || '—',
     phone,
     tags,
-    demographics,
+    demographics: listDemographics,
     ...(connectedTo ? { connectedTo } : {}),
     ...(input.spouseOnVolunteer?.name
       ? { spouseName: input.spouseOnVolunteer.name }
@@ -312,9 +277,19 @@ async function applyCreate(
     await writeExtraContactFields(boardId, created.id, input);
   }
 
+  const listDemographics = input.demographics
+    ? {
+        address: input.demographics.address,
+        city: input.demographics.city,
+        state: input.demographics.state,
+        zip: input.demographics.zip,
+        country: input.demographics.country,
+      }
+    : undefined;
+
   return {
     ...created,
-    demographics: input.demographics,
+    demographics: listDemographics,
   };
 }
 

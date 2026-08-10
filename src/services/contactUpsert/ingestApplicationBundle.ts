@@ -3,6 +3,7 @@
  */
 
 import type { ContactListItem } from '../../types/contact';
+import { formatCoupleConnectedLabel } from '../../utils/coupleDisplayOrder';
 import {
   upsertContactPerson,
   type ContactUpsertResult,
@@ -60,7 +61,13 @@ export async function ingestApplicationBundle(
   const results: ContactUpsertResult[] = [];
   const pastorContactIds: string[] = [];
   const isCseRefresh = bundle.sourceLabel === 'service-ended';
-  const preferIncoming = isCseRefresh;
+  const isFillout = bundle.sourceLabel.startsWith('fillout');
+  /**
+   * CSE + Fillout: prefer newer non-empty (missing kept from existing).
+   * Monday Sync stays fill-gaps.
+   */
+  const preferIncoming = isCseRefresh || isFillout;
+  const mergeMode = isFillout ? ('prefer-incoming' as const) : undefined;
 
   const currentPastor = bundle.newPastor ?? bundle.pastor;
 
@@ -77,6 +84,7 @@ export async function ingestApplicationBundle(
       source: bundle.sourceLabel,
       sourceItemId: bundle.sourceItemId,
       preferIncoming,
+      mergeMode,
       pastorOnVolunteer: currentPastor
         ? {
             name: currentPastor.name,
@@ -127,6 +135,7 @@ export async function ingestApplicationBundle(
         source: bundle.sourceLabel,
         sourceItemId: bundle.sourceItemId,
         preferIncoming,
+        mergeMode,
         connectedToLabels: volunteerContactId
           ? [bundle.volunteer.name]
           : undefined,
@@ -152,6 +161,7 @@ export async function ingestApplicationBundle(
         source: bundle.sourceLabel,
         sourceItemId: bundle.sourceItemId,
         preferIncoming,
+        mergeMode,
         connectedToLabels: [bundle.volunteer.name],
       },
       contacts,
@@ -175,6 +185,7 @@ export async function ingestApplicationBundle(
         source: bundle.sourceLabel,
         sourceItemId: `${bundle.sourceItemId}:new-pastor`,
         preferIncoming,
+        mergeMode,
         connectedToLabels: [bundle.volunteer.name],
       },
       contacts,
@@ -226,9 +237,14 @@ export async function ingestApplicationBundle(
         email: bundle.spouse.email,
         phone: bundle.spouse.phone,
         tags: bundle.spouse.tags,
+        demographics: bundle.spouse.demographics,
+        city: bundle.spouse.demographics?.city,
+        address: bundle.spouse.demographics?.address,
+        zip: bundle.spouse.demographics?.zip,
         source: bundle.sourceLabel,
         sourceItemId: `${bundle.sourceItemId}:spouse`,
         preferIncoming,
+        mergeMode,
         connectedToLabels: [bundle.volunteer.name],
         spouseOnVolunteer: {
           name: bundle.volunteer.name,
@@ -249,7 +265,18 @@ export async function ingestApplicationBundle(
     }
 
     // Couple merge: cross-link volunteer ↔ spouse on Connected to:
+    // Label order is male then female (Jack & Jane), not who existed first.
     if (volunteerContactId && spouseContactId) {
+      const coupleLabel = formatCoupleConnectedLabel(
+        {
+          name: bundle.volunteer.name,
+          gender: bundle.volunteer.gender,
+        },
+        {
+          name: bundle.spouse.name,
+          gender: bundle.spouse.gender,
+        },
+      );
       await upsertContactPerson(
         {
           name: bundle.volunteer.name,
@@ -257,13 +284,29 @@ export async function ingestApplicationBundle(
           tags: [],
           source: bundle.sourceLabel,
           forceContactId: volunteerContactId,
-          connectedToLabels: [
-            `Couple: ${bundle.volunteer.name} & ${bundle.spouse.name}`,
-            bundle.spouse.name,
-          ],
+          preferIncoming,
+          mergeMode,
+          connectedToLabels: [coupleLabel, bundle.spouse.name],
           spouseOnVolunteer: {
             name: bundle.spouse.name,
             email: bundle.spouse.email,
+          },
+        },
+        contacts,
+      );
+      await upsertContactPerson(
+        {
+          name: bundle.spouse.name,
+          email: bundle.spouse.email,
+          tags: [],
+          source: bundle.sourceLabel,
+          forceContactId: spouseContactId,
+          preferIncoming,
+          mergeMode,
+          connectedToLabels: [coupleLabel, bundle.volunteer.name],
+          spouseOnVolunteer: {
+            name: bundle.volunteer.name,
+            email: bundle.volunteer.email,
           },
         },
         contacts,

@@ -4,7 +4,7 @@
 
 import { columnMap } from '../../config/columnMap';
 import { longtermColumnMap, longtermRefereeSlotColumns } from '../../config/longtermColumnMap';
-import type { ContactListDemographics, ContactTag } from '../../types/contact';
+import type { ContactDemographics, ContactTag } from '../../types/contact';
 import { resolveApplicationDemographics } from '../../utils/applicationDemographics';
 import { parseFilloutAddress } from '../../utils/formatContactAddress';
 import { volunteerNameFromItemTitle } from '../../utils/personNameMatch';
@@ -24,8 +24,10 @@ export interface ExtractedPerson {
   email?: string;
   phone?: string;
   tags: ContactTag[];
-  demographics?: ContactListDemographics;
+  demographics?: ContactDemographics;
   church?: string;
+  /** For couple label ordering (male then female). */
+  gender?: string;
   /** File assets to sync onto this person's contact. */
   files?: Array<{ slot: ContactFileSlot; assetId: string; fileName?: string }>;
 }

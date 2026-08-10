@@ -35,5 +35,9 @@ dist-ssr
 # QBO income watcher cursor state
 server/.qbo-income-sync-state.json
 
+# Fillout ST contact watcher cursor + Node localStorage shim
+server/.fillout-st-sync-state.json
+server/.fillout-watch-localStorage.json
+
 # Local private-notes ciphertext store
 server/.private-notes/
