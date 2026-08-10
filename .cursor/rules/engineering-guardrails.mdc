@@ -1,0 +1,156 @@
+---
+description: Engineering guardrails — understand before editing, protect behavior, validate with real npm commands, report honestly
+alwaysApply: true
+---
+
+# Engineering guardrails
+
+Follow `monday-canonical-repo.mdc` for remote/deploy. Respect workstream scope rules when those globs apply. Do not contradict them.
+
+Architecture: UI in `src/components` / `src/pages`; domain and API in `src/services`; config in `src/config`; docs in `docs/`. Do not put business logic in UI when a service layer exists. Do not duplicate utilities.
+
+## 1. Understand before editing
+
+Before non-trivial changes:
+
+- Inspect the existing implementation and relevant dependencies.
+- Understand how the affected feature works today.
+- Follow existing architectural patterns.
+- Identify behavior that must not regress and relevant existing tests.
+- Prefer the smallest change that correctly solves the problem.
+- Do not perform unrelated refactors.
+
+For larger or multi-file changes, write a short implementation plan before editing.
+
+## 2. Protect existing behavior
+
+Treat existing behavior and tests as contracts unless the task explicitly requires changing them.
+
+Never:
+
+- Delete, skip, or disable a failing test to make validation pass.
+- Weaken assertions merely to accommodate a new implementation.
+- Change expected behavior without explaining it.
+- Silently change public API contracts or introduce breaking schema changes.
+- Modify historical database migrations unless explicitly required.
+- Hide or ignore validation failures.
+
+If an existing test appears incorrect or conflicts with the requested behavior, stop and explain the conflict before changing the test.
+
+## 3. Regression tests
+
+Bug fixes: reproduce → add a failing regression test when practical → fix → verify the test passes → run broader validation.
+
+New functionality: add tests for important behavior, failure paths, and edge cases. Preserve tests that protect existing behavior.
+
+## 4. Architectural boundaries
+
+Do not bypass established layers for convenience. Avoid duplicating logic, bypassing abstractions, or adding dependencies when existing code suffices. Explain significant architecture changes before implementing them.
+
+## 5. Scope discipline
+
+Keep diffs tightly scoped. Do not refactor, rename, reformat, or upgrade unrelated code. Report unrelated problems separately instead of silently fixing them.
+
+## 6. Mandatory validation (this repository)
+
+After every meaningful implementation change, run the fastest relevant checks for the affected code.
+
+Before declaring any coding task complete, run:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+Targeted tests (when touching specific modules):
+
+```bash
+npx tsx --import ./src/test/setupImportMetaEnv.ts --test path/to/file.test.ts
+```
+
+Required-gate shorthand (matches CI required checks; excludes lint until lint is green):
+
+```bash
+npm run validate
+```
+
+Integration tests: **NOT AVAILABLE**  
+E2E tests: **NOT AVAILABLE**
+
+Local checks must align with `.github/workflows/ci.yml`.
+
+Repo-wide `npm run lint` currently fails with many pre-existing errors. Still run it. Report `FAIL` honestly. Lint touched files and do not introduce new lint debt. Do not claim lint passed when `npm run lint` exits non-zero.
+
+A task is not complete if required validation is failing because of your changes.
+
+## 7. Never fake validation
+
+Never claim typecheck, lint, tests, or build passed without running them.
+
+If a command cannot run, report: which command, why, and what remains unverified. Do not silently skip it.
+
+## 8. Failure handling
+
+If validation fails, determine whether your changes caused it.
+
+- Caused by your changes: fix the implementation; do not weaken validation; rerun the failed check and broader checks as needed.
+- Pre-existing: do not silently fix unrelated code; report the failure and evidence; do not claim the full suite passed.
+
+## 9. Diff review
+
+Before completing a task, review the full git diff for unintended files, deletions, debug code, temp files, secrets, unnecessary dependency changes, API/schema risks, security/performance issues, missing error handling, race conditions, missing tests, and scope creep. Remove accidents before completion.
+
+## 10. Completion checklist
+
+1. Re-read the user's original request.
+2. Verify each requirement was addressed.
+3. Inspect the complete git diff; check for unintended scope.
+4. Run `npm run typecheck`.
+5. Run `npm run lint` (report pre-existing failures honestly).
+6. Run targeted tests for touched modules when applicable.
+7. Run `npm test`.
+8. Integration/E2E: N/A in this repo.
+9. Run `npm run build`.
+10. Review adjacent functionality, security, and performance where relevant.
+11. Confirm no tests were deleted, skipped, or weakened merely to pass.
+12. Report remaining uncertainty or unverified checks.
+
+## 11. Completion report
+
+End every coding task with:
+
+```text
+VALIDATION
+
+* Typecheck: PASS / FAIL / NOT AVAILABLE / NOT RUN
+* Lint: PASS / FAIL / NOT AVAILABLE / NOT RUN
+* Targeted tests: PASS / FAIL / NOT AVAILABLE / NOT RUN
+* Full test suite: PASS / FAIL / NOT AVAILABLE / NOT RUN
+* Integration tests: NOT AVAILABLE
+* E2E tests: NOT AVAILABLE
+* Production build: PASS / FAIL / NOT AVAILABLE / NOT RUN
+
+CHANGES
+
+* Brief summary of what changed
+
+REGRESSION PROTECTION
+
+* Tests added or updated
+* Existing behavior specifically verified
+
+UNVERIFIED / RISKS
+
+* Anything that could not be verified
+* Known remaining risks
+```
+
+Never substitute "this should work" for actual validation.
+
+## 12. CI alignment
+
+PR/push CI is `.github/workflows/ci.yml` (Typecheck, Unit tests, Production build, Lint).
+
+Required merge gates on `main` (GitHub ruleset): Typecheck, Unit tests, Production build. Lint runs in CI but is **not** a required status check until the repo is lint-clean. Do not modify CI or weaken required checks without explicit permission. If important local validation is missing from CI, report it as a recommendation.

@@ -9,7 +9,6 @@ import type {
 import type { VolunteerTerm, VolunteerFile } from '../types/volunteer';
 import { getColumnText, getColumnDateText, getApplicationFilesFromColumns, type MondayBoardItem } from './mapMondayToCrm';
 import { getArrivalDepartureTimelineRange } from './mondayTimelineColumn';
-import { getArrivalDepartureTimelineRange } from './mondayTimelineColumn';
 import { normalizeDateOfBirth } from '../utils/formatDateOfBirth';
 import { mergeContactAndApplicationDemographics } from '../utils/formatContactAddress';
 import {
