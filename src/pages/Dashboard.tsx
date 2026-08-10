@@ -1,5 +1,8 @@
 /**
  * Dashboard.tsx — CRM shell (open access for allowlisted operators).
+ *
+ * Self-wraps CrmProviders so Admin → Monday Project (which mounts Dashboard
+ * without App.tsx) does not hang forever on the default isLoading:true context.
  */
 
 import { lazy, Suspense, useEffect, useState } from 'react';
@@ -7,6 +10,7 @@ import AppSidebar from '../components/layout/AppSidebar';
 import type { PageId } from '../constants/navItems';
 import KeepAlivePage from '../components/layout/KeepAlivePage';
 import CrmPageLoading from '../components/shared/CrmPageLoading';
+import CrmProviders from '../context/CrmProviders';
 import { useCurrentUser } from '../context/useCurrentUser';
 import { useLayout } from '../context/LayoutContext';
 import { useMondayBoardWatcher } from '../hooks/useMondayBoardWatcher';
@@ -32,6 +36,14 @@ const shellBootGlobal = globalThis as typeof globalThis & {
 };
 
 export default function Dashboard() {
+  return (
+    <CrmProviders>
+      <DashboardBoot />
+    </CrmProviders>
+  );
+}
+
+function DashboardBoot() {
   const { isLoading: userLoading } = useCurrentUser();
   // Once the shell has mounted, never replace it with the fullscreen boot loader
   // again — that unmounted DashboardInner and wiped open contact/detail state.

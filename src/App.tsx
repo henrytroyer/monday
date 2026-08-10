@@ -1,12 +1,11 @@
 /**
  * Main App component for monday.com application.
- * CrmProviders mount at site start so identity spools before the shell.
+ * Dashboard self-wraps CrmProviders (also required for Admin embed).
  */
 
 import { useEffect, useState } from 'react';
 import { LayoutProvider } from './context/LayoutContext';
 import { NavigationHistoryProvider } from './context/NavigationHistoryContext';
-import CrmProviders from './context/CrmProviders';
 import Dashboard from './pages/Dashboard';
 import OAuthCallback from './pages/OAuthCallback';
 
@@ -24,9 +23,7 @@ function App() {
   return (
     <LayoutProvider>
       <NavigationHistoryProvider>
-        <CrmProviders>
-          <Dashboard />
-        </CrmProviders>
+        <Dashboard />
       </NavigationHistoryProvider>
     </LayoutProvider>
   );

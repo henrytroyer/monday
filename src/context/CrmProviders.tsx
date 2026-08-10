@@ -1,7 +1,8 @@
 /**
  * CrmProviders.tsx — Self-contained CRM providers for Admin embed + standalone.
  *
- * Mounted from App at site start so CurrentUser spools before the Dashboard shell.
+ * Mounted from Dashboard (not only App) so Admin → Monday Project, which imports
+ * Dashboard without App.tsx, still gets a real CurrentUserProvider.
  */
 
 import type { ReactNode } from 'react';
