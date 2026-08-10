@@ -1,35 +1,35 @@
 /**
- * privateNotesApi.ts — CRUD for private-note ciphertext envelopes.
- * Bodies are already encrypted client-side; this layer only stores opaque blobs.
+ * privateNotesApi.ts — Org-confidential private notes + legacy E2E vault APIs.
  *
- * Production: VITE_PRIVATE_NOTES_URL → i58finance Cloud Function (Firebase auth).
- * Local: /api/private-notes → server/private-notes-proxy.mjs (X-Owner-Uid).
- * Fallback: localStorage (device-only; no cross-device sync).
+ * Org notes: server encrypts bodies; ACL = author OR higher Admin role (read).
+ * Legacy vault/envelopes kept for one-time owner migration.
+ *
+ * Production: VITE_PRIVATE_NOTES_URL → i58finance Cloud Function.
+ * Local: /api/private-notes → server/private-notes-proxy.mjs.
+ * Fallback: localStorage (device-only).
  */
 
 import { getMondayProxyAuthToken } from './mondayProxyAuth';
+import { getCrmSessionUser } from './crmSessionUser';
+import { crmRoleRank, isCrmRoleAbove } from '../utils/crmOperatorRoles';
 import type { CipherPayload } from './privateNotesCrypto';
+import type { ContactInternalNoteSource } from '../types/contact';
 
 export interface PrivateNotesVaultRecord {
   ownerUid: string;
-  /** Salt for passphrase → wrap-key KDF */
   salt: string;
-  /** Verifies passphrase wrap key */
   verifier: CipherPayload;
   alg: string;
   kdf: string;
   createdAt: string;
-  /** DEK encrypted by passphrase-derived wrap key (v2+) */
   wrappedDek?: CipherPayload;
-  /** Verifies the DEK itself (device cache + unlock) */
   dekVerifier?: CipherPayload;
-  /** Salt for recovery-key → wrap-key KDF */
   recoverySalt?: string;
-  /** DEK encrypted by recovery-derived wrap key */
   recoveryWrappedDek?: CipherPayload;
   recoveryCreatedAt?: string;
 }
 
+/** Legacy per-owner E2E envelope (ciphertext only). */
 export interface PrivateNoteEnvelope {
   id: string;
   ownerUid: string;
@@ -40,10 +40,41 @@ export interface PrivateNoteEnvelope {
   ciphertext: string;
 }
 
+/** Org private note as returned by the store (plaintext body after server decrypt). */
+export interface OrgPrivateNoteRecord {
+  id: string;
+  authorUid: string;
+  authorName: string;
+  authorRole: string;
+  authorRank: number;
+  contactId: string;
+  createdAt: string;
+  body: string;
+  source: ContactInternalNoteSource;
+  sourceLabel: string;
+  timelineId?: string;
+  applicationItemId?: string;
+  recruitmentProspectId?: string;
+  canEdit: boolean;
+}
+
+export type OrgPrivateNoteCreateInput = {
+  id?: string;
+  contactId: string;
+  body: string;
+  authorName: string;
+  source: ContactInternalNoteSource;
+  sourceLabel: string;
+  timelineId?: string;
+  applicationItemId?: string;
+  recruitmentProspectId?: string;
+};
+
 type StoreMode = 'remote' | 'localStorage' | 'none';
 
 const LOCAL_VAULT_PREFIX = 'crm-private-notes-vault:';
 const LOCAL_NOTES_PREFIX = 'crm-private-notes-items:';
+const LOCAL_ORG_NOTES_KEY = 'crm-org-private-notes';
 
 let storeBaseOverride: string | null = null;
 
@@ -62,8 +93,6 @@ function envBase(): string | null {
     .replace(/\/$/, '');
   if (fromEnv) return fromEnv;
   if (storeBaseOverride) return storeBaseOverride;
-  // No URL → localStorage (device-only). Set VITE_PRIVATE_NOTES_URL=/api/private-notes
-  // with `npm run private-notes:proxy`, or the production Cloud Function URL, to sync.
   return null;
 }
 
@@ -89,7 +118,7 @@ function localNotesKey(ownerUid: string): string {
   return `${LOCAL_NOTES_PREFIX}${ownerUid}`;
 }
 
-function readLocalNotes(ownerUid: string): PrivateNoteEnvelope[] {
+function readLocalLegacyNotes(ownerUid: string): PrivateNoteEnvelope[] {
   try {
     const raw = localStorage.getItem(localNotesKey(ownerUid));
     if (!raw) return [];
@@ -100,8 +129,33 @@ function readLocalNotes(ownerUid: string): PrivateNoteEnvelope[] {
   }
 }
 
-function writeLocalNotes(ownerUid: string, notes: PrivateNoteEnvelope[]): void {
+function writeLocalLegacyNotes(
+  ownerUid: string,
+  notes: PrivateNoteEnvelope[],
+): void {
   localStorage.setItem(localNotesKey(ownerUid), JSON.stringify(notes));
+}
+
+function readLocalOrgNotes(): OrgPrivateNoteRecord[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_ORG_NOTES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as OrgPrivateNoteRecord[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalOrgNotes(notes: OrgPrivateNoteRecord[]): void {
+  localStorage.setItem(LOCAL_ORG_NOTES_KEY, JSON.stringify(notes));
+}
+
+function newNoteId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `pn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 async function remoteFetch(
@@ -116,12 +170,18 @@ async function remoteFetch(
   const headers = new Headers(init?.headers);
   headers.set('Content-Type', 'application/json');
   headers.set('X-Owner-Uid', ownerUid);
+  const session = getCrmSessionUser();
+  if (session?.role) {
+    headers.set('X-Operator-Role', session.role);
+  }
   const token = await getMondayProxyAuthToken();
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
   return fetch(`${base}${path}`, { ...init, headers });
 }
+
+// ——— Legacy vault (migration) ———
 
 export async function fetchPrivateNotesVault(
   ownerUid: string,
@@ -170,26 +230,39 @@ export async function putPrivateNotesVault(
   }
 }
 
-export async function listPrivateNoteEnvelopes(
+/** Legacy per-owner envelopes (ciphertext) for migration. */
+export async function listLegacyPrivateNoteEnvelopes(
   ownerUid: string,
-  contactId: string,
+  contactId?: string,
 ): Promise<PrivateNoteEnvelope[]> {
   const mode = resolveMode();
   if (mode === 'none') return [];
 
   if (mode === 'localStorage') {
-    return readLocalNotes(ownerUid).filter((n) => n.contactId === contactId);
+    const notes = readLocalLegacyNotes(ownerUid);
+    return contactId
+      ? notes.filter((n) => n.contactId === contactId)
+      : notes;
   }
 
-  const res = await remoteFetch(
-    `/notes?contactId=${encodeURIComponent(contactId)}`,
-    ownerUid,
-  );
+  const qs = contactId
+    ? `?contactId=${encodeURIComponent(contactId)}`
+    : '';
+  const res = await remoteFetch(`/legacy/notes${qs}`, ownerUid);
+  if (res.status === 404) return [];
   if (!res.ok) {
-    throw new Error(`Failed to list private notes (${res.status})`);
+    throw new Error(`Failed to list legacy private notes (${res.status})`);
   }
   const data = (await res.json()) as { notes?: PrivateNoteEnvelope[] };
   return Array.isArray(data.notes) ? data.notes : [];
+}
+
+/** @deprecated Use listOrgPrivateNotes — kept for older call sites during transition. */
+export async function listPrivateNoteEnvelopes(
+  ownerUid: string,
+  contactId: string,
+): Promise<PrivateNoteEnvelope[]> {
+  return listLegacyPrivateNoteEnvelopes(ownerUid, contactId);
 }
 
 export async function createPrivateNoteEnvelope(
@@ -202,23 +275,23 @@ export async function createPrivateNoteEnvelope(
   }
 
   if (mode === 'localStorage') {
-    const notes = readLocalNotes(ownerUid);
+    const notes = readLocalLegacyNotes(ownerUid);
     notes.push(envelope);
-    writeLocalNotes(ownerUid, notes);
+    writeLocalLegacyNotes(ownerUid, notes);
     return envelope;
   }
 
-  const res = await remoteFetch('/notes', ownerUid, {
+  const res = await remoteFetch('/legacy/notes', ownerUid, {
     method: 'POST',
     body: JSON.stringify(envelope),
   });
   if (!res.ok) {
-    throw new Error(`Failed to save private note (${res.status})`);
+    throw new Error(`Failed to save legacy private note (${res.status})`);
   }
   return (await res.json()) as PrivateNoteEnvelope;
 }
 
-export async function deletePrivateNoteEnvelope(
+export async function deleteLegacyPrivateNoteEnvelope(
   ownerUid: string,
   noteId: string,
 ): Promise<void> {
@@ -226,9 +299,150 @@ export async function deletePrivateNoteEnvelope(
   if (mode === 'none') return;
 
   if (mode === 'localStorage') {
-    writeLocalNotes(
+    writeLocalLegacyNotes(
       ownerUid,
-      readLocalNotes(ownerUid).filter((n) => n.id !== noteId),
+      readLocalLegacyNotes(ownerUid).filter((n) => n.id !== noteId),
+    );
+    return;
+  }
+
+  const res = await remoteFetch(
+    `/legacy/notes/${encodeURIComponent(noteId)}`,
+    ownerUid,
+    { method: 'DELETE' },
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Failed to delete legacy private note (${res.status})`);
+  }
+}
+
+export async function deletePrivateNoteEnvelope(
+  ownerUid: string,
+  noteId: string,
+): Promise<void> {
+  return deleteLegacyPrivateNoteEnvelope(ownerUid, noteId);
+}
+
+// ——— Org confidential notes ———
+
+function filterLocalOrgNotesForViewer(
+  notes: OrgPrivateNoteRecord[],
+  contactId: string,
+  viewerUid: string,
+  viewerRole: string | undefined,
+): OrgPrivateNoteRecord[] {
+  return notes
+    .filter((n) => n.contactId === contactId)
+    .filter(
+      (n) =>
+        n.authorUid === viewerUid ||
+        isCrmRoleAbove(viewerRole, n.authorRole),
+    )
+    .map((n) => ({
+      ...n,
+      canEdit: n.authorUid === viewerUid,
+      authorRank: n.authorRank || crmRoleRank(n.authorRole),
+    }));
+}
+
+export async function listOrgPrivateNotes(
+  ownerUid: string,
+  contactId: string,
+): Promise<OrgPrivateNoteRecord[]> {
+  const mode = resolveMode();
+  if (mode === 'none') return [];
+
+  if (mode === 'localStorage') {
+    const session = getCrmSessionUser();
+    return filterLocalOrgNotesForViewer(
+      readLocalOrgNotes(),
+      contactId,
+      ownerUid,
+      session?.role,
+    );
+  }
+
+  const res = await remoteFetch(
+    `/notes?contactId=${encodeURIComponent(contactId)}`,
+    ownerUid,
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to list private notes (${res.status})`);
+  }
+  const data = (await res.json()) as { notes?: OrgPrivateNoteRecord[] };
+  return Array.isArray(data.notes) ? data.notes : [];
+}
+
+export async function createOrgPrivateNote(
+  ownerUid: string,
+  input: OrgPrivateNoteCreateInput,
+): Promise<OrgPrivateNoteRecord> {
+  const mode = resolveMode();
+  if (mode === 'none') {
+    throw new Error('Private notes store is not available');
+  }
+
+  const session = getCrmSessionUser();
+  const authorRole = session?.role?.trim() || 'user';
+  const createdAt = new Date().toISOString();
+  const id = input.id?.trim() || newNoteId();
+
+  if (mode === 'localStorage') {
+    const record: OrgPrivateNoteRecord = {
+      id,
+      authorUid: ownerUid,
+      authorName: input.authorName.trim() || 'Coordinator',
+      authorRole,
+      authorRank: crmRoleRank(authorRole),
+      contactId: input.contactId,
+      createdAt,
+      body: input.body.trim(),
+      source: input.source,
+      sourceLabel: input.sourceLabel,
+      timelineId: input.timelineId,
+      applicationItemId: input.applicationItemId,
+      recruitmentProspectId: input.recruitmentProspectId,
+      canEdit: true,
+    };
+    const notes = readLocalOrgNotes();
+    notes.push(record);
+    writeLocalOrgNotes(notes);
+    return record;
+  }
+
+  const res = await remoteFetch('/notes', ownerUid, {
+    method: 'POST',
+    body: JSON.stringify({
+      id,
+      contactId: input.contactId,
+      body: input.body.trim(),
+      authorName: input.authorName,
+      source: input.source,
+      sourceLabel: input.sourceLabel,
+      timelineId: input.timelineId,
+      applicationItemId: input.applicationItemId,
+      recruitmentProspectId: input.recruitmentProspectId,
+      createdAt,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to save private note (${res.status})`);
+  }
+  return (await res.json()) as OrgPrivateNoteRecord;
+}
+
+export async function deleteOrgPrivateNote(
+  ownerUid: string,
+  noteId: string,
+): Promise<void> {
+  const mode = resolveMode();
+  if (mode === 'none') return;
+
+  if (mode === 'localStorage') {
+    writeLocalOrgNotes(
+      readLocalOrgNotes().filter(
+        (n) => !(n.id === noteId && n.authorUid === ownerUid),
+      ),
     );
     return;
   }

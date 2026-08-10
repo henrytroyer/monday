@@ -1,104 +1,84 @@
-# Private contact internal notes (E2E)
+# Private contact internal notes (org-confidential)
 
 Contact **Internal notes** support **Public** and **Private** visibility.
 
 | Visibility | Storage | Who can read the body |
 |------------|---------|------------------------|
 | **Public** | monday.com Contacts updates (`[CRM_CONTACT_NOTE …]`) | Any allowlisted CRM operator |
-| **Private** | Ciphertext only (never monday.com) | Only you, after unlocking with your passphrase (or recovery key → new passphrase) |
+| **Private** | Org store (Cloud Function / local proxy / localStorage) | Author, plus anyone with a **strictly higher** i58finance Admin role (read-only) |
 
 ## Threat model
 
-- **Other CRM users** never see your private notes in the list.
+- **Peers / lower roles** never see others’ private notes in the list.
+- **Higher roles** see the full body, tagged `Private · {author}`. They cannot edit or delete.
 - **monday.com** never receives private note bodies.
-- **Backend / Firebase admins** may see ciphertext envelopes (contact id, timestamps, owner uid, wrapped DEK blobs) but **cannot decrypt** without your passphrase or recovery key.
-- **Someone with your unlocked browser** can read private notes until you hit **Lock private notes**.
-- **Forgot passphrase** → use your **recovery key** in **User settings** to set a new passphrase (notes kept).
-- **Lose passphrase and recovery key** → private notes are unrecoverable. There is no admin recovery.
+- **Backend** encrypts org notes with `CRM_PRIVATE_NOTES_ORG_KEY`. Operators with Cloud Function / secret access could decrypt — this is intentional “a little secure within the org,” not personal E2E.
+- **Role source:** Admin → User Settings → `users/{email}.role`, ranked by `ROLE_HIERARCHY` (ceo 9 … user 1).
 
-## How encryption works
+## How hierarchy works
 
-1. A random **DEK** (data encryption key) encrypts note bodies.
-2. Your **passphrase** derives a wrapping key that encrypts the DEK (`wrappedDek`).
-3. Your **recovery key** derives a second wrapping key that also encrypts the DEK (`recoveryWrappedDek`).
-4. Changing or recovering the passphrase only re-wraps the DEK — note ciphertext stays valid.
+1. Author’s role/rank is snapshotted when the note is created.
+2. On list, the server loads the **requester’s** role from Firestore (not the browser) and returns notes where `requester.uid === authorUid` **or** `rank(requester) > rank(author)`.
+3. CRM session receives `role` via `configureCrmSessionUser` for UI labels only.
 
-## Passphrase + recovery key
+## UI
 
-1. First private note → set a passphrase (min 8 characters).
-2. CRM shows a **recovery key once** (copy / download). Store it offline.
-3. Unlock once per device (DEK cached in IndexedDB until **Lock private notes**).
-4. **User settings → Private notes**:
-   - **Change passphrase** (current + new)
-   - **Recover with recovery key** (forgot passphrase)
-   - **Create / rotate recovery key** (when unlocked; rotating invalidates the old key)
+- Same Internal notes timeline as public notes.
+- Private tag: `Private` for your own; `Private · {authorName}` for others you can read.
+- No passphrase unlock for new private notes.
+
+## Legacy personal E2E vault
+
+Older builds used per-user passphrase vaults. Those notes remain owner-only until migrated via `migrateLegacyPrivateNotesToOrg` (owner unlocks the old vault once, then posts into the org store). Until migrated, superiors cannot see legacy notes. There is no private-notes panel in User settings — visibility follows Admin role hierarchy automatically.
 
 ## Storage setup
 
 ### Device-only (default)
 
-If `VITE_PRIVATE_NOTES_URL` is unset, ciphertext is kept in **localStorage**. No cross-device sync.
+If `VITE_PRIVATE_NOTES_URL` is unset, org notes are kept in **localStorage** (`crm-org-private-notes`). Dev ACL uses the session role from `configureCrmSessionUser`.
 
-### Local multi-client / shared machine sync
-
-`npm run dev:live` starts the private-notes proxy on port **4043** together with the Monday API proxy.
-
-In `.env` (see `.env.example`):
+### Local multi-client
 
 ```bash
 VITE_PRIVATE_NOTES_URL=/api/private-notes
+# optional: CRM_PRIVATE_NOTES_ORG_KEY=... for the proxy
+npm run private-notes:proxy   # or npm run dev:live
 ```
 
-Or run the store alone:
+### Production
+
+i58finance Cloud Function `crmPrivateNotes` (europe-west3):
+
+- Org notes: `crmOrgPrivateNotes/{noteId}` (AES-GCM with secret `CRM_PRIVATE_NOTES_ORG_KEY`)
+- Legacy vault: `crmPrivateNotes/{uid}` + `…/notes/{noteId}`
+
+Set the org key once (Firebase secret; not a `VITE_*` client var):
 
 ```bash
-npm run private-notes:proxy
+firebase functions:secrets:set CRM_PRIVATE_NOTES_ORG_KEY
+# then redeploy crmPrivateNotes
 ```
-
-Vite proxies `/api/private-notes` → `http://localhost:4043`. Data files live in `server/.private-notes/` (gitignored).
-
-**Note:** Switching from localStorage to the proxy does not migrate existing notes. Unlock on each device with the same passphrase (or recovery key once).
-
-### Production (cross-device)
-
-i58finance Cloud Function `crmPrivateNotes` (europe-west3) stores opaque blobs in Firestore:
-
-- `crmPrivateNotes/{uid}/vault` (includes wraps + recovery fields)
-- `crmPrivateNotes/{uid}/notes/{noteId}`
-
-Auth: Firebase ID token + admin role (same bar as `mondayApiProxy`); `auth.uid` must match `{uid}` (and `X-Owner-Uid`). Accept only ciphertext fields. Never log or decrypt bodies.
-
-Bake into Admin / Monday Project builds:
 
 ```bash
 VITE_PRIVATE_NOTES_URL=https://europe-west3-i58-finance.cloudfunctions.net/crmPrivateNotes
 ```
 
-Host may also call:
+Host:
 
 ```ts
+configureCrmSessionUser({ id, name, email, role });
 configurePrivateNotesStore({ baseUrl: 'https://…/crmPrivateNotes' });
-configureCrmSessionUser({ id: firebaseUid, name, email });
 ```
 
-Owner identity is the **session user id** (Firebase uid in Admin embed), not display name.
+## API (Cloud Function / proxy)
 
-## Code map
+| Method | Path | Behavior |
+|--------|------|----------|
+| GET | `/health` | `{ ok: true }` |
+| GET | `/notes?contactId=` | Org notes visible to caller (decrypted) |
+| POST | `/notes` | Create org note as caller |
+| DELETE | `/notes/:id` | Author only |
+| GET/PUT | `/vault` | Legacy vault |
+| GET/POST/DELETE | `/legacy/notes…` | Legacy envelopes for migration |
 
-| File | Role |
-|------|------|
-| `src/services/privateNotesCrypto.ts` | PBKDF2, AES-GCM, DEK wrap, recovery key format |
-| `src/services/privateNotesVault.ts` | Setup / unlock / change / recover / rotate |
-| `src/services/privateNotesApi.ts` | Ciphertext CRUD + vault record |
-| `src/services/privateContactNotes.ts` | Encrypt payload + merge into hub list |
-| `src/components/contacts/ContactInternalNotesSection.tsx` | Public/Private UI + recovery reveal |
-| `src/components/settings/PrivateNotesSecurityCard.tsx` | User settings security |
-| `src/components/settings/RecoveryKeyReveal.tsx` | One-time recovery key panel |
-| `server/private-notes-proxy.mjs` | Local opaque store |
-
-## Out of scope
-
-- Term notes chat / recruitment notes panels
-- Sharing a private note with another operator
-- Server-side or admin-assisted recovery
-- Emailing the recovery key
+Firestore rules deny all client access; Admin SDK only.

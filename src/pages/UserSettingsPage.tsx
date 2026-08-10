@@ -4,7 +4,6 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import SignatureManagerDialog from '../components/email/dialogs/SignatureManagerDialog';
-import PrivateNotesSecurityCard from '../components/settings/PrivateNotesSecurityCard';
 import { useCurrentUser } from '../context/useCurrentUser';
 import { useWorkFocus } from '../hooks/useWorkFocus';
 import {
@@ -350,8 +349,6 @@ export default function UserSettingsPage() {
               <p className="mt-2 text-xs text-crm-heading">{landingNote}</p>
             )}
           </section>
-
-          <PrivateNotesSecurityCard />
 
           <SignatureManagerDialog
             open={signatureOpen}

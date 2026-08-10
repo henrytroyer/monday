@@ -144,7 +144,10 @@ export interface FinancialRecord {
 
 export type ContactInternalNoteSource = 'term' | 'recruitment' | 'contact';
 
-/** Public notes sync to monday.com; private notes are E2E-encrypted off-Monday. */
+/**
+ * Public notes sync to monday.com.
+ * Private notes are org-confidential (author + higher Admin roles, read-only).
+ */
 export type ContactInternalNoteVisibility = 'public' | 'private';
 
 export interface ContactInternalNote {
@@ -160,7 +163,12 @@ export interface ContactInternalNote {
   recruitmentProspectId?: string;
   mondayItemId: string;
   visibility?: ContactInternalNoteVisibility;
+  /** Author Firebase uid for private notes. */
   ownerUid?: string;
+  /** Snapshot of author's Admin role when the private note was written. */
+  authorRole?: string;
+  /** True when the current operator may edit/delete this private note. */
+  canEdit?: boolean;
 }
 
 export type ContactInternalNoteTarget =

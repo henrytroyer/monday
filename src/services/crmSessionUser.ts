@@ -7,6 +7,7 @@ import type { CurrentMondayUser } from './resolveMondayUsers';
 
 export type CrmSessionUser = CurrentMondayUser & {
   photoUrl?: string;
+  role?: string;
 };
 
 let sessionUser: CrmSessionUser | null = null;
@@ -26,6 +27,7 @@ export function configureCrmSessionUser(
         name: user.name.trim() || 'Coordinator',
         email: user.email?.trim() || undefined,
         photoUrl: user.photoUrl?.trim() || undefined,
+        role: user.role?.trim() || undefined,
       }
     : null;
   notify();

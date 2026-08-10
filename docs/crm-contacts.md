@@ -107,7 +107,7 @@ Each linked application item is one **term**. Completed terms from the **Current
 
 Click a term to open:
 
-- Internal notes (term-scoped updates; optional **Private** E2E notes — see [crm-private-notes.md](./crm-private-notes.md))
+- Internal notes (term-scoped updates; optional **Private** org-confidential notes — see [crm-private-notes.md](./crm-private-notes.md))
 - QuickBooks invoice (if linked on that application — active applications only)
 - Pastor reference and full application Q&A
 - For ended terms: term dates, files, and end-of-service form fields from the Current Service Ended board

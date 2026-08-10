@@ -1,5 +1,5 @@
 /**
- * useContactInternalNotes.ts — Contact hub notes (public Monday + private E2E).
+ * useContactInternalNotes.ts — Contact hub notes (public Monday + org private).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -20,10 +20,7 @@ import {
   fetchDecryptedPrivateContactNotes,
   mergeContactNotes,
 } from '../services/privateContactNotes';
-import {
-  getPrivateNotesVaultStatus,
-  subscribePrivateNotesVault,
-} from '../services/privateNotesVault';
+import { isPrivateNotesStoreAvailable } from '../services/privateNotesApi';
 import type {
   ContactInternalNoteTarget,
   ContactInternalNoteVisibility,
@@ -50,15 +47,6 @@ export function useContactInternalNotes(
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [vaultTick, setVaultTick] = useState(0);
-
-  useEffect(
-    () =>
-      subscribePrivateNotesVault(() => {
-        setVaultTick((n) => n + 1);
-      }),
-    [],
-  );
 
   const targets = useMemo(
     () => buildContactInternalNoteTargets(serviceTerms),
@@ -71,6 +59,7 @@ export function useContactInternalNotes(
   );
 
   const canWrite = canEditContacts();
+  const privateAvailable = isPrivateNotesStoreAvailable() && Boolean(ownerUid);
 
   const load = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -99,7 +88,6 @@ export function useContactInternalNotes(
             privateNotes = privateResult.notes;
             lockedCount = privateResult.lockedCount;
           } catch {
-            // Private store optional — public notes still load
             lockedCount = 0;
           }
         }
@@ -119,7 +107,7 @@ export function useContactInternalNotes(
         }
       }
     },
-    [contactId, serviceTerms, ownerUid, vaultTick],
+    [contactId, serviceTerms, ownerUid],
   );
 
   useEffect(() => {
@@ -185,8 +173,8 @@ export function useContactInternalNotes(
           if (!ownerUid) {
             throw new Error('Sign in to add private notes');
           }
-          if (getPrivateNotesVaultStatus() !== 'unlocked') {
-            throw new Error('Unlock private notes before adding a private note');
+          if (!isPrivateNotesStoreAvailable()) {
+            throw new Error('Private notes store is not available');
           }
           await addPrivateContactNote({
             ownerUid,
@@ -242,6 +230,8 @@ export function useContactInternalNotes(
   return {
     notes,
     privateLockedCount,
+    privateAvailable,
+    currentUserId: ownerUid,
     loading,
     sending,
     error,

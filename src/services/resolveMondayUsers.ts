@@ -59,6 +59,8 @@ export interface CurrentMondayUser {
   name: string;
   email?: string;
   photoUrl?: string;
+  /** i58finance Admin role (injected for hierarchical private notes). */
+  role?: string;
 }
 
 /** Cross-request cache so History pagination reuses resolved names. */

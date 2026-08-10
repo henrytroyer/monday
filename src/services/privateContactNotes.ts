@@ -1,5 +1,9 @@
 /**
- * privateContactNotes.ts — Encrypt/decrypt private contact hub notes (no Monday).
+ * privateContactNotes.ts — Org-confidential private contact hub notes.
+ *
+ * Bodies are encrypted by the private-notes store (Cloud Function / proxy).
+ * Authors can write/delete their own; higher Admin roles can read only.
+ * Owner dual-reads unmigrated legacy E2E envelopes when the old vault is unlocked.
  */
 
 import type {
@@ -7,41 +11,27 @@ import type {
   ContactInternalNoteTarget,
 } from '../types/contact';
 import {
-  createPrivateNoteEnvelope,
-  listPrivateNoteEnvelopes,
-  type PrivateNoteEnvelope,
+  createOrgPrivateNote,
+  isPrivateNotesStoreAvailable,
+  listLegacyPrivateNoteEnvelopes,
+  listOrgPrivateNotes,
+  type OrgPrivateNoteRecord,
 } from './privateNotesApi';
-import {
-  decryptJson,
-  encryptJson,
-  PRIVATE_NOTES_ALG,
-  type PrivateNotePlaintext,
-} from './privateNotesCrypto';
+import { decryptJson, type PrivateNotePlaintext } from './privateNotesCrypto';
 import {
   getPrivateNotesCryptoKey,
   isPrivateNotesVaultUnlocked,
 } from './privateNotesVault';
 
-function newNoteId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `pn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function plaintextFromTarget(
-  target: ContactInternalNoteTarget,
-  body: string,
-  contactId: string,
-  authorName: string,
-  createdAt: string,
-): PrivateNotePlaintext {
+function plaintextFieldsFromTarget(target: ContactInternalNoteTarget): {
+  source: ContactInternalNote['source'];
+  sourceLabel: string;
+  timelineId?: string;
+  applicationItemId?: string;
+  recruitmentProspectId?: string;
+} {
   if (target.kind === 'recruitment') {
     return {
-      body,
-      contactId,
-      authorName,
-      createdAt,
       source: 'recruitment',
       sourceLabel: target.sourceLabel,
       recruitmentProspectId: target.prospectId,
@@ -49,10 +39,6 @@ function plaintextFromTarget(
   }
   if (target.kind === 'term') {
     return {
-      body,
-      contactId,
-      authorName,
-      createdAt,
       source: 'term',
       sourceLabel: target.sourceLabel,
       timelineId: target.timelineId,
@@ -60,51 +46,41 @@ function plaintextFromTarget(
     };
   }
   return {
-    body,
-    contactId,
-    authorName,
-    createdAt,
     source: 'contact',
     sourceLabel: target.sourceLabel,
   };
 }
 
-function toContactNote(
-  envelope: PrivateNoteEnvelope,
-  plain: PrivateNotePlaintext,
-): ContactInternalNote {
+function toContactNote(record: OrgPrivateNoteRecord): ContactInternalNote {
   return {
-    id: envelope.id,
-    body: plain.body,
-    createdAt: plain.createdAt || envelope.createdAt,
-    authorName: plain.authorName,
-    source: plain.source,
-    sourceLabel: plain.sourceLabel,
-    timelineId: plain.timelineId,
-    applicationItemId: plain.applicationItemId,
-    recruitmentProspectId: plain.recruitmentProspectId,
+    id: record.id,
+    body: record.body,
+    createdAt: record.createdAt,
+    authorName: record.authorName,
+    source: record.source,
+    sourceLabel: record.sourceLabel,
+    timelineId: record.timelineId,
+    applicationItemId: record.applicationItemId,
+    recruitmentProspectId: record.recruitmentProspectId,
     mondayItemId: '',
     visibility: 'private',
-    ownerUid: envelope.ownerUid,
+    ownerUid: record.authorUid,
+    authorRole: record.authorRole,
+    canEdit: record.canEdit,
   };
 }
 
-export async function fetchDecryptedPrivateContactNotes(
+async function fetchOwnerLegacyNotes(
   ownerUid: string,
   contactId: string,
-): Promise<{
-  notes: ContactInternalNote[];
-  lockedCount: number;
-}> {
-  const envelopes = await listPrivateNoteEnvelopes(ownerUid, contactId);
+): Promise<{ notes: ContactInternalNote[]; lockedCount: number }> {
+  const envelopes = await listLegacyPrivateNoteEnvelopes(ownerUid, contactId);
   if (envelopes.length === 0) {
     return { notes: [], lockedCount: 0 };
   }
-
   if (!isPrivateNotesVaultUnlocked()) {
     return { notes: [], lockedCount: envelopes.length };
   }
-
   const key = getPrivateNotesCryptoKey();
   if (!key) {
     return { notes: [], lockedCount: envelopes.length };
@@ -118,12 +94,51 @@ export async function fetchDecryptedPrivateContactNotes(
         iv: envelope.iv,
         ciphertext: envelope.ciphertext,
       });
-      notes.push(toContactNote(envelope, plain));
+      if (!plain.body?.trim()) {
+        lockedCount += 1;
+        continue;
+      }
+      notes.push({
+        id: envelope.id,
+        body: plain.body,
+        createdAt: envelope.createdAt,
+        authorName: plain.authorName || 'Coordinator',
+        source: plain.source || 'contact',
+        sourceLabel: plain.sourceLabel || 'Contact',
+        timelineId: plain.timelineId,
+        applicationItemId: plain.applicationItemId,
+        recruitmentProspectId: plain.recruitmentProspectId,
+        mondayItemId: '',
+        visibility: 'private',
+        ownerUid,
+        canEdit: true,
+      });
     } catch {
       lockedCount += 1;
     }
   }
   return { notes, lockedCount };
+}
+
+export async function fetchDecryptedPrivateContactNotes(
+  ownerUid: string,
+  contactId: string,
+): Promise<{
+  notes: ContactInternalNote[];
+  lockedCount: number;
+}> {
+  if (!isPrivateNotesStoreAvailable() || !ownerUid) {
+    return { notes: [], lockedCount: 0 };
+  }
+  const records = await listOrgPrivateNotes(ownerUid, contactId);
+  const orgNotes = records.map(toContactNote);
+  const orgIds = new Set(orgNotes.map((n) => n.id));
+  const legacy = await fetchOwnerLegacyNotes(ownerUid, contactId);
+  const legacyOnly = legacy.notes.filter((n) => !orgIds.has(n.id));
+  return {
+    notes: [...orgNotes, ...legacyOnly],
+    lockedCount: legacy.lockedCount,
+  };
 }
 
 export async function addPrivateContactNote(options: {
@@ -133,34 +148,17 @@ export async function addPrivateContactNote(options: {
   target: ContactInternalNoteTarget;
   authorName: string;
 }): Promise<ContactInternalNote> {
-  if (!isPrivateNotesVaultUnlocked()) {
-    throw new Error('Unlock private notes before adding a private note');
+  if (!isPrivateNotesStoreAvailable()) {
+    throw new Error('Private notes store is not available');
   }
-  const key = getPrivateNotesCryptoKey();
-  if (!key) {
-    throw new Error('Private notes vault is locked');
-  }
-
-  const createdAt = new Date().toISOString();
-  const plain = plaintextFromTarget(
-    options.target,
-    options.body.trim(),
-    options.contactId,
-    options.authorName,
-    createdAt,
-  );
-  const cipher = await encryptJson(key, plain);
-  const envelope: PrivateNoteEnvelope = {
-    id: newNoteId(),
-    ownerUid: options.ownerUid,
+  const fields = plaintextFieldsFromTarget(options.target);
+  const record = await createOrgPrivateNote(options.ownerUid, {
     contactId: options.contactId,
-    createdAt,
-    alg: PRIVATE_NOTES_ALG,
-    iv: cipher.iv,
-    ciphertext: cipher.ciphertext,
-  };
-  await createPrivateNoteEnvelope(options.ownerUid, envelope);
-  return toContactNote(envelope, plain);
+    body: options.body.trim(),
+    authorName: options.authorName,
+    ...fields,
+  });
+  return toContactNote(record);
 }
 
 export function mergeContactNotes(
