@@ -8,6 +8,7 @@ import ContactList from '../components/contacts/ContactList';
 import ContactBatchEmailModal from '../components/contacts/ContactBatchEmailModal';
 import ContactMergeConfirmModal from '../components/contacts/ContactMergeConfirmModal';
 import ContactSyncSettingsPanel from '../components/contacts/ContactSyncSettingsPanel';
+import ConfirmDialog from '../components/shared/ConfirmDialog';
 import CrmPageLoading from '../components/shared/CrmPageLoading';
 import { useLayout } from '../context/LayoutContext';
 import { useNavLayer } from '../context/NavigationHistoryContext';
@@ -32,6 +33,11 @@ import { sortContacts } from '../utils/sortContacts';
 import { ingestPendingDonations, deleteContacts } from '../services/contactsApi';
 import { runContactIngest } from '../services/contactUpsert/runContactIngest';
 import { countPendingContactMatchReviews } from '../services/contactUpsert/contactMatchReviewStorage';
+import {
+  formatContactSyncLastRun,
+  readContactSyncLastRun,
+  writeContactSyncLastRun,
+} from '../services/contactUpsert/contactSyncLastRun';
 import {
   FILLOUT_FULL_SYNC_BATCH_SIZE,
   runFilloutContactBuilder,
@@ -72,7 +78,21 @@ export default function ContactsPage({
   const [buildingFromFillout, setBuildingFromFillout] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncSettingsOpen, setSyncSettingsOpen] = useState(false);
+  const [syncConfirm, setSyncConfirm] = useState<'full' | 'fillout' | null>(
+    null,
+  );
+  const [lastFullSyncAt, setLastFullSyncAt] = useState<string | null>(() =>
+    readContactSyncLastRun('full'),
+  );
+  const [lastFilloutSyncAt, setLastFilloutSyncAt] = useState<string | null>(
+    () => readContactSyncLastRun('fillout'),
+  );
   const contactsBusy = syncingContacts || buildingFromFillout;
+  const syncRunning: 'full' | 'fillout' | null = syncingContacts
+    ? 'full'
+    : buildingFromFillout
+      ? 'fillout'
+      : null;
   const [merging, setMerging] = useState(false);
   const [mergeDialog, setMergeDialog] = useState<{
     survivor: ContactListItem;
@@ -349,13 +369,9 @@ export default function ContactsPage({
     }
   };
 
-  const handleFullSync = async () => {
-    const ok = window.confirm(
-      'Run a full Contacts backfill from all Monday source boards? This may take several minutes and will create/update many Contacts items.',
-    );
-    if (!ok) return;
+  const runFullSync = async () => {
     setSyncingContacts(true);
-    setSyncMessage(null);
+    setSyncMessage('Full sync — running in background…');
     try {
       const summary = await runContactIngest({ full: true });
       const parts = [
@@ -364,6 +380,9 @@ export default function ContactsPage({
         `CSE ${summary.scanned.serviceEnded}`,
         `Donations ${summary.scanned.donations}`,
       ];
+      const finishedAt = new Date().toISOString();
+      writeContactSyncLastRun('full', finishedAt);
+      setLastFullSyncAt(finishedAt);
       setSyncMessage(
         `Full sync ${parts.join(' · ')} — created ${summary.created}, updated ${summary.updated}, review ${summary.queuedReview}${
           summary.errors.length ? ` · ${summary.errors.length} error(s)` : ''
@@ -382,25 +401,24 @@ export default function ContactsPage({
     }
   };
 
-  const handleFilloutSync = useCallback(async () => {
-    const ok = window.confirm(
-      'Run a full Fillout sync for short-term submissions? Processes 10 at a time until finished.',
-    );
-    if (!ok) return;
+  const runFilloutSync = useCallback(async () => {
     setBuildingFromFillout(true);
-    setSyncMessage('Fillout sync — starting…');
+    setSyncMessage('Fillout sync — running in background…');
     try {
       const summary = await runFilloutContactBuilder({
         full: true,
         limit: FILLOUT_FULL_SYNC_BATCH_SIZE,
         onBatch: (batch) => {
           setSyncMessage(
-            `Fillout sync — batch ${batch.batchIndex} (offset ${batch.offset}): scanned ${batch.scannedTotal}, created ${batch.created}, updated ${batch.updated}`,
+            `Fillout sync in progress — scanned ${batch.scannedTotal}, created ${batch.created}, updated ${batch.updated}`,
           );
         },
       });
+      const finishedAt = new Date().toISOString();
+      writeContactSyncLastRun('fillout', finishedAt);
+      setLastFilloutSyncAt(finishedAt);
       setSyncMessage(
-        `Fillout sync done — ${summary.batches} batch(es), scanned ${summary.scanned}, created ${summary.created}, updated ${summary.updated}, review ${summary.queuedReview}${
+        `Fillout sync done — scanned ${summary.scanned}, created ${summary.created}, updated ${summary.updated}, review ${summary.queuedReview}${
           summary.errors.length
             ? ` · ${summary.errors.slice(0, 2).join('; ')}`
             : ''
@@ -420,6 +438,13 @@ export default function ContactsPage({
       setBuildingFromFillout(false);
     }
   }, [refetch]);
+
+  const beginConfirmedSync = (kind: 'full' | 'fillout') => {
+    setSyncConfirm(null);
+    setSyncSettingsOpen(false);
+    if (kind === 'fillout') void runFilloutSync();
+    else void runFullSync();
+  };
 
   const scrollToLetter = (letter: string) => {
     const container = listScrollRef.current;
@@ -487,11 +512,35 @@ export default function ContactsPage({
 
       <ContactSyncSettingsPanel
         open={syncSettingsOpen}
-        busy={contactsBusy}
-        statusMessage={syncMessage}
+        running={syncRunning}
+        lastFullSyncLabel={formatContactSyncLastRun(lastFullSyncAt)}
+        lastFilloutSyncLabel={formatContactSyncLastRun(lastFilloutSyncAt)}
         onClose={() => setSyncSettingsOpen(false)}
-        onFullSync={() => void handleFullSync()}
-        onFilloutSync={() => void handleFilloutSync()}
+        onFullSync={() => setSyncConfirm('full')}
+        onFilloutSync={() => setSyncConfirm('fillout')}
+      />
+
+      <ConfirmDialog
+        open={syncConfirm !== null}
+        title={
+          syncConfirm === 'fillout' ? 'Fillout sync' : 'Full sync'
+        }
+        message={
+          syncConfirm === 'fillout'
+            ? 'Run a full Fillout sync for short-term submissions? This will create or update Contacts from the form history. This window will close and the sync will continue in the background.'
+            : 'Run a full Contacts backfill from all Monday source boards? This may take several minutes. This window will close and the sync will continue in the background.'
+        }
+        confirmLabel={
+          syncConfirm === 'fillout' ? 'Run Fillout sync' : 'Run Full sync'
+        }
+        cancelLabel="Cancel"
+        busy={contactsBusy}
+        onConfirm={() => {
+          if (syncConfirm) beginConfirmedSync(syncConfirm);
+        }}
+        onCancel={() => {
+          if (!contactsBusy) setSyncConfirm(null);
+        }}
       />
 
       {selectedContact && (

@@ -5,6 +5,7 @@
 
 import {
   resolveApplicationsBoardId,
+  resolveContactsBoardId,
   resolveDonationsBoardId,
   resolveLongtermApplicationsBoardId,
   resolveServiceEndedBoardId,
@@ -125,6 +126,7 @@ export async function runFilloutContactBuilder(options?: {
 
   const cursor = readCursor();
   const contacts = await fetchContactsList({
+    contactsBoardId: resolveContactsBoardId() ?? undefined,
     applicationsBoardId: resolveApplicationsBoardId(),
     longtermApplicationsBoardId: resolveLongtermApplicationsBoardId(),
     serviceEndedBoardId: resolveServiceEndedBoardId(),
