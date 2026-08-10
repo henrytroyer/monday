@@ -225,6 +225,10 @@ export interface VolunteerDetail extends Volunteer {
   pastorReferenceFormFields: ApplicationFormField[];
   /** Populated for long-term application detail from Monday reference columns */
   longtermReferenceSlots?: LongtermReferenceSlot[];
+  /** Long-term: true when the Monday group is an on-field team. */
+  onField?: boolean;
+  /** Long-term on-field site label (Lesvos, Malakasa, …). */
+  fieldLocation?: string;
 }
 
 export interface PipelineSection {

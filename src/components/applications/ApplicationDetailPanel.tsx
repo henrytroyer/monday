@@ -23,6 +23,7 @@ import { displayTermOfService } from '../../utils/volunteerTerm';
 import CrmPageLoading from '../shared/CrmPageLoading';
 import FormFieldsPanel, { findFormPdf } from './FormFieldsPanel';
 import ApplicationInvoiceSection from './ApplicationInvoiceSection';
+import LongtermPracticalInfoSection from './LongtermPracticalInfoSection';
 import LongtermReferenceAnswersPanel from './LongtermReferenceAnswersPanel';
 import LongtermReferenceCommandCenter from './LongtermReferenceCommandCenter';
 import OnboardingProgress from './OnboardingProgress';
@@ -46,6 +47,7 @@ import {
 import { useTermNotes } from '../../hooks/useTermNotes';
 import { useApplicationActivityTimeline } from '../../hooks/useApplicationActivityTimeline';
 import { fetchPastorReferenceReceivedSnapshot } from '../../services/pastorReferenceBoard';
+import type { LongtermVolunteer } from '../../types/longtermVolunteer';
 
 type DrillDownView = 'application' | 'pastor' | null;
 
@@ -307,6 +309,11 @@ export default function ApplicationDetailPanel({
   const pastorReferenceReceived =
     shortTermOnboarding.pastorReferenceReceived || linkedPastorReferenceReceived;
 
+  const isOnFieldLongterm =
+    quickActionsBeforeFiles &&
+    (display?.onField === true ||
+      (volunteer as LongtermVolunteer).onField === true);
+
   const quickActions = (
     <div className="rounded-xl border border-crm-taupe/20 bg-crm-white px-4 py-3">
       <h3 className="text-sm font-semibold text-crm-heading">Quick Actions</h3>
@@ -409,6 +416,9 @@ export default function ApplicationDetailPanel({
                       }
                       onFilesUploaded={() => refetch()}
                       showFiles={canViewAppFiles}
+                      canEdit={applicationsEditable}
+                      longterm={quickActionsBeforeFiles}
+                      onContactSaved={() => refetch()}
                     />
                   ) : (
                     <VolunteerContactCard
@@ -433,6 +443,13 @@ export default function ApplicationDetailPanel({
                       showFiles={canViewAppFiles}
                     />
                   ),
+                  'application.practical_info': isOnFieldLongterm ? (
+                    <LongtermPracticalInfoSection
+                      volunteerId={display.id}
+                      volunteerName={display.name}
+                      canEdit={applicationsEditable}
+                    />
+                  ) : undefined,
                   'application.invoice':
                     canViewInvoice && workFocus === 'finance' ? (
                         <ApplicationInvoiceSection

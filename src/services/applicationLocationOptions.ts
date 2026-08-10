@@ -99,3 +99,30 @@ export function parseLocationOptionsFromColumn(
     parseColumnLabelsFromSettings(column.settings_str ?? ''),
   );
 }
+
+/**
+ * Resolve the confirmed / assigned Location column by exact mapped title.
+ * Falls back to a bare "location" title that is not a preference column.
+ */
+export function resolveAssignedLocationColumn(
+  columns: MondayBoardColumnRef[],
+  columnTitle: string,
+): MondayBoardColumnRef | undefined {
+  const target = normalizeColumnTitle(columnTitle);
+  const exact = columns.find(
+    (column) => normalizeColumnTitle(column.title) === target,
+  );
+  if (exact) return exact;
+
+  const fuzzy = columns.filter((column) => {
+    const title = normalizeColumnTitle(column.title);
+    if (!title.includes('location')) return false;
+    if (title.includes('preference')) return false;
+    return true;
+  });
+  if (fuzzy.length === 0) return undefined;
+  const dropdownOrStatus = fuzzy.find(
+    (column) => column.type === 'dropdown' || column.type === 'status',
+  );
+  return dropdownOrStatus ?? fuzzy[0];
+}

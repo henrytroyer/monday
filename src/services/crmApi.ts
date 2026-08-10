@@ -71,6 +71,7 @@ import { emptyItinerary, itineraryHasData } from '../types/itinerary';
 import {
   parseColumnLabelsFromSettings,
   parseLocationOptionsFromColumn,
+  resolveAssignedLocationColumn,
   resolveLocationPreferenceColumn,
 } from './applicationLocationOptions';
 import type { LongtermVolunteer } from '../types/longtermVolunteer';
@@ -1085,6 +1086,39 @@ export async function fetchApplicationLocationOptions(
   if (!locationColumn) {
     throw new Error(
       `Column "${columnMap.locationPreference}" not found on board. Add it or set VITE_COL_LOCATION_PREFERENCE.`,
+    );
+  }
+
+  return parseLocationOptionsFromColumn(locationColumn);
+}
+
+/** Labels from the confirmed / assigned Location column (short-term or long-term). */
+export async function fetchAssignedLocationOptions(
+  boardId: string,
+  options?: { longterm?: boolean },
+): Promise<string[]> {
+  const data = await api<{
+    boards: Array<{
+      columns: Array<{
+        id: string;
+        title: string;
+        type: string;
+        settings_str?: string;
+      }>;
+    }>;
+  }>(queries.getBoardColumns, { boardId: [boardId] });
+
+  const columns = data.boards?.[0]?.columns ?? [];
+  const title = options?.longterm
+    ? longtermColumnMap.assignedLocation
+    : columnMap.location;
+  const locationColumn = resolveAssignedLocationColumn(columns, title);
+
+  if (!locationColumn) {
+    throw new Error(
+      `Column "${title}" not found on board. Add it or set ${
+        options?.longterm ? 'VITE_LT_COL_ASSIGNED_LOCATION' : 'VITE_COL_LOCATION'
+      }.`,
     );
   }
 

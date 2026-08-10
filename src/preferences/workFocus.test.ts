@@ -66,6 +66,19 @@ describe('section orders', () => {
     );
   });
 
+  it('places practical info after contact card for HR', () => {
+    const order = applicationSectionOrder('hr');
+    assert.ok(order.includes('application.practical_info'));
+    assert.ok(
+      order.indexOf('application.contact_card') <
+        order.indexOf('application.practical_info'),
+    );
+    assert.ok(
+      order.indexOf('application.practical_info') <
+        order.indexOf('application.onboarding'),
+    );
+  });
+
   it('promotes term invoice for finance', () => {
     const order = termSectionOrder('finance');
     assert.equal(order[0], 'contact.term_invoice');

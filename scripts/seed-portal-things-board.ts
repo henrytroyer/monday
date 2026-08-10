@@ -22,6 +22,7 @@ const BOARD_NAME = process.env.VITE_PORTAL_THINGS_BOARD_NAME || 'Portal Things';
 const GROUPS = [
   'Onboarding',
   'Recruitment',
+  'Field Ops',
   'Config',
   'Audit',
 ] as const;

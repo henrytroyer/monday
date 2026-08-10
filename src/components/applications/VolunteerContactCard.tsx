@@ -17,11 +17,7 @@ import { formatPhoneTelHref } from '../../utils/phoneFormat';
 import { updateApplicationFieldsOnMonday } from '../../services/crmApi';
 import FilePreviewModal from './FilePreviewModal';
 import VolunteerFilesSection from './VolunteerFilesSection';
-import {
-  displayLocationPreferenceOnly,
-  displayConfirmedLocation,
-  hasConfirmedLocation,
-} from '../../utils/volunteerLocation';
+import ConfirmedLocationSelect from './ConfirmedLocationSelect';
 import VolunteerAvatar from './VolunteerAvatar';
 import VolunteerTermDisplay from './VolunteerTermDisplay';
 
@@ -184,15 +180,13 @@ export default function VolunteerContactCard({
         <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-semibold text-crm-heading">{detail.name}</h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            {hasConfirmedLocation(detail) ? (
-              <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
-                Confirmed: {displayConfirmedLocation(detail)}
-              </span>
-            ) : (
-              <span className="rounded-full bg-crm-white px-3 py-1 text-sm text-crm-text">
-                {displayLocationPreferenceOnly(detail)}
-              </span>
-            )}
+            <ConfirmedLocationSelect
+              volunteer={detail}
+              boardId={boardId}
+              canEdit={editable}
+              longterm={longterm}
+              onSaved={onContactSaved}
+            />
             <VolunteerTermDisplay volunteer={detail} variant="pill" />
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-700">
               {detail.status}

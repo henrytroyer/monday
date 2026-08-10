@@ -39,6 +39,8 @@ export const PORTAL_GROUP_ONBOARDING = 'Onboarding';
 export const PORTAL_GROUP_RECRUITMENT = 'Recruitment';
 export const PORTAL_GROUP_CONFIG = 'Config';
 export const PORTAL_GROUP_AUDIT = 'Audit';
+/** On-field practical info items (housing, visa, vehicle, budget). */
+export const PORTAL_GROUP_FIELD_OPS = 'Field Ops';
 
 export const PORTAL_KIND = {
   onboarding: 'onboarding',
@@ -47,6 +49,7 @@ export const PORTAL_KIND = {
   emailSignatures: 'email_signatures',
   settings: 'settings',
   auditEvent: 'audit_event',
+  practicalInfo: 'practical_info',
 } as const;
 
 export const PORTAL_ENTITY_TYPE = {

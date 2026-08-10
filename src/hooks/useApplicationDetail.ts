@@ -260,6 +260,7 @@ function withDemographics(detail: VolunteerDetail): VolunteerDetail {
 
 export function buildMockVolunteerDetail(volunteer: Volunteer): VolunteerDetail {
   const preset = mockDetails[volunteer.id];
+  const longterm = volunteer as LongtermVolunteer;
   if (preset) {
     return withDemographics({
       ...preset,
@@ -271,12 +272,16 @@ export function buildMockVolunteerDetail(volunteer: Volunteer): VolunteerDetail 
       pipelineStage: volunteer.pipelineStage ?? preset.pipelineStage,
       termStart: volunteer.termStart ?? preset.termStart,
       termEnd: volunteer.termEnd ?? preset.termEnd,
+      onField: longterm.onField ?? preset.onField,
+      fieldLocation: longterm.fieldLocation ?? preset.fieldLocation,
     });
   }
 
   const seed = volunteer.id.replace(/\W/g, '') || 'volunteer';
   return withDemographics({
     ...volunteer,
+    onField: longterm.onField,
+    fieldLocation: longterm.fieldLocation,
     profilePhotoUrl:
       volunteer.profilePhotoUrl ?? mockProfilePhotoUrl(seed),
     email: mockEmail(volunteer.name),

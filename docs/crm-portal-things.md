@@ -12,8 +12,11 @@ Dedicated monday.com board for CRM-only infrastructure that does not belong on C
 |-------|----------|
 | Onboarding | One item per application — pipeline JSON in Payload JSON |
 | Recruitment | One item per prospect |
-| Config | Singletons: Note Review Registry, Email Signatures, Portal Settings |
+| Field Ops | One item per on-field long-term volunteer — practical info JSON (housing, visa, vehicle, budget) |
+| Config | Singletons: Note Review Registry, Email Signatures, Portal Settings (includes custom housing labels) |
 | Audit | Append-only CRM admin / merge audit events |
+
+**Kinds:** `onboarding`, `prospect`, `practical_info`, `note_review_registry`, `email_signatures`, `settings`, `audit_event`.
 
 Who can open Monday Project is controlled by the i58finance Admin email allowlist + `mondayApiProxy`. Inside the CRM, allowlisted operators have full open access (no role matrix).
 

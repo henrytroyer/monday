@@ -24,6 +24,7 @@ export const SECTION_IDS = [
   'contact.term_invoice',
   'contact.term_references',
   'application.contact_card',
+  'application.practical_info',
   'application.onboarding',
   'application.invoice',
   'application.term_notes',
@@ -164,6 +165,7 @@ export const CONTACT_SECTION_ORDER: Record<WorkFocus, SectionId[]> = {
 export const APPLICATION_SECTION_ORDER: Record<WorkFocus, SectionId[]> = {
   general: [
     'application.contact_card',
+    'application.practical_info',
     'application.onboarding',
     'application.invoice',
     'application.term_notes',
@@ -172,6 +174,7 @@ export const APPLICATION_SECTION_ORDER: Record<WorkFocus, SectionId[]> = {
   ],
   hr: [
     'application.contact_card',
+    'application.practical_info',
     'application.onboarding',
     'application.term_notes',
     'application.email',
@@ -181,6 +184,7 @@ export const APPLICATION_SECTION_ORDER: Record<WorkFocus, SectionId[]> = {
   finance: [
     'application.contact_card',
     'application.invoice',
+    'application.practical_info',
     'application.onboarding',
     'application.email',
     'application.activity',
@@ -189,6 +193,7 @@ export const APPLICATION_SECTION_ORDER: Record<WorkFocus, SectionId[]> = {
   communications: [
     'application.contact_card',
     'application.email',
+    'application.practical_info',
     'application.onboarding',
     'application.activity',
     'application.term_notes',

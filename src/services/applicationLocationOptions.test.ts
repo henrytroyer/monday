@@ -4,6 +4,7 @@ import {
   filterBoardDropdownLabels,
   parseColumnLabelsFromSettings,
   parseLocationOptionsFromColumn,
+  resolveAssignedLocationColumn,
   resolveLocationPreferenceColumn,
 } from './applicationLocationOptions';
 
@@ -144,5 +145,47 @@ describe('parseLocationOptionsFromColumn', () => {
       'Germany',
       'Athens/Malakasa Greece',
     ]);
+  });
+});
+
+describe('resolveAssignedLocationColumn', () => {
+  it('matches exact Location title and skips preference columns', () => {
+    const resolved = resolveAssignedLocationColumn(
+      [
+        {
+          id: 'pref',
+          title: 'Location Preference',
+          type: 'dropdown',
+          settings_str: '{}',
+        },
+        {
+          id: 'assigned',
+          title: 'Location',
+          type: 'dropdown',
+          settings_str: '{}',
+        },
+      ],
+      'Location',
+    );
+    assert.equal(resolved?.id, 'assigned');
+  });
+
+  it('fuzzy-matches location without preference', () => {
+    const resolved = resolveAssignedLocationColumn(
+      [
+        {
+          id: 'pref',
+          title: 'Where would you be interested in serving?',
+          type: 'dropdown',
+        },
+        {
+          id: 'assigned',
+          title: 'Assigned Location',
+          type: 'status',
+        },
+      ],
+      'Location',
+    );
+    assert.equal(resolved?.id, 'assigned');
   });
 });

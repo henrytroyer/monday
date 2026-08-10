@@ -6,12 +6,8 @@ import {
   formatContactAddress,
 } from '../../utils/formatContactAddress';
 import { formatPhoneTelHref } from '../../utils/phoneFormat';
-import {
-  displayConfirmedLocation,
-  displayLocationPreferenceOnly,
-  hasConfirmedLocation,
-} from '../../utils/volunteerLocation';
 import { firstNameFromFullName } from '../../services/coupleApplication';
+import ConfirmedLocationSelect from './ConfirmedLocationSelect';
 import CoupleAvatarStack from './CoupleAvatarStack';
 import VolunteerFilesSection from './VolunteerFilesSection';
 import VolunteerTermDisplay from './VolunteerTermDisplay';
@@ -29,6 +25,9 @@ interface CoupleApplicationCardProps {
   canUploadFiles?: boolean;
   onFilesUploaded?: () => void;
   showFiles?: boolean;
+  canEdit?: boolean;
+  longterm?: boolean;
+  onContactSaved?: () => void;
 }
 
 export default function CoupleApplicationCard({
@@ -42,6 +41,9 @@ export default function CoupleApplicationCard({
   canUploadFiles = false,
   onFilesUploaded,
   showFiles = true,
+  canEdit = false,
+  longterm = false,
+  onContactSaved,
 }: CoupleApplicationCardProps) {
   const couple = detail.couple!;
   const [activeTab, setActiveTab] = useState<CoupleTab>('shared');
@@ -75,15 +77,13 @@ export default function CoupleApplicationCard({
             <span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-800">
               Married
             </span>
-            {hasConfirmedLocation(detail) ? (
-              <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
-                Confirmed: {displayConfirmedLocation(detail)}
-              </span>
-            ) : (
-              <span className="rounded-full bg-crm-white px-3 py-1 text-sm text-crm-text">
-                {displayLocationPreferenceOnly(detail)}
-              </span>
-            )}
+            <ConfirmedLocationSelect
+              volunteer={detail}
+              boardId={boardId}
+              canEdit={canEdit && Boolean(boardId)}
+              longterm={longterm}
+              onSaved={onContactSaved}
+            />
             <VolunteerTermDisplay volunteer={detail} variant="pill" />
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-700">
               {detail.status}

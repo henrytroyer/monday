@@ -8,6 +8,8 @@ import type { PipelineLayout } from '../../preferences/pipelineLayoutStorage';
 interface PipelineLayoutToggleProps {
   value: PipelineLayout;
   onChange: (layout: PipelineLayout) => void;
+  /** Layouts to show. Defaults to list / card / gantt. */
+  allowedLayouts?: readonly PipelineLayout[];
 }
 
 function ListIcon() {
@@ -63,14 +65,19 @@ const OPTIONS: Array<{
 export default function PipelineLayoutToggle({
   value,
   onChange,
+  allowedLayouts,
 }: PipelineLayoutToggleProps) {
+  const options = allowedLayouts
+    ? OPTIONS.filter((option) => allowedLayouts.includes(option.value))
+    : OPTIONS;
+
   return (
     <div
       role="group"
       aria-label="Pipeline layout"
       className="inline-flex h-9 items-stretch overflow-hidden rounded-lg border border-crm-taupe/20 bg-crm-surface"
     >
-      {OPTIONS.map((option) => {
+      {options.map((option) => {
         const active = value === option.value;
         return (
           <button
