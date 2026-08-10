@@ -56,6 +56,11 @@ jobs:
           CI: 'true'
           GITHUB_ACTIONS: 'true'
         run: |
+          # Secrets pasted into GitHub often include a trailing newline; strip it
+          # so Authorization headers stay valid for undici/fetch.
+          if [ -n "${MONDAY_API_TOKEN:-}" ]; then
+            export MONDAY_API_TOKEN="$(printf '%s' "$MONDAY_API_TOKEN" | tr -d '\r\n')"
+          fi
           EXTRA=""
           if [ "${{ github.event.inputs.override_high_volume }}" = "true" ]; then
             EXTRA="--override-high-volume"

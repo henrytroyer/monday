@@ -215,7 +215,9 @@ export async function mondayGraphQL<T>(
 
   monday.setApiVersion(apiVersion);
   try {
-    const token = process.env?.MONDAY_API_TOKEN?.trim();
+    const token = process.env?.MONDAY_API_TOKEN?.trim()
+      .replace(/^["']|["']$/g, '')
+      .replace(/\n|\r/g, '');
     if (token) monday.setToken(token);
   } catch {
     // browser / monday iframe uses session auth

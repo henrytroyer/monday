@@ -42,9 +42,20 @@ const boardId =
   process.env.CONTACTS_BOARD_ID?.trim() ||
   '2463183745';
 
+/** GitHub secrets sometimes include trailing newlines; those break Authorization headers. */
+function sanitizeEnvVar(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value.trim().replace(/^["']|["']$/g, '').replace(/\n|\r/g, '');
+}
+
+const mondayApiToken = sanitizeEnvVar(process.env.MONDAY_API_TOKEN);
+if (mondayApiToken) {
+  process.env.MONDAY_API_TOKEN = mondayApiToken;
+}
+
 const monday = mondaySdk();
 monday.setApiVersion('2025-01');
-monday.setToken(process.env.MONDAY_API_TOKEN);
+if (mondayApiToken) monday.setToken(mondayApiToken);
 
 const PAGE_SIZE = 50;
 const REQUEST_DELAY_MS = 200;
@@ -262,8 +273,13 @@ async function fetchAllContacts() {
 }
 
 async function main(): Promise<void> {
-  if (!process.env.MONDAY_API_TOKEN?.trim()) {
+  if (!mondayApiToken) {
     throw new Error('MONDAY_API_TOKEN is required');
+  }
+  if (/[^\x20-\x7E]/.test(mondayApiToken)) {
+    throw new Error(
+      'MONDAY_API_TOKEN contains characters that cannot be used in HTTP headers (check for newlines in the GitHub secret)',
+    );
   }
 
   const fromSchedule = process.env.GITHUB_EVENT_NAME === 'schedule';
