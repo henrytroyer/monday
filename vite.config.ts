@@ -57,6 +57,7 @@ export default defineConfig({
             urlPattern: ({ url }) =>
               url.pathname.startsWith('/api/monday') ||
               url.pathname.startsWith('/api/private-notes') ||
+              url.pathname.startsWith('/api/fillout') ||
               url.pathname.startsWith('/api/quickbooks'),
             handler: 'NetworkOnly',
           },
@@ -86,6 +87,11 @@ export default defineConfig({
         target: 'http://localhost:4043',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/private-notes/, ''),
+      },
+      '/api/fillout': {
+        target: 'http://localhost:4044',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/fillout/, ''),
       },
     },
     hmr: {
