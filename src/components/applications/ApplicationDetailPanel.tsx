@@ -91,6 +91,7 @@ export default function ApplicationDetailPanel({
   >(null);
   const [onboardingEmailOpen, setOnboardingEmailOpen] = useState(false);
   const [longtermPipeline, setLongtermPipeline] = useState<OnboardingPipeline | null>(null);
+  const [ltOpenStageId, setLtOpenStageId] = useState<string | null>(null);
   const [callOpen, setCallOpen] = useState(false);
   const [drillDown, setDrillDown] = useState<DrillDownView>(null);
   const [answersSlotIndex, setAnswersSlotIndex] = useState<number | null>(null);
@@ -469,6 +470,11 @@ export default function ApplicationDetailPanel({
                         variant={
                           quickActionsBeforeFiles ? 'long-term' : 'short-term'
                         }
+                        onStageSelect={
+                          quickActionsBeforeFiles
+                            ? setLtOpenStageId
+                            : undefined
+                        }
                       >
                         <OnboardingProgress
                           pipeline={pipeline}
@@ -489,6 +495,8 @@ export default function ApplicationDetailPanel({
                           showInvoiceStep={
                             canViewInvoice && workFocus !== 'finance'
                           }
+                          openStageId={ltOpenStageId}
+                          onOpenStageChange={setLtOpenStageId}
                         />
                       </OnboardingProgressPanel>
                   ) : undefined,

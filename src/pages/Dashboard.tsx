@@ -14,6 +14,7 @@ import CrmProviders from '../context/CrmProviders';
 import { useCurrentUser } from '../context/useCurrentUser';
 import { useLayout } from '../context/LayoutContext';
 import { useMondayBoardWatcher } from '../hooks/useMondayBoardWatcher';
+import { readPreviewPageFromUrl } from '../components/dev/PhonePreviewShell';
 import {
   getInitialActivePage,
   getInitialMountedPages,
@@ -69,7 +70,9 @@ function DashboardBoot() {
 }
 
 function DashboardInner() {
-  const [activePage, setActivePage] = useState<PageId>(getInitialActivePage);
+  const [activePage, setActivePage] = useState<PageId>(
+    () => readPreviewPageFromUrl() ?? getInitialActivePage(),
+  );
   const [mountedPages, setMountedPages] =
     useState<Set<PageId>>(getInitialMountedPages);
   const [recruitmentFocusId, setRecruitmentFocusId] = useState<string | null>(
@@ -86,6 +89,22 @@ function DashboardInner() {
   useEffect(() => {
     patchCrmNavigationState({ activePage });
   }, [activePage]);
+
+  useEffect(() => {
+    const onPreviewNavigate = (event: Event) => {
+      const page = (event as CustomEvent<{ page?: PageId }>).detail?.page;
+      if (!page) return;
+      setMountedPages((prev) => {
+        if (prev.has(page)) return prev;
+        return new Set(prev).add(page);
+      });
+      setActivePage(page);
+      closeSidebar();
+    };
+    window.addEventListener('crm-preview-navigate', onPreviewNavigate);
+    return () =>
+      window.removeEventListener('crm-preview-navigate', onPreviewNavigate);
+  }, [closeSidebar]);
 
   useEffect(() => {
     setMountedPages((prev) => {

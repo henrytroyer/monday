@@ -40,6 +40,18 @@ Vite sets `host: true`, so the terminal prints **Local** and **Network** URLs.
 - **Contacts** — contacts with tag filters
 - **Detail panel** — Quick Actions, onboarding progress, email modal, term notes
 
+## Mobile preview (phone frame)
+
+Same idea as Fleet’s phone preview — desktop chrome with a real phone-sized viewport:
+
+```text
+http://localhost:4040/?mobilePreview=1&page=longterm-applications
+```
+
+- Device presets: iPhone 14 / SE / Pixel 7
+- Page buttons switch CRM sections inside the frame
+- Exit with **Exit phone view** or **Cmd+Shift+D**
+
 ### Short-term onboarding auto-sync (live mode)
 
 When `VITE_MONDAY_WATCH_ENABLED=true`, the short-term onboarding panel updates from:

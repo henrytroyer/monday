@@ -33,6 +33,8 @@ interface OnboardingProgressProps {
   onInvoiceLinked?: () => void;
   /** When false, hide invoice-paid step (finance section gate). */
   showInvoiceStep?: boolean;
+  openStageId?: string | null;
+  onOpenStageChange?: (stepId: string) => void;
 }
 
 function formatShortDate(iso?: string): string {
@@ -78,6 +80,8 @@ export default function OnboardingProgress({
   invoiceReadOnly = false,
   onInvoiceLinked,
   showInvoiceStep = true,
+  openStageId,
+  onOpenStageChange,
 }: OnboardingProgressProps) {
   const isLongterm = variant === 'long-term';
   const stepDefs = getOnboardingStepsForApplication(isLongterm).filter(
@@ -125,22 +129,27 @@ export default function OnboardingProgress({
         termStart={volunteer.termStart}
         onPipelineChange={onPipelineChange}
         onSendProgressEmail={onSendProgressEmail}
+        openStageId={openStageId}
+        onOpenStageChange={onOpenStageChange}
       />
     );
   }
 
   return (
     <>
-      <p className="text-sm text-crm-slate">
+      <p className="text-sm text-crm-slate sm:hidden">
+        Tap a step to update status and dates.
+      </p>
+      <p className="hidden text-sm text-crm-slate sm:block">
         Steps update from emails, reference board, safeguarding, itinerary,
         and QuickBooks.
       </p>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={() => onSendProgressEmail()}
-          className="rounded-xl border border-crm-indigo/30 bg-crm-indigo-50 px-4 py-2 text-sm font-medium text-crm-indigo transition hover:bg-crm-indigo-100"
+          className="w-full rounded-xl border border-crm-indigo/30 bg-crm-indigo-50 px-4 py-2.5 text-sm font-medium text-crm-indigo transition hover:bg-crm-indigo-100 sm:w-auto"
         >
           Send progress update
         </button>
@@ -238,11 +247,11 @@ function StepCard({
 
   return (
     <div
-      className={`rounded-2xl bg-crm-surface p-4 ring-1 ${
+      className={`min-w-0 rounded-2xl bg-crm-surface p-3 ring-1 sm:p-4 ${
         due ? 'ring-amber-400/60' : 'ring-crm-taupe/20'
       }`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           {isInvoice ? (
             <button
@@ -288,13 +297,15 @@ function StepCard({
               value={step.note ?? ''}
               onChange={(e) => onNoteChange(def.id, e.target.value)}
               placeholder="Flight details, arrival time, airline…"
-              className="mt-2 w-full rounded-lg border border-crm-taupe/20 bg-crm-white px-3 py-2 text-sm text-crm-text placeholder:text-crm-slate/60"
+              className="mt-2 w-full min-w-0 rounded-lg border border-crm-taupe/20 bg-crm-white px-3 py-2 text-sm text-crm-text placeholder:text-crm-slate/60"
             />
           )}
         </div>
 
-        <div className="flex flex-col items-end gap-2">
-          <span className={`rounded-full px-3 py-1 text-sm ${statusBadgeClass}`}>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+          <span
+            className={`self-start rounded-full px-3 py-1 text-sm sm:self-end ${statusBadgeClass}`}
+          >
             {statusLabel}
           </span>
 
@@ -304,13 +315,13 @@ function StepCard({
               {formatShortDate(doneDateValue(step, def.kind))}
             </span>
           ) : showProjected ? (
-            <label className="flex items-center gap-2 text-xs text-crm-slate">
+            <label className="flex w-full min-w-0 flex-col gap-1 text-xs text-crm-slate sm:w-auto sm:flex-row sm:items-center sm:gap-2">
               Projected
               <input
                 type="date"
                 value={step.projectedDate ?? ''}
                 onChange={(e) => onProjectedDateChange(def.id, e.target.value)}
-                className="rounded-lg border border-crm-taupe/20 bg-crm-white px-2 py-1 text-sm text-crm-text"
+                className="w-full min-w-0 rounded-lg border border-crm-taupe/20 bg-crm-white px-2 py-1.5 text-sm text-crm-text sm:w-auto"
               />
             </label>
           ) : null}
@@ -318,7 +329,7 @@ function StepCard({
       </div>
 
       {!done && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-crm-taupe/10 pt-3">
+        <div className="mt-3 flex flex-col gap-2 border-t border-crm-taupe/10 pt-3 sm:flex-row sm:flex-wrap sm:items-center">
           {def.kind === 'simple' && (
             <ActionChip
               label="Mark complete"
@@ -363,7 +374,7 @@ function ActionChip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+      className={`w-full rounded-lg px-3 py-2 text-xs font-medium transition sm:w-auto sm:py-1.5 ${
         variant === 'primary'
           ? 'bg-crm-indigo text-white hover:bg-crm-indigo/90'
           : 'border border-crm-taupe/20 bg-crm-white text-crm-heading hover:bg-crm-taupe-50'
