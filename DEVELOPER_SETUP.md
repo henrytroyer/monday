@@ -241,10 +241,7 @@ Note: These are optional for client-side apps. The SDK handles authentication au
 
 ## Next Steps
 
-- Customize the HelloWorld component
-- Build your first dashboard widget
-- Create custom forms for data collection
-- Integrate with external services
-- Deploy and share your app
+- Local CRM setup: [COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md)
+- Board View + tunnel: [docs/crm-board-view-setup.md](./docs/crm-board-view-setup.md)
 
 

@@ -17,7 +17,6 @@ export default defineConfig({
         'icons/pwa-192.png',
         'icons/pwa-512.png',
         'brand/i58-logo-color.png',
-        'vite.svg',
       ],
       manifest: {
         name: 'Volunteer Portal',

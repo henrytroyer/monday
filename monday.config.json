@@ -2,21 +2,9 @@
   "appId": "10499615",
   "versionId": "",
   "features": {
-    "dashboard-widgets": {
-      "enabled": true,
-      "entry": "src/components/dashboard-widgets/index.tsx"
-    },
     "board-views": {
       "enabled": true,
       "entry": "src/App.tsx"
-    },
-    "forms": {
-      "enabled": true,
-      "entry": "src/components/forms/index.tsx"
-    },
-    "integrations": {
-      "enabled": true,
-      "entry": "src/components/integrations/index.tsx"
     }
   },
   "scopes": [
@@ -28,4 +16,3 @@
     "workspaces:read"
   ]
 }
-

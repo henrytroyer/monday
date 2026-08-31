@@ -1,6 +1,4 @@
-/** Email admin console — linked accounts and master log entries. */
-
-export type EmailAdminTab = 'overview' | 'templates' | 'accounts' | 'log';
+/** Linked send accounts and compose-log entries used by email templates. */
 
 export type EmailAccountProvider =
   | 'gmail'

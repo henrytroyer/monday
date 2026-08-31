@@ -1,6 +1,5 @@
 /**
  * Contacts list toolbar — search and filters.
- * Map view toggle is intentionally hidden until geocoding is ready.
  */
 
 import ContactFiltersTab from './ContactFiltersTab';

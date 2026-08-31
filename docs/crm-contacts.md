@@ -97,10 +97,6 @@ After filtering by one or more tags (or selecting contacts), use **Email N** in 
 
 Same message for everyone (mail-client BCC). Per-person merge fields like `{{firstName}}` are not filled in batch mode. Large lists may need **Copy BCC list** if the mailto URL is too long for the mail app.
 
-## Map view
-
-Map view is **hidden** in the Contacts toolbar for now (list only). Geocoding/pin work remains in the codebase (`ContactMapView`, etc.) but is not exposed in the UI until it is reliable enough to ship.
-
 ## Service terms (volunteers)
 
 Each linked application item is one **term**. Completed terms from the **Current Service Ended** board are merged into the same list (matched by contact link column, reverse Contact link, or email). When an ended item links to a Short Term application, the ended record replaces the duplicate application entry.

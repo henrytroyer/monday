@@ -19,16 +19,7 @@ Override column titles in `.env` — see `.env.example` (`VITE_COL_PARENT_EMAIL`
 
 ## Templates
 
-Templates live on a **monday.com Email Templates board** and are managed in the CRM under **Email** in the sidebar (Templates tab).
-
-The **Email** admin console also includes:
-
-| Tab | Purpose |
-|-----|---------|
-| Overview | Template count, linked accounts, recent outbound mail |
-| Templates | Create, edit, and import templates (same as before) |
-| Accounts | Link Gmail, Outlook, monday E&A, and other senders (OAuth coming soon) |
-| Master log | Aggregated inbound/outbound mail from monday timelines and CRM compose actions |
+Templates live on a **monday.com Email Templates board** and are managed in the CRM under **Email** in the sidebar.
 
 | Setting | Purpose |
 |---------|---------|
