@@ -47,12 +47,10 @@
     "import:donors-xls": "tsx --import ./scripts/lib/loadEnvAndViteMeta.ts scripts/import-donors-xls.ts"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.8.0",
     "@mailchimp/mailchimp_marketing": "^3.0.80",
     "@tiptap/extension-color": "^3.28.0",
     "@tiptap/extension-font-family": "^3.28.0",
     "@tiptap/extension-highlight": "^3.28.0",
-    "@tiptap/extension-horizontal-rule": "^3.28.0",
     "@tiptap/extension-image": "^3.28.0",
     "@tiptap/extension-link": "^3.28.0",
     "@tiptap/extension-placeholder": "^3.28.0",

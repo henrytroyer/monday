@@ -65,7 +65,6 @@ Mock mode (`VITE_USE_MOCK_DATA=true`) uses fixture data with no API calls. See [
 | [docs/crm-contacts.md](./docs/crm-contacts.md) | Contacts board schema |
 | [docs/crm-column-mapping.md](./docs/crm-column-mapping.md) | Applications column mapping |
 | [docs/crm-board-view-setup.md](./docs/crm-board-view-setup.md) | Board View + tunnel inside monday.com |
-| [DEVELOPER_SETUP.md](./DEVELOPER_SETUP.md) | monday.com Developer Center setup |
 
 ## Mailchimp contact sync
 

@@ -3,7 +3,7 @@
  * Wraps BrandLoading so every page load shares the same look and copy.
  */
 
-import { BrandLoading, type BrandLoadingVariant } from './BrandLoading';
+import { BrandLoading, type BrandLoadingVariant } from './BrandLoading/BrandLoading';
 
 const DEFAULT_LABEL = 'i58 Volunteer portal';
 
