@@ -1,3 +1,7 @@
+/**
+ * ContactProfileCard.tsx — Contact identity fields (card or Breeze pane).
+ */
+
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { CONTACT_TAG_LABELS, CONTACT_TAGS, type ContactDetail } from '../../types/contact';
@@ -29,6 +33,8 @@ interface ContactProfileCardProps {
   onSave?: (fields: ContactCoreFields) => Promise<ContactDetail | null>;
   onGoToRecruitment?: (prospectId: string) => void;
   onEmailSent?: () => void;
+  /** Flat section pane — header already shows name/photo. */
+  variant?: 'card' | 'pane';
 }
 
 const inputClass =
@@ -44,6 +50,7 @@ export default function ContactProfileCard({
   onSave,
   onGoToRecruitment,
   onEmailSent,
+  variant = 'card',
 }: ContactProfileCardProps) {
   const [sendEmailOpen, setSendEmailOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
@@ -162,9 +169,31 @@ export default function ContactProfileCard({
     }
   };
 
+  const isPane = variant === 'pane';
+
   return (
-    <div className="rounded-2xl border border-crm-taupe/20 bg-gradient-to-br from-crm-taupe-50 to-crm-surface p-6 shadow-sm">
+    <div
+      className={
+        isPane
+          ? 'min-w-0'
+          : 'rounded-2xl border border-crm-taupe/20 bg-gradient-to-br from-crm-taupe-50 to-crm-surface p-6 shadow-sm'
+      }
+    >
       <div className="min-w-0">
+        {isPane ? (
+          editing ? (
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mb-4 w-full rounded-xl border border-crm-taupe/20 bg-crm-white px-4 py-2 text-xl font-semibold text-crm-heading outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20"
+            />
+          ) : (
+            <div className="mb-4 border-b border-crm-taupe/15 bg-crm-taupe-50 px-3 py-2">
+              <h3 className="text-sm font-semibold text-crm-heading">Profile</h3>
+            </div>
+          )
+        ) : (
         <div className="flex items-center gap-4">
           <VolunteerAvatar
             name={detail.name}
@@ -189,6 +218,7 @@ export default function ContactProfileCard({
             </h2>
           )}
         </div>
+        )}
 
         {editing ? (
           <div className="mt-3">

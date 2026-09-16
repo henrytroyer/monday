@@ -1,3 +1,7 @@
+/**
+ * ApplicationFilters.tsx — Location/timeline filters (card, panel, or Breeze-style rail).
+ */
+
 import { SIGNUP_TIMELINES } from '../../data/timelines';
 import type { ApplicationFilterState } from '../../types/volunteer';
 import { LOCATION_OPTIONS } from '../../types/volunteer';
@@ -10,13 +14,16 @@ interface ApplicationFiltersProps {
   onClear: () => void;
   matchingCount: number;
   totalCount: number;
-  variant?: 'standalone' | 'panel';
+  variant?: 'standalone' | 'panel' | 'rail';
   timelineOptions?: ApplicationFilterOption[];
   locationOptions?: string[];
 }
 
 const selectClassName =
   'mt-2 w-full rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2.5 text-sm text-crm-text outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20';
+
+const railInputClass =
+  'mt-1.5 w-full rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-2 text-sm text-crm-text outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20';
 
 export default function ApplicationFilters({
   filters,
@@ -32,6 +39,7 @@ export default function ApplicationFilters({
   const selectedLocation = filters.locations[0] ?? '';
   const selectedTimeline = filters.timelineIds[0] ?? '';
   const isPanel = variant === 'panel';
+  const isRail = variant === 'rail';
 
   const timelines =
     timelineOptions && timelineOptions.length > 0
@@ -43,6 +51,85 @@ export default function ApplicationFilters({
 
   const locations =
     locationOptions !== undefined ? locationOptions : [...LOCATION_OPTIONS];
+
+  if (isRail) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto px-4 py-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-crm-heading">
+            Filters
+          </h2>
+          {active && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="rounded-lg border border-crm-taupe/20 px-2.5 py-1 text-xs font-medium text-crm-heading transition hover:bg-crm-taupe-50"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+
+        <p className="mt-2 text-xs text-crm-slate">
+          Showing {matchingCount} of {totalCount} volunteers
+        </p>
+
+        <div className="mt-4">
+          <label
+            htmlFor="filter-location-preference-rail"
+            className="text-sm font-medium text-crm-heading"
+          >
+            Location preference
+          </label>
+          <select
+            id="filter-location-preference-rail"
+            value={selectedLocation}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                locations: e.target.value ? [e.target.value] : [],
+              })
+            }
+            className={railInputClass}
+          >
+            <option value="">All locations</option>
+            {locations.map((location) => (
+              <option key={location} value={location}>
+                {location}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mt-4">
+          <label
+            htmlFor="filter-timeline-rail"
+            className="text-sm font-medium text-crm-heading"
+          >
+            Signup timeline
+          </label>
+          <select
+            id="filter-timeline-rail"
+            value={selectedTimeline}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                timelineIds: e.target.value ? [e.target.value] : [],
+              })
+            }
+            className={railInputClass}
+          >
+            <option value="">All timelines</option>
+            {timelines.map((timeline) => (
+              <option key={timeline.id} value={timeline.id}>
+                {timeline.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    );
+  }
 
   const shellClass = isPanel
     ? 'p-4'

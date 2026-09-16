@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+/**
+ * ContactsPage.tsx — Breeze-style contacts directory (filter rail + people list).
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ContactDetailPanel from '../components/contacts/ContactDetailPanel';
 import ContactAlphabetIndex from '../components/contacts/ContactAlphabetIndex';
+import ContactFilterChips from '../components/contacts/ContactFilterChips';
 import ContactFilters from '../components/contacts/ContactFilters';
 import ContactListToolbar from '../components/contacts/ContactListToolbar';
 import ContactList from '../components/contacts/ContactList';
@@ -100,8 +104,6 @@ export default function ContactsPage({
     preview: MergeContactsPreview;
   } | null>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const [filterPanelTop, setFilterPanelTop] = useState(0);
 
   const { requestClose: requestCloseContact } = useNavLayer(
     detailVisible && selectedContact !== null,
@@ -221,38 +223,6 @@ export default function ContactsPage({
       setFiltersVisible(false);
     }
   }, [showingDetail]);
-
-  useLayoutEffect(() => {
-    if (!filtersVisible) return;
-
-    const updatePanelTop = () => {
-      const toolbar = toolbarRef.current;
-      if (toolbar) {
-        setFilterPanelTop(toolbar.getBoundingClientRect().bottom + 4);
-      }
-    };
-
-    updatePanelTop();
-    window.addEventListener('resize', updatePanelTop);
-    window.addEventListener('scroll', updatePanelTop, true);
-    return () => {
-      window.removeEventListener('resize', updatePanelTop);
-      window.removeEventListener('scroll', updatePanelTop, true);
-    };
-  }, [filtersVisible]);
-
-  useEffect(() => {
-    if (!filtersVisible) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setFiltersVisible(false);
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [filtersVisible]);
 
   const filtersActive = hasActiveContactFilters(filters);
   const selectedCount = selectedIds.size;
@@ -466,12 +436,16 @@ export default function ContactsPage({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!showingDetail && (
-        <div className="mb-6 flex shrink-0 flex-wrap items-start justify-between gap-4">
+        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-4xl font-semibold text-crm-heading">Contacts</h1>
-            <p className="mt-2 text-crm-slate">
-              Master list of volunteers, pastors, parents, and donors.
-            </p>
+            <h1 className="text-2xl font-semibold text-crm-heading">
+              Contacts
+              {listReady && (
+                <span className="ml-2 text-base font-normal text-crm-slate">
+                  · {matchingCount} {matchingCount === 1 ? 'person' : 'people'}
+                </span>
+              )}
+            </h1>
             {isMock && (
               <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
                 Showing sample contacts — not the live list.
@@ -485,7 +459,7 @@ export default function ContactsPage({
                   type="button"
                   onClick={() => setSyncSettingsOpen(true)}
                   disabled={loading || !contactsEditable}
-                  className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                  className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
                   title="Full sync and Fillout sync"
                 >
                   Contacts settings
@@ -494,7 +468,7 @@ export default function ContactsPage({
                   type="button"
                   onClick={refetch}
                   disabled={loading || loadingMore || contactsBusy}
-                  className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                  className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
                   title="Reload the Contacts list from Monday (does not create or update contacts)"
                 >
                   Refresh
@@ -584,7 +558,7 @@ export default function ContactsPage({
       )}
 
       {!showingDetail && loading && contacts.length === 0 && (
-        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface">
+        <div className="rounded-2xl border border-crm-taupe/20 bg-crm-surface">
           <CrmPageLoading
             label="i58 Volunteer portal · Contacts"
             className="min-h-[280px] py-10"
@@ -593,7 +567,7 @@ export default function ContactsPage({
       )}
 
       {!showingDetail && error && !loading && contacts.length === 0 && (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
           <p className="font-semibold text-red-800">Could not load contacts</p>
           <p className="mt-2 text-sm text-red-700">{error}</p>
           <p className="mt-3 text-sm text-red-600">
@@ -605,12 +579,27 @@ export default function ContactsPage({
 
       {listReady && (
         <div
-          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm${
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-sm${
             showingDetail ? ' hidden' : ''
           }`}
         >
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface">
-            <div ref={toolbarRef}>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+            <aside
+              className={`min-h-0 shrink-0 overflow-hidden border-b border-crm-taupe/15 md:w-60 md:border-b-0 md:border-r ${
+                filtersVisible ? 'block' : 'hidden md:block'
+              }`}
+            >
+              <ContactFilters
+                variant="rail"
+                filters={filters}
+                onChange={setFilters}
+                onClear={() => setFilters(emptyContactFilters())}
+                matchingCount={matchingCount}
+                totalCount={contacts.length}
+              />
+            </aside>
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               <ContactListToolbar
                 searchQuery={filters.searchQuery}
                 onSearchChange={(searchQuery) =>
@@ -619,97 +608,100 @@ export default function ContactsPage({
                 filtersOpen={filtersVisible}
                 filtersActive={filtersActive}
                 onToggleFilters={() => setFiltersVisible((open) => !open)}
-                onClearFilters={() => setFilters(emptyContactFilters())}
               />
-            </div>
 
-            {showBatchActions && (
-              <div className="shrink-0 border-b border-crm-taupe/15 px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-crm-indigo/15 bg-crm-indigo-50 px-4 py-3 shadow-sm">
-                  <p className="text-sm font-medium text-crm-heading">
-                    {selectedCount > 0 ? (
-                      <>{selectedCount} selected</>
-                    ) : (
-                      <>
-                        {displayed.length} match
-                        {displayed.length === 1 ? '' : 'es'} ·{' '}
-                        {formatContactFilterTagSummary(filters.tags)}
-                      </>
-                    )}
-                    {batchEmailRecipientCount > 0 ? (
-                      <span className="font-normal text-crm-slate">
-                        {' '}
-                        · {batchEmailRecipientCount} with email
-                      </span>
-                    ) : null}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedCount === 0 && displayed.length > 0 && (
+              <ContactFilterChips
+                filters={filters}
+                onChange={setFilters}
+                onClear={() => setFilters(emptyContactFilters())}
+              />
+
+              {showBatchActions && (
+                <div className="shrink-0 border-b border-crm-taupe/15 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-crm-indigo/15 bg-crm-indigo-50 px-4 py-3 shadow-sm">
+                    <p className="text-sm font-medium text-crm-heading">
+                      {selectedCount > 0 ? (
+                        <>{selectedCount} selected</>
+                      ) : (
+                        <>
+                          {displayed.length} match
+                          {displayed.length === 1 ? '' : 'es'} ·{' '}
+                          {formatContactFilterTagSummary(filters.tags)}
+                        </>
+                      )}
+                      {batchEmailRecipientCount > 0 ? (
+                        <span className="font-normal text-crm-slate">
+                          {' '}
+                          · {batchEmailRecipientCount} with email
+                        </span>
+                      ) : null}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {selectedCount === 0 && displayed.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={selectAllFiltered}
+                          className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
+                        >
+                          Select all
+                        </button>
+                      )}
+                      {selectedCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={clearSelection}
+                          disabled={deleting}
+                          className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                        >
+                          Clear
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={selectAllFiltered}
-                        className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
+                        onClick={() => setBatchEmailOpen(true)}
+                        disabled={batchEmailRecipientCount === 0}
+                        className="rounded-xl border border-crm-indigo/20 bg-crm-indigo px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Select all
+                        Email {batchEmailRecipientCount || ''}
                       </button>
-                    )}
-                    {selectedCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={clearSelection}
-                        disabled={deleting}
-                        className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-                      >
-                        Clear
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setBatchEmailOpen(true)}
-                      disabled={batchEmailRecipientCount === 0}
-                      className="rounded-xl border border-crm-indigo/20 bg-crm-indigo px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-crm-indigo-dark disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Email {batchEmailRecipientCount || ''}
-                    </button>
-                    {selectedCount === 2 && canMergeContacts && (
-                      <button
-                        type="button"
-                        onClick={handleMergeSelected}
-                        disabled={merging || deleting}
-                        className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-semibold text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-                        title="Merge into one Contacts item; union tags; keep both emails"
-                      >
-                        {merging ? 'Merging…' : 'Merge'}
-                      </button>
-                    )}
-                    {selectedCount > 0 && contactsEditable && (
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteSelected()}
-                        disabled={deleting || merging}
-                        className="rounded-xl border border-red-200 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {deleting ? 'Deleting…' : 'Delete'}
-                      </button>
-                    )}
+                      {selectedCount === 2 && canMergeContacts && (
+                        <button
+                          type="button"
+                          onClick={handleMergeSelected}
+                          disabled={merging || deleting}
+                          className="rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-1.5 text-sm font-semibold text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+                          title="Merge into one Contacts item; union tags; keep both emails"
+                        >
+                          {merging ? 'Merging…' : 'Merge'}
+                        </button>
+                      )}
+                      {selectedCount > 0 && contactsEditable && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteSelected()}
+                          disabled={deleting || merging}
+                          className="rounded-xl border border-red-200 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {deleting ? 'Deleting…' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  {deleteError && (
+                    <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {deleteError}
+                    </div>
+                  )}
                 </div>
-                {deleteError && (
-                  <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {deleteError}
-                  </div>
-                )}
-              </div>
-            )}
+              )}
 
-            <div className="flex min-h-0 flex-1 overflow-hidden">
-              <div
-                ref={listScrollRef}
-                className="min-h-0 flex-1 overflow-y-auto"
-              >
-                <div className="px-4 pb-4 pt-2 pr-2">
+              <div className="flex min-h-0 flex-1 overflow-hidden">
+                <div
+                  ref={listScrollRef}
+                  className="min-h-0 flex-1 overflow-y-auto"
+                >
                   {!showBatchActions && deleteError && (
-                    <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <div className="mx-4 mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       {deleteError}
                     </div>
                   )}
@@ -721,12 +713,12 @@ export default function ContactsPage({
                     onSelect={openContact}
                   />
                 </div>
-              </div>
-              <div className="flex min-h-0 shrink-0 self-stretch py-2 pr-3 pl-1">
-                <ContactAlphabetIndex
-                  availableLetters={availableLetters}
-                  onSelect={scrollToLetter}
-                />
+                <div className="flex min-h-0 shrink-0 self-stretch py-2 pr-3 pl-1">
+                  <ContactAlphabetIndex
+                    availableLetters={availableLetters}
+                    onSelect={scrollToLetter}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -755,36 +747,6 @@ export default function ContactsPage({
           }}
         />
       )}
-
-      {filtersVisible &&
-        !showingDetail &&
-        listReady &&
-        createPortal(
-          <>
-            <button
-              type="button"
-              aria-label="Close filters"
-              className="fixed inset-0 z-[200] bg-stone-900/10"
-              onClick={() => setFiltersVisible(false)}
-            />
-            <div
-              className="fixed left-1/2 z-[210] max-h-[min(70vh,520px)] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 overflow-y-auto"
-              style={{ top: filterPanelTop }}
-            >
-              <div className="overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-lg">
-                <ContactFilters
-                  variant="panel"
-                  filters={filters}
-                  onChange={setFilters}
-                  onClear={() => setFilters(emptyContactFilters())}
-                  matchingCount={matchingCount}
-                  totalCount={contacts.length}
-                />
-              </div>
-            </div>
-          </>,
-          document.body,
-        )}
     </div>
   );
 }

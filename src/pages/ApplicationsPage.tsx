@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+/**
+ * ApplicationsPage.tsx — Breeze-style short-term applications (filter rail + pipeline).
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ApplicationDetailPanel from '../components/applications/ApplicationDetailPanel';
+import ApplicationFilterChips from '../components/applications/ApplicationFilterChips';
 import ApplicationFilters from '../components/applications/ApplicationFilters';
 import ApplicationGanttChart from '../components/applications/ApplicationGanttChart';
 import ApplicationListToolbar from '../components/applications/ApplicationListToolbar';
@@ -52,9 +56,7 @@ export default function ApplicationsPage({
   );
   const [statusError, setStatusError] = useState<string | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const toolbarRef = useRef<HTMLDivElement>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
-  const [filterPanelTop, setFilterPanelTop] = useState(0);
 
   const { requestClose: requestCloseApplication } = useNavLayer(
     detailVisible && selectedApplication !== null,
@@ -121,7 +123,7 @@ export default function ApplicationsPage({
 
   const filtersActive = hasActiveFilters(filters);
   const showingDetail = detailVisible && selectedApplication !== null;
-  const listReady = !loading && !error;
+  const listReady = pipeline.length > 0 || (!loading && !error);
 
   // Gantt applies its own location chips (confirmed or preferred); keep search/timeline.
   const ganttVolunteers = useMemo(
@@ -188,55 +190,28 @@ export default function ApplicationsPage({
     }
   }, [focusApplicationId, loading, pipeline, onClearFocus, openApplication]);
 
-  useLayoutEffect(() => {
-    if (!filtersVisible || !toolbarRef.current) return;
-
-    const updatePosition = () => {
-      const rect = toolbarRef.current?.getBoundingClientRect();
-      if (rect) {
-        setFilterPanelTop(rect.bottom + 8);
-      }
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [filtersVisible]);
-
-  useEffect(() => {
-    if (!filtersVisible) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setFiltersVisible(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [filtersVisible]);
-
   const showListCard = listReady;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!showingDetail && (
-        <div className="mb-6 flex shrink-0 flex-wrap items-start justify-between gap-4">
+        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-4xl font-semibold text-crm-heading">
+            <h1 className="text-2xl font-semibold text-crm-heading">
               Short-term applications
+              {listReady && (
+                <span className="ml-2 text-base font-normal text-crm-slate">
+                  · {matchingCount} {matchingCount === 1 ? 'person' : 'people'}
+                </span>
+              )}
             </h1>
-            <p className="mt-2 text-crm-slate">
-              Track volunteers through onboarding, references, placement, and
-              deployment.
-            </p>
           </div>
           {!isMock && (
             <button
               type="button"
               onClick={refetch}
               disabled={loading}
-              className="rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+              className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
             >
               Refresh
             </button>
@@ -251,7 +226,7 @@ export default function ApplicationsPage({
       )}
 
       {loading && !showingDetail && pipeline.length === 0 && (
-        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface">
+        <div className="rounded-2xl border border-crm-taupe/20 bg-crm-surface">
           <CrmPageLoading
             label="i58 Volunteer portal · Applications"
             className="min-h-[280px] py-10"
@@ -260,7 +235,7 @@ export default function ApplicationsPage({
       )}
 
       {!showingDetail && error && !loading && pipeline.length === 0 && (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
           <p className="font-semibold text-red-800">
             Could not load short-term applications
           </p>
@@ -289,12 +264,29 @@ export default function ApplicationsPage({
 
       {showListCard && (
         <div
-          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm${
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-sm${
             showingDetail ? ' hidden' : ''
           }`}
         >
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface">
-            <div ref={toolbarRef}>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+            <aside
+              className={`min-h-0 shrink-0 overflow-hidden border-b border-crm-taupe/15 md:w-60 md:border-b-0 md:border-r ${
+                filtersVisible ? 'block' : 'hidden md:block'
+              }`}
+            >
+              <ApplicationFilters
+                variant="rail"
+                filters={filters}
+                onChange={setFilters}
+                onClear={() => setFilters({ ...emptyFilters })}
+                matchingCount={matchingCount}
+                totalCount={totalCount}
+                timelineOptions={timelineOptions}
+                locationOptions={locationOptions}
+              />
+            </aside>
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               <ApplicationListToolbar
                 searchQuery={filters.searchQuery}
                 onSearchChange={(searchQuery) =>
@@ -303,97 +295,71 @@ export default function ApplicationsPage({
                 filtersOpen={filtersVisible}
                 filtersActive={filtersActive}
                 onToggleFilters={() => setFiltersVisible((open) => !open)}
-                onClearFilters={() => setFilters({ ...emptyFilters })}
                 sortBy={sortBy}
                 onSortByChange={setSortBy}
                 layout={layout}
                 onLayoutChange={handleLayoutChange}
               />
-            </div>
 
-            <div
-              ref={listScrollRef}
-              className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2"
-            >
-              {layout === 'gantt' ? (
-                <ApplicationGanttChart
-                  volunteers={ganttVolunteers}
-                  selectedLocations={filters.locations}
-                  onSelectedLocationsChange={(locations) =>
-                    setFilters((current) => ({ ...current, locations }))
-                  }
-                  locationOptions={ganttLocationOptions}
-                  onSelectVolunteer={openApplication}
-                />
-              ) : filteredPipeline.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-crm-taupe/28 bg-crm-surface p-12 text-center">
-                  <p className="text-lg font-semibold text-crm-heading">
-                    No volunteers match these filters
-                  </p>
-                  <p className="mt-2 text-crm-slate">
-                    Try clearing filters or selecting different locations or
-                    timelines.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setFilters({ ...emptyFilters })}
-                    className="mt-6 rounded-2xl bg-crm-indigo px-5 py-2.5 text-sm font-medium text-white transition hover:bg-crm-indigo-dark"
-                  >
-                    Clear all filters
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  {filteredPipeline.map((section) => (
-                    <PipelineSection
-                      key={section.stage}
-                      section={section}
-                      onSelectVolunteer={openApplication}
-                      statusOptions={statusOptions}
-                      onStatusChange={handleStatusChange}
-                      statusSelectDisabled={!applicationsEditable}
-                      sortBy={sortBy}
-                      layout={layout}
-                    />
-                  ))}
-                </div>
-              )}
+              <ApplicationFilterChips
+                filters={filters}
+                onChange={setFilters}
+                onClear={() => setFilters({ ...emptyFilters })}
+                timelineOptions={timelineOptions}
+              />
+
+              <div
+                ref={listScrollRef}
+                className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2"
+              >
+                {layout === 'gantt' ? (
+                  <ApplicationGanttChart
+                    volunteers={ganttVolunteers}
+                    selectedLocations={filters.locations}
+                    onSelectedLocationsChange={(locations) =>
+                      setFilters((current) => ({ ...current, locations }))
+                    }
+                    locationOptions={ganttLocationOptions}
+                    onSelectVolunteer={openApplication}
+                  />
+                ) : filteredPipeline.length === 0 ? (
+                  <div className="px-4 py-12 text-center">
+                    <p className="text-lg font-semibold text-crm-heading">
+                      No volunteers match these filters
+                    </p>
+                    <p className="mt-2 text-crm-slate">
+                      Try clearing filters or selecting different locations or
+                      timelines.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setFilters({ ...emptyFilters })}
+                      className="mt-6 rounded-2xl bg-crm-indigo px-5 py-2.5 text-sm font-medium text-white transition hover:bg-crm-indigo-dark"
+                    >
+                      Clear all filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {filteredPipeline.map((section) => (
+                      <PipelineSection
+                        key={section.stage}
+                        section={section}
+                        onSelectVolunteer={openApplication}
+                        statusOptions={statusOptions}
+                        onStatusChange={handleStatusChange}
+                        statusSelectDisabled={!applicationsEditable}
+                        sortBy={sortBy}
+                        layout={layout}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
-
-      {filtersVisible &&
-        !showingDetail &&
-        showListCard &&
-        createPortal(
-          <>
-            <button
-              type="button"
-              aria-label="Close filters"
-              className="fixed inset-0 z-[200] bg-stone-900/10"
-              onClick={() => setFiltersVisible(false)}
-            />
-            <div
-              className="fixed left-1/2 z-[210] max-h-[min(70vh,520px)] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 overflow-y-auto"
-              style={{ top: filterPanelTop }}
-            >
-              <div className="overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-lg">
-                <ApplicationFilters
-                  variant="panel"
-                  filters={filters}
-                  onChange={setFilters}
-                  onClear={() => setFilters({ ...emptyFilters })}
-                  matchingCount={matchingCount}
-                  totalCount={totalCount}
-                  timelineOptions={timelineOptions}
-                  locationOptions={locationOptions}
-                />
-              </div>
-            </div>
-          </>,
-          document.body,
-        )}
     </div>
   );
 }

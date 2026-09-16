@@ -1,9 +1,8 @@
 /**
- * ApplicationListToolbar.tsx
- * Search + filters on the left; layout toggle + Sort by on the far right.
+ * ApplicationListToolbar.tsx — Search + mobile Filters + layout/sort row.
  */
+
 import ContactSearchBar from '../contacts/ContactSearchBar';
-import ContactFiltersTab from '../contacts/ContactFiltersTab';
 import type { PipelineLayout } from '../../preferences/pipelineLayoutStorage';
 import {
   APPLICATION_SORT_OPTIONS,
@@ -14,47 +13,65 @@ import PipelineLayoutToggle from './PipelineLayoutToggle';
 interface ApplicationListToolbarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  filtersOpen: boolean;
-  filtersActive: boolean;
-  onToggleFilters: () => void;
-  onClearFilters: () => void;
-  sortBy: ApplicationSortOption;
-  onSortByChange: (sortBy: ApplicationSortOption) => void;
+  /** Phone-only Filters toggle. Omitted on desktop where the rail is always visible. */
+  filtersOpen?: boolean;
+  filtersActive?: boolean;
+  onToggleFilters?: () => void;
+  sortBy?: ApplicationSortOption;
+  onSortByChange?: (sortBy: ApplicationSortOption) => void;
   layout: PipelineLayout;
   onLayoutChange: (layout: PipelineLayout) => void;
+  allowedLayouts?: readonly PipelineLayout[];
+  showSort?: boolean;
 }
 
-/** Full-width search + filter + layout + sort row at the top of the applications list card. */
 export default function ApplicationListToolbar({
   searchQuery,
   onSearchChange,
-  filtersOpen,
-  filtersActive,
+  filtersOpen = false,
+  filtersActive = false,
   onToggleFilters,
-  onClearFilters,
   sortBy,
   onSortByChange,
   layout,
   onLayoutChange,
+  allowedLayouts,
+  showSort = true,
 }: ApplicationListToolbarProps) {
   return (
-    <div className="relative z-30 flex shrink-0 items-center gap-2 border-b border-crm-taupe/15 bg-crm-surface px-4 py-2">
+    <div className="relative z-10 flex shrink-0 items-center gap-2 border-b border-crm-taupe/15 bg-crm-surface px-4 py-2">
       <ContactSearchBar
         id="application-list-search"
         placeholder="Search volunteers…"
         value={searchQuery}
         onChange={onSearchChange}
+        className="max-w-xl"
       />
-      <ContactFiltersTab
-        open={filtersOpen}
-        hasActiveFilters={filtersActive}
-        onClick={onToggleFilters}
-        onClear={onClearFilters}
-      />
+      {onToggleFilters && (
+        <button
+          type="button"
+          onClick={onToggleFilters}
+          aria-expanded={filtersOpen}
+          aria-label={filtersOpen ? 'Hide filters' : 'Show filters'}
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-crm-taupe/20 bg-crm-surface px-3 text-xs font-medium text-crm-heading transition hover:bg-crm-indigo-50 md:hidden"
+        >
+          <span>Filters</span>
+          {filtersActive && (
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full bg-crm-indigo"
+            />
+          )}
+        </button>
+      )}
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <PipelineLayoutToggle value={layout} onChange={onLayoutChange} />
-        {layout !== 'gantt' && (
+        <PipelineLayoutToggle
+          value={layout}
+          allowedLayouts={allowedLayouts}
+          onChange={onLayoutChange}
+        />
+        {showSort && layout !== 'gantt' && sortBy && onSortByChange && (
           <>
             <label
               htmlFor="application-list-sort"

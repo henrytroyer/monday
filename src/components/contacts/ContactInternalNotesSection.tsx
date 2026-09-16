@@ -106,31 +106,25 @@ export default function ContactInternalNotesSection({
   };
 
   return (
-    <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
-      <div className="border-b border-crm-taupe/20 pb-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-crm-heading">
-              Internal notes
-            </h3>
-            <p className="mt-1 text-sm text-crm-slate">
-              Public notes save to the contact record on monday.com. Private
-              notes are visible to you and anyone above your role. Higher roles
-              can read but not edit.
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void reload({ silent: true })}
-              disabled={loading}
-              className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
-            >
-              Refresh notes
-            </button>
-          </div>
-        </div>
+    <div className="min-w-0">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-crm-taupe/15 bg-crm-taupe-50 px-3 py-2">
+        <h3 className="text-sm font-semibold text-crm-heading">
+          Internal notes
+        </h3>
+        <button
+          type="button"
+          onClick={() => void reload({ silent: true })}
+          disabled={loading}
+          className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50 disabled:opacity-50"
+        >
+          Refresh notes
+        </button>
       </div>
+      <p className="mb-4 text-sm text-crm-slate">
+        Public notes save to the contact record on monday.com. Private notes
+        are visible to you and anyone above your role. Higher roles can read
+        but not edit.
+      </p>
 
       {pendingReview.length > 0 && (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

@@ -1,3 +1,7 @@
+/**
+ * ContactDetailPanel.tsx — Breeze-style contact profile (header + section rail).
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { useNavLayer } from '../../context/NavigationHistoryContext';
 import { useContactDetail } from '../../hooks/useContactDetail';
@@ -7,6 +11,7 @@ import { usePastorReferenceLinkOptions } from '../../hooks/usePastorReferenceLin
 import { useWorkFocus } from '../../hooks/useWorkFocus';
 import type { ReactNode } from 'react';
 import type { ContactDetail, ContactListItem } from '../../types/contact';
+import { CONTACT_TAG_LABELS } from '../../types/contact';
 import type { VolunteerTerm } from '../../types/volunteer';
 import { isCompiledContactId } from '../../services/compileContactsFromBoards';
 import { isServiceEndedTerm } from '../../services/contactServiceRecordStorage';
@@ -20,16 +25,42 @@ import {
   orderSectionEntries,
 } from '../../preferences/workFocus';
 import FormFieldsPanel from '../applications/FormFieldsPanel';
+import VolunteerAvatar from '../applications/VolunteerAvatar';
+import FilePreviewModal from '../applications/FilePreviewModal';
 import CrmPageLoading from '../shared/CrmPageLoading';
 import ContactEmailHistory from '../email-correspondence/ContactEmailHistory';
 import ContactBillingPanel from './ContactBillingPanel';
 import ContactInternalNotesSection from './ContactInternalNotesSection';
 import ChurchInfoCard from './ChurchInfoCard';
+import ContactDetailNav, {
+  type ContactDetailNavItem,
+} from './ContactDetailNav';
 import ContactProfileCard from './ContactProfileCard';
 import ContactVolunteerFiles from './ContactVolunteerFiles';
 import DonationsList from './DonationsList';
 import PastorReferencePickerPanel from './PastorReferencePickerPanel';
 import TermDetailPanel from './TermDetailPanel';
+
+const CONTACT_DETAIL_SECTION_LABELS: Partial<Record<SectionId, string>> = {
+  'contact.profile': 'Profile',
+  'contact.church': 'Church',
+  'contact.internal_notes': 'Notes',
+  'contact.email_history': 'Email',
+  'contact.files': 'Files',
+  'contact.connected_people': 'Connected',
+  'contact.current_application': 'Application',
+  'contact.terms': 'Terms',
+  'contact.volunteers_referenced': 'Referenced',
+  'contact.connected_volunteers': 'Volunteers',
+  'contact.donations': 'Donations',
+  'contact.billing': 'Billing',
+};
+
+type ContactDetailSection = {
+  id: SectionId;
+  label: string;
+  node: ReactNode;
+};
 
 interface ContactDetailPanelProps {
   contact: ContactListItem;
@@ -81,6 +112,9 @@ export default function ContactDetailPanel({
     useState(false);
   const [selectedPastorReferenceItemId, setSelectedPastorReferenceItemId] =
     useState<string | null>(null);
+  const [activeSection, setActiveSection] =
+    useState<SectionId>('contact.profile');
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
 
   const linkedPastorReferenceItemIds =
     detail?.pastorReference?.linkedItemIds ?? [];
@@ -158,9 +192,17 @@ export default function ContactDetailPanel({
     `pastor-reference-${selectedPastorReferenceItemId ?? 'none'}-${contact.id}`,
   );
 
+  const { requestClose: requestClosePhotoPreview } = useNavLayer(
+    photoPreviewOpen,
+    () => setPhotoPreviewOpen(false),
+    `contact-detail-photo-${contact.id}`,
+  );
+
   useEffect(() => {
     setSelectedTerm(null);
     resetPastorReferenceFlow();
+    setActiveSection('contact.profile');
+    setPhotoPreviewOpen(false);
   }, [contact.id]);
 
   useEffect(() => {
@@ -187,8 +229,8 @@ export default function ContactDetailPanel({
     detail &&
     (detail.tags.includes('donor') || detail.donations.length > 0);
 
-  const orderedContactSections = useMemo(() => {
-    if (!detail) return [] as ReactNode[];
+  const orderedContactSections = useMemo((): ContactDetailSection[] => {
+    if (!detail) return [];
 
     const connectedPeopleSection = (() => {
       const isParentOrPastor =
@@ -340,6 +382,7 @@ export default function ContactDetailPanel({
     const sections: Partial<Record<SectionId, ReactNode>> = {
       'contact.profile': (
           <ContactProfileCard
+            variant="pane"
             detail={detail}
             saving={saving}
             onGoToRecruitment={onGoToRecruitment}
@@ -358,6 +401,7 @@ export default function ContactDetailPanel({
       ),
       'contact.church': detail.tags.includes('volunteer') ? (
           <ChurchInfoCard
+            variant="pane"
             volunteerName={detail.name}
             pastorReference={detail.pastorReference}
             linkedItemIds={linkedPastorReferenceItemIds}
@@ -587,10 +631,22 @@ export default function ContactDetailPanel({
       ),
     };
 
+    const labeled: Partial<Record<SectionId, ContactDetailSection>> = {};
+    for (const [id, node] of Object.entries(sections) as Array<
+      [SectionId, ReactNode | undefined]
+    >) {
+      if (node === undefined) continue;
+      labeled[id] = {
+        id,
+        label: CONTACT_DETAIL_SECTION_LABELS[id] ?? id,
+        node,
+      };
+    }
+
     return orderSectionEntries(
       workFocus,
       contactSectionOrder(workFocus),
-      sections,
+      labeled,
     );
   }, [
     detail,
@@ -617,10 +673,47 @@ export default function ContactDetailPanel({
     workFocus,
   ]);
 
+  const navItems: ContactDetailNavItem[] = orderedContactSections.map(
+    ({ id, label }) => ({ id, label }),
+  );
+  const activeNode =
+    orderedContactSections.find((section) => section.id === activeSection)
+      ?.node ?? orderedContactSections[0]?.node;
+
+  useEffect(() => {
+    if (orderedContactSections.length === 0) return;
+    if (
+      !orderedContactSections.some((section) => section.id === activeSection)
+    ) {
+      setActiveSection(orderedContactSections[0]!.id);
+    }
+  }, [orderedContactSections, activeSection]);
+
+  const headerName = detail?.name ?? contact.name;
+  const headerEmail = detail?.email ?? contact.email;
+  const headerPhone = detail?.phone ?? contact.phone;
+  const headerTags = detail?.tags ?? contact.tags;
+  const headerPhoto = detail?.profilePhotoUrl ?? contact.profilePhotoUrl;
+  const headerMeta = [
+    headerEmail && headerEmail !== '—' ? headerEmail : null,
+    headerPhone,
+    headerTags.map((tag) => CONTACT_TAG_LABELS[tag]).join(' · ') || null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const photoPreviewFile =
+    headerPhoto != null && headerPhoto !== ''
+      ? {
+          id: 'profile-photo',
+          name: 'Profile photo',
+          url: headerPhoto,
+          isImage: true,
+        }
+      : null;
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface p-2 shadow-sm">
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface">
-        <div className="shrink-0 border-b border-crm-taupe/20 bg-crm-taupe-50 px-6 py-4">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-sm">
+        <div className="shrink-0 border-b border-crm-taupe/15 px-4 py-3 md:px-5">
           <button
             type="button"
             onClick={onBack}
@@ -628,9 +721,44 @@ export default function ContactDetailPanel({
           >
             ← Back to contacts
           </button>
+          <div className="mt-3 flex items-center gap-3">
+            <VolunteerAvatar
+              name={headerName}
+              profilePhotoUrl={headerPhoto}
+              size="md"
+              onClick={
+                photoPreviewFile
+                  ? () => setPhotoPreviewOpen(true)
+                  : undefined
+              }
+            />
+            <div className="min-w-0">
+              <h2 className="truncate text-xl font-semibold text-crm-heading">
+                {headerName}
+              </h2>
+              {headerMeta && (
+                <p className="mt-0.5 truncate text-sm text-crm-slate">
+                  {headerMeta}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+          {navItems.length > 0 && (
+            <ContactDetailNav
+              items={navItems}
+              activeId={
+                navItems.some((item) => item.id === activeSection)
+                  ? activeSection
+                  : navItems[0]!.id
+              }
+              onSelect={setActiveSection}
+            />
+          )}
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           {loading && !detail && (
             <CrmPageLoading
               label="i58 Volunteer portal · Contact"
@@ -645,26 +773,34 @@ export default function ContactDetailPanel({
           )}
 
           {detail && (
-            <div className="space-y-6">
+            <div>
               {(refreshing || extrasLoading) && (
-                <p className="text-xs text-crm-slate">
+                <p className="mb-4 text-xs text-crm-slate">
                   {refreshing
                     ? 'Refreshing contact from monday…'
                     : 'Loading donations & files…'}
                 </p>
               )}
               {isCompiledContactId(detail.id) && (
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                   This contact is not fully set up yet. Some profile edits are
                   limited until their record is complete.
                 </div>
               )}
-              {orderedContactSections.map((node, index) => (
-                <div key={`contact-section-${index}`}>{node}</div>
-              ))}
+              {activeNode}
             </div>
           )}
+          </div>
         </div>
+
+        {photoPreviewOpen && photoPreviewFile && (
+          <FilePreviewModal
+            file={photoPreviewFile}
+            volunteerName={headerName}
+            backLabel="contact"
+            onClose={requestClosePhotoPreview}
+          />
+        )}
 
         {selectedTerm && detail && canOpenTermDetail && (
           <TermDetailPanel
@@ -706,7 +842,6 @@ export default function ContactDetailPanel({
             onClose={requestClosePastorReferenceDetail}
           />
         )}
-      </div>
     </div>
   );
 }
@@ -719,8 +854,10 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
-      <h3 className="text-lg font-semibold text-crm-heading">{title}</h3>
+    <div>
+      <div className="mb-4 border-b border-crm-taupe/15 bg-crm-taupe-50 px-3 py-2">
+        <h3 className="text-sm font-semibold text-crm-heading">{title}</h3>
+      </div>
       {children}
     </div>
   );

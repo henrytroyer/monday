@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { PipelineSection, Volunteer } from '../types/volunteer';
-import { filterPipeline } from './filterApplications';
+import { filterPipeline, filterSectionsBySearch } from './filterApplications';
 
 const coupleVolunteer: Volunteer = {
   id: '12112990677',
@@ -52,6 +52,36 @@ describe('filterPipeline couple search', () => {
       timelineIds: [],
       searchQuery: 'Loretta',
     });
+    assert.equal(result.length, 0);
+  });
+});
+
+describe('filterSectionsBySearch', () => {
+  const sections = [
+    {
+      stage: 'Inquiry',
+      volunteers: [coupleVolunteer],
+    },
+    {
+      stage: 'Empty',
+      volunteers: [] as Volunteer[],
+    },
+  ];
+
+  it('keeps empty stages when the query is blank', () => {
+    const result = filterSectionsBySearch(sections, '  ');
+    assert.equal(result.length, 2);
+  });
+
+  it('drops empty stages after a matching name filter', () => {
+    const result = filterSectionsBySearch(sections, 'Sharon');
+    assert.equal(result.length, 1);
+    assert.equal(result[0]?.stage, 'Inquiry');
+    assert.equal(result[0]?.volunteers.length, 1);
+  });
+
+  it('drops all stages when nothing matches', () => {
+    const result = filterSectionsBySearch(sections, 'Loretta');
     assert.equal(result.length, 0);
   });
 });

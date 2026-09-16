@@ -60,24 +60,19 @@ export default function PipelineSection({
   };
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-crm-taupe/20 bg-crm-surface shadow-sm">
-      <div className="flex items-center justify-between border-b border-crm-taupe/20 bg-crm-taupe-50 px-6 py-4">
-        <div>
-          <h2 className="text-xl font-semibold text-crm-heading">{section.stage}</h2>
-          <p className="mt-1 text-sm text-crm-slate">
-            {section.volunteers.length} volunteer(s)
-          </p>
-        </div>
-        <div className="rounded-full border border-crm-taupe/20 bg-crm-surface px-3 py-1 text-sm font-semibold text-crm-heading">
+    <div>
+      <div className="flex items-center justify-between bg-crm-taupe-50 px-4 py-2.5">
+        <h2 className="text-sm font-semibold text-crm-heading">{section.stage}</h2>
+        <span className="text-xs font-medium text-crm-slate">
           {section.volunteers.length}
-        </div>
+        </span>
       </div>
 
       <div>
         {locationGroups.map((group) => (
           <div key={group.sortKey}>
             {showLocationHeaders && group.label ? (
-              <div className="flex items-center justify-between gap-3 border-b border-crm-taupe/15 bg-crm-taupe-50/70 px-6 py-2">
+              <div className="flex items-center justify-between gap-3 border-b border-crm-taupe/15 bg-crm-taupe-50/70 px-4 py-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-crm-slate">
                   {group.label}
                 </h3>

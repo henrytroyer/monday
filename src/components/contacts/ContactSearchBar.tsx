@@ -1,8 +1,14 @@
+/**
+ * ContactSearchBar.tsx — Compact search input used on Contacts and Applications toolbars.
+ */
+
 interface ContactSearchBarProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   id?: string;
+  /** Replaces the default max-width wrapper class. */
+  className?: string;
 }
 
 function SearchIcon() {
@@ -30,9 +36,10 @@ export default function ContactSearchBar({
   onChange,
   placeholder = 'Search contacts…',
   id = 'contact-list-search',
+  className,
 }: ContactSearchBarProps) {
   return (
-    <div className="relative min-w-0 max-w-md flex-1">
+    <div className={`relative min-w-0 flex-1 ${className ?? 'max-w-md'}`}>
       <label htmlFor={id} className="sr-only">
         Search
       </label>

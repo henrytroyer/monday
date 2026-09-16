@@ -32,10 +32,12 @@ export default function ContactBillingPanel({
   );
 
   return (
-    <div className="rounded-2xl border border-crm-taupe/20 bg-crm-white p-5">
-      <h3 className="text-lg font-semibold text-crm-heading">
-        Billing & invoices
-      </h3>
+    <div className="min-w-0">
+      <div className="mb-4 border-b border-crm-taupe/15 bg-crm-taupe-50 px-3 py-2">
+        <h3 className="text-sm font-semibold text-crm-heading">
+          Billing & invoices
+        </h3>
+      </div>
       <p className="mt-2 text-sm text-crm-slate">
         Invoices by term of service — view status and payment without opening
         the term.

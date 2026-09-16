@@ -1,3 +1,7 @@
+/**
+ * ContactFilters.tsx — Contact sort/tag filters (card, panel, or Breeze-style rail).
+ */
+
 import {
   CONTACT_TAGS,
   CONTACT_TAG_LABELS,
@@ -16,11 +20,14 @@ interface ContactFiltersProps {
   /** When true, omits outer bottom margin (used in collapsible list header). */
   embedded?: boolean;
   /** Flat panel inside dropdown — no outer card chrome. */
-  variant?: 'card' | 'panel';
+  variant?: 'card' | 'panel' | 'rail';
 }
 
 const inputClass =
   'mt-2 w-full rounded-2xl border border-crm-taupe/20 bg-crm-surface px-4 py-2.5 text-sm text-crm-text outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20';
+
+const railInputClass =
+  'mt-1.5 w-full rounded-xl border border-crm-taupe/20 bg-crm-white px-3 py-2 text-sm text-crm-text outline-none focus:border-crm-slate focus:ring-2 focus:ring-crm-taupe/20';
 
 const SORT_OPTIONS: Array<{ value: ContactSortOption; label: string }> = [
   { value: 'name-asc', label: 'Name (A to Z)' },
@@ -40,6 +47,105 @@ export default function ContactFilters({
 }: ContactFiltersProps) {
   const active = hasActiveContactFilters(filters);
   const isPanel = variant === 'panel';
+  const isRail = variant === 'rail';
+
+  const sortSelect = (selectId: string, selectClass: string) => (
+    <div>
+      <label
+        htmlFor={selectId}
+        className="text-sm font-medium text-crm-heading"
+      >
+        Sort by
+      </label>
+      <select
+        id={selectId}
+        value={filters.sortBy}
+        onChange={(e) =>
+          onChange({
+            ...filters,
+            sortBy: e.target.value as ContactSortOption,
+          })
+        }
+        className={selectClass}
+      >
+        {SORT_OPTIONS.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  if (isRail) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto px-4 py-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-crm-heading">
+            Filters
+          </h2>
+          {active && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="rounded-lg border border-crm-taupe/20 px-2.5 py-1 text-xs font-medium text-crm-heading transition hover:bg-crm-taupe-50"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+
+        <p className="mt-2 text-xs text-crm-slate">
+          Showing {matchingCount} of {totalCount} contacts
+        </p>
+
+        <div className="mt-4">{sortSelect('contact-sort', railInputClass)}</div>
+
+        <div className="mt-5">
+          <span className="text-sm font-medium text-crm-heading">Tags</span>
+          <div className="mt-2 flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={() => onChange({ ...filters, tags: [] })}
+              className={`rounded-xl px-3 py-2 text-left text-sm font-medium transition ${
+                filters.tags.length === 0
+                  ? 'bg-crm-indigo-50 text-crm-heading ring-1 ring-crm-indigo/10'
+                  : 'bg-crm-white text-crm-text hover:bg-crm-taupe-100'
+              }`}
+            >
+              All
+            </button>
+            {CONTACT_TAGS.map((tag) => {
+              const selected = filters.tags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      ...filters,
+                      tags: toggleContactTag(filters.tags, tag),
+                    })
+                  }
+                  className={`rounded-xl px-3 py-2 text-left text-sm font-medium transition ${
+                    selected
+                      ? contactTagFilterSelectedClass(tag)
+                      : 'bg-crm-white text-crm-text hover:bg-crm-taupe-100'
+                  }`}
+                >
+                  {CONTACT_TAG_LABELS[tag]}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-crm-slate">
+            Select multiple tags to show only contacts that have all of them
+            (e.g. Volunteer and Donor).
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

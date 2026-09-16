@@ -14,6 +14,8 @@ interface ChurchInfoCardProps {
   canEdit?: boolean;
   onSave?: (fields: ContactPastorFields) => Promise<unknown>;
   onViewPastorReference?: () => void;
+  /** Flat section pane — nav already labels Church. */
+  variant?: 'card' | 'pane';
 }
 
 const inputClass =
@@ -42,6 +44,7 @@ export default function ChurchInfoCard({
   canEdit = false,
   onSave,
   onViewPastorReference,
+  variant = 'card',
 }: ChurchInfoCardProps) {
   const [editing, setEditing] = useState(false);
   const [fields, setFields] = useState<ContactPastorFields>(() =>
@@ -103,12 +106,26 @@ export default function ChurchInfoCard({
       ? `Choose reference (${linkedCount}) →`
       : 'View reference →';
 
+  const isPane = variant === 'pane';
+
   return (
-    <div className="rounded-2xl border border-crm-taupe/20 bg-gradient-to-br from-crm-taupe-50 to-crm-surface p-5 shadow-sm">
+    <div
+      className={
+        isPane
+          ? 'min-w-0'
+          : 'rounded-2xl border border-crm-taupe/20 bg-gradient-to-br from-crm-taupe-50 to-crm-surface p-5 shadow-sm'
+      }
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-lg font-semibold text-crm-heading">
-            Church InfoCard
+          <h3
+            className={
+              isPane
+                ? 'border-b border-crm-taupe/15 bg-crm-taupe-50 px-3 py-2 text-sm font-semibold text-crm-heading'
+                : 'text-lg font-semibold text-crm-heading'
+            }
+          >
+            {isPane ? 'Church' : 'Church InfoCard'}
           </h3>
           {editing ? (
             <input

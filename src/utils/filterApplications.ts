@@ -82,6 +82,23 @@ export function filterPipeline(
     .filter((section) => section.volunteers.length > 0);
 }
 
+/** Client-side name search; empty stages are dropped when a query is active. */
+export function filterSectionsBySearch<T extends { volunteers: Volunteer[] }>(
+  sections: T[],
+  searchQuery: string,
+): T[] {
+  const query = searchQuery.trim().toLowerCase();
+  if (!query) return sections;
+  return sections
+    .map((section) => ({
+      ...section,
+      volunteers: section.volunteers.filter((volunteer) =>
+        matchesSearch(volunteer, query),
+      ),
+    }))
+    .filter((section) => section.volunteers.length > 0);
+}
+
 export function countMatchingVolunteers(
   pipeline: PipelineSection[],
   filters: ApplicationFilterState,

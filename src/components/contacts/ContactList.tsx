@@ -4,7 +4,6 @@
 
 import type { ContactListItem } from '../../types/contact';
 import { CONTACT_TAG_LABELS } from '../../types/contact';
-import { contactTagListPillClass } from '../../utils/contactTagStyles';
 import {
   getContactSortLetter,
   letterAnchorId,
@@ -30,7 +29,7 @@ export default function ContactList({
 }: ContactListProps) {
   if (contacts.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-crm-taupe/28 bg-crm-surface p-12 text-center">
+      <div className="px-4 py-12 text-center">
         <p className="text-lg font-semibold text-crm-heading">No contacts found</p>
         <p className="mt-2 text-crm-slate">
           Try clearing filters or adjusting your search.
@@ -43,7 +42,7 @@ export default function ContactList({
   const seenLetters = new Set<string>();
 
   return (
-    <ul className="divide-y divide-crm-taupe/20 rounded-3xl border border-crm-taupe/20 bg-crm-surface shadow-sm">
+    <ul className="divide-y divide-crm-taupe/15">
       {entries.map((entry) => {
         const contact = isContactCoupleUnit(entry) ? entry.primary : entry;
         const spouse = isContactCoupleUnit(entry) ? entry.spouse : undefined;
@@ -63,15 +62,24 @@ export default function ContactList({
             ...(spouse?.tags ?? []),
           ]),
         ];
+        const emailLine = spouse
+          ? `${contact.email} · ${spouse.email}`
+          : contact.email;
+        const tagLine = tags.map((tag) => CONTACT_TAG_LABELS[tag]).join(' · ');
+        const metaLine = [emailLine, tagLine].filter(Boolean).join(' · ');
 
         return (
           <li
             key={isContactCoupleUnit(entry) ? entry.key : contact.id}
             id={isFirstForLetter ? letterAnchorId(letter) : undefined}
-            className={isSelected ? 'bg-crm-indigo-50/80' : undefined}
+            className={
+              isSelected
+                ? 'bg-crm-indigo-50/80'
+                : 'hover:bg-crm-taupe-50/80'
+            }
           >
-            <div className="flex items-stretch gap-1">
-              <label className="flex shrink-0 cursor-pointer items-center px-4 py-4">
+            <div className="flex items-stretch">
+              <label className="flex shrink-0 cursor-pointer items-center px-4 py-2.5">
                 <input
                   type="checkbox"
                   checked={isSelected}
@@ -82,11 +90,11 @@ export default function ContactList({
                 />
               </label>
 
-              <div className="flex min-w-0 flex-1 items-center gap-4 py-4 pr-5">
+              <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-4">
                 <button
                   type="button"
                   onClick={() => onSelect(contact)}
-                  className="flex min-w-0 flex-1 items-center gap-4 text-left transition hover:opacity-90"
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-90"
                 >
                   <VolunteerAvatar
                     name={displayName}
@@ -98,19 +106,9 @@ export default function ContactList({
                       {displayName}
                     </div>
                     <div className="truncate text-sm text-crm-slate">
-                      {spouse
-                        ? `${contact.email} · ${spouse.email}`
-                        : contact.email}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {tags.map((tag) => (
-                        <span key={tag} className={contactTagListPillClass(tag)}>
-                          {CONTACT_TAG_LABELS[tag]}
-                        </span>
-                      ))}
+                      {metaLine}
                     </div>
                   </div>
-                  <span className="shrink-0 text-crm-slate">→</span>
                 </button>
                 {spouse && (
                   <button

@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+/**
+ * LongtermApplicationsPage.tsx — Breeze-style long-term applications (view rail + pipeline).
+ */
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ApplicationDetailPanel from '../components/applications/ApplicationDetailPanel';
-import PipelineLayoutToggle from '../components/applications/PipelineLayoutToggle';
+import ApplicationFilterChips from '../components/applications/ApplicationFilterChips';
+import ApplicationListToolbar from '../components/applications/ApplicationListToolbar';
+import LongtermApplicationFilters from '../components/applications/LongtermApplicationFilters';
 import PipelineSection from '../components/applications/PipelineSection';
 import CrmPageLoading from '../components/shared/CrmPageLoading';
 import { useLayout } from '../context/LayoutContext';
@@ -13,7 +19,7 @@ import {
   type PipelineLayout,
 } from '../preferences/pipelineLayoutStorage';
 import type { LongtermViewMode } from '../types/longtermVolunteer';
-import type { Volunteer } from '../types/volunteer';
+import type { ApplicationFilterState, Volunteer } from '../types/volunteer';
 import {
   asPipelineSection,
   countLongtermVolunteers,
@@ -21,6 +27,7 @@ import {
   countPipelineVolunteers,
   findLongtermVolunteer,
 } from '../utils/longtermApplications';
+import { filterSectionsBySearch } from '../utils/filterApplications';
 import {
   registerWatchedLongtermApplicationId,
   unregisterWatchedLongtermApplicationId,
@@ -57,6 +64,8 @@ export default function LongtermApplicationsPage({
   const [layout, setLayout] = useState<PipelineLayout>(() =>
     readLongtermPipelineLayout(),
   );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filtersVisible, setFiltersVisible] = useState(false);
   const [selectedApplication, setSelectedApplication] =
     useState<Volunteer | null>(null);
   const [detailVisible, setDetailVisible] = useState(
@@ -133,6 +142,31 @@ export default function LongtermApplicationsPage({
   const sections =
     viewMode === 'pipeline' ? pipelineSections : fieldSections;
 
+  const filteredSections = useMemo(
+    () => filterSectionsBySearch(sections, searchQuery),
+    [sections, searchQuery],
+  );
+
+  const viewCount = useMemo(
+    () => sections.reduce((sum, section) => sum + section.volunteers.length, 0),
+    [sections],
+  );
+
+  const matchingCount = useMemo(
+    () =>
+      filteredSections.reduce(
+        (sum, section) => sum + section.volunteers.length,
+        0,
+      ),
+    [filteredSections],
+  );
+
+  const searchFilters: ApplicationFilterState = {
+    locations: [],
+    timelineIds: [],
+    searchQuery,
+  };
+
   const showingDetail = detailVisible && selectedApplication !== null;
   const { setDetailMode } = useLayout();
 
@@ -171,64 +205,38 @@ export default function LongtermApplicationsPage({
   const pipelineCount = countPipelineVolunteers(volunteers);
   const onFieldCount = countOnFieldVolunteers(volunteers);
   const totalCount = countLongtermVolunteers(volunteers);
+  const searchActive = searchQuery.trim().length > 0;
+  const listHasData = volunteers.length > 0;
+  const listReady = listHasData || (!loading && !error);
 
-  const listHasData = sections.some((s) => s.volunteers.length > 0);
+  const countSummary =
+    viewMode === 'pipeline'
+      ? `${pipelineCount} in pipeline · ${onFieldCount} on field · ${totalCount} total`
+      : `${onFieldCount} on field · ${totalCount} total`;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!showingDetail && (
-        <div className="mb-6 shrink-0">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-semibold text-crm-heading">
-                Long-term applications
-              </h1>
-              <p className="mt-2 text-crm-slate">
-                {viewMode === 'pipeline'
-                  ? 'Track long-term applicants from first inquiry through preparation.'
-                  : 'Volunteers currently on the field, grouped by deployment location.'}
-              </p>
-              <p className="mt-2 text-xs text-crm-slate">
-                {viewMode === 'pipeline'
-                  ? `${pipelineCount} in pipeline · ${onFieldCount} on field · ${totalCount} total`
-                  : `${onFieldCount} on field · ${totalCount} total`}
-              </p>
-            </div>
-            {!isMock && (
-              <button
-                type="button"
-                onClick={() => refetch()}
-                className="rounded-xl border border-crm-taupe/20 px-3 py-1.5 text-sm text-crm-heading hover:bg-crm-taupe-50"
-              >
-                Refresh
-              </button>
-            )}
+        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-crm-heading">
+              Long-term applications
+              {listReady && (
+                <span className="ml-2 text-base font-normal text-crm-slate">
+                  · {countSummary}
+                </span>
+              )}
+            </h1>
           </div>
-
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            <PipelineLayoutToggle
-              value={layout}
-              allowedLayouts={LONGTERM_LAYOUTS}
-              onChange={(next) => {
-                const nextLayout = next === 'gantt' ? 'list' : next;
-                setLayout(nextLayout);
-                writePipelineLayout(nextLayout);
-              }}
-            />
+          {!isMock && (
             <button
               type="button"
-              onClick={() =>
-                setViewMode((current) =>
-                  current === 'pipeline' ? 'on-field' : 'pipeline',
-                )
-              }
-              className="rounded-2xl bg-crm-indigo px-6 py-2.5 text-sm font-medium text-white transition hover:bg-crm-indigo-dark"
+              onClick={() => refetch()}
+              className="rounded-xl border border-crm-taupe/20 bg-crm-surface px-3 py-1.5 text-sm font-medium text-crm-heading transition hover:bg-crm-taupe-50"
             >
-              {viewMode === 'pipeline'
-                ? 'View on the field'
-                : 'Back to pipeline'}
+              Refresh
             </button>
-          </div>
+          )}
         </div>
       )}
 
@@ -239,7 +247,7 @@ export default function LongtermApplicationsPage({
       )}
 
       {loading && !showingDetail && !listHasData && (
-        <div className="rounded-3xl border border-crm-taupe/20 bg-crm-surface">
+        <div className="rounded-2xl border border-crm-taupe/20 bg-crm-surface">
           <CrmPageLoading
             label="i58 Volunteer portal · Long-term"
             className="min-h-[280px] py-10"
@@ -248,7 +256,7 @@ export default function LongtermApplicationsPage({
       )}
 
       {!showingDetail && error && !loading && !listHasData && (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
           <p className="font-semibold text-red-800">
             Could not load long-term applications
           </p>
@@ -277,28 +285,94 @@ export default function LongtermApplicationsPage({
         </div>
       )}
 
-      <div
-        className={`min-h-0 flex-1 overflow-y-auto${
-          showingDetail ? ' hidden' : ''
-        }`}
-      >
-        <div className="space-y-8 pb-4">
-          {sections.map((section) => (
-            <PipelineSection
-              key={`${viewMode}-${section.stage}`}
-              section={asPipelineSection(section)}
-              onSelectVolunteer={(volunteer) => {
-                const match = findLongtermVolunteer(volunteers, volunteer.id);
-                openApplication(match ?? volunteer);
-              }}
-              statusOptions={statusOptions}
-              onStatusChange={handleStatusChange}
-              statusSelectDisabled={!applicationsEditable}
-              layout={layout}
-            />
-          ))}
+      {listReady && (
+        <div
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-crm-taupe/20 bg-crm-surface shadow-sm${
+            showingDetail ? ' hidden' : ''
+          }`}
+        >
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+            <aside
+              className={`min-h-0 shrink-0 overflow-hidden border-b border-crm-taupe/15 md:w-60 md:border-b-0 md:border-r ${
+                filtersVisible ? 'block' : 'hidden md:block'
+              }`}
+            >
+              <LongtermApplicationFilters
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                searchActive={searchActive}
+                onClearSearch={() => setSearchQuery('')}
+                matchingCount={matchingCount}
+                viewCount={viewCount}
+              />
+            </aside>
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <ApplicationListToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filtersOpen={filtersVisible}
+                filtersActive={searchActive}
+                onToggleFilters={() => setFiltersVisible((open) => !open)}
+                layout={layout}
+                allowedLayouts={LONGTERM_LAYOUTS}
+                showSort={false}
+                onLayoutChange={(next) => {
+                  const nextLayout = next === 'gantt' ? 'list' : next;
+                  setLayout(nextLayout);
+                  writePipelineLayout(nextLayout);
+                }}
+              />
+
+              <ApplicationFilterChips
+                filters={searchFilters}
+                onChange={(next) => setSearchQuery(next.searchQuery)}
+                onClear={() => setSearchQuery('')}
+              />
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2">
+                {searchActive && filteredSections.length === 0 ? (
+                  <div className="px-4 py-12 text-center">
+                    <p className="text-lg font-semibold text-crm-heading">
+                      No volunteers match this search
+                    </p>
+                    <p className="mt-2 text-crm-slate">
+                      Try a different name or clear the search.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="mt-6 rounded-2xl bg-crm-indigo px-5 py-2.5 text-sm font-medium text-white transition hover:bg-crm-indigo-dark"
+                    >
+                      Clear search
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {filteredSections.map((section) => (
+                      <PipelineSection
+                        key={`${viewMode}-${section.stage}`}
+                        section={asPipelineSection(section)}
+                        onSelectVolunteer={(volunteer) => {
+                          const match = findLongtermVolunteer(
+                            volunteers,
+                            volunteer.id,
+                          );
+                          openApplication(match ?? volunteer);
+                        }}
+                        statusOptions={statusOptions}
+                        onStatusChange={handleStatusChange}
+                        statusSelectDisabled={!applicationsEditable}
+                        layout={layout}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
