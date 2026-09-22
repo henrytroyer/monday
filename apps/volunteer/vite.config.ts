@@ -8,6 +8,13 @@ export default defineConfig({
     port: 4050,
     host: true,
     strictPort: true,
+    proxy: {
+      '/api/volunteer-identity': {
+        target: 'http://127.0.0.1:4051',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/volunteer-identity/, '') || '/',
+      },
+    },
   },
   preview: {
     port: 4050,

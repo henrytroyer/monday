@@ -8,14 +8,16 @@
   },
   "scripts": {
     "dev": "vite",
+    "identity": "tsx server/identityServer.ts",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
-    "test": "tsx --test src/mock/volunteerClient.test.ts",
+    "test": "tsx --test src/mock/volunteerClient.test.ts src/identity/profile.test.ts src/identity/resolveContactIdentity.test.ts src/identity/mondayContactIdentity.test.ts src/identity/firebaseIdToken.test.ts",
     "validate": "npm run typecheck && npm test && npm run lint && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "firebase": "^12.19.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
