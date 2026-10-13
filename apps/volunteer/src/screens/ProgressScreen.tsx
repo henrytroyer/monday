@@ -235,21 +235,11 @@ export function ProgressScreen({
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between gap-6">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            <BackButton onClick={onBack} className="mb-0" />
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-navy">
-              Application process
-            </h1>
-          </div>
-          <CrisisReminder />
-        </div>
-        <img
-          src={APPLICATION_PROCESS_PHOTO}
-          alt=""
-          className="hidden w-52 shrink-0 sm:block md:w-72"
-        />
+      <div className="mb-8 flex items-center gap-1">
+        <BackButton onClick={onBack} className="mb-0" />
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-navy">
+          Application process
+        </h1>
       </div>
       <ProcessFlow
         steps={me.steps}
@@ -259,6 +249,16 @@ export function ProgressScreen({
           if (nextView && canOpenProcessStep(id)) openFromList(nextView);
         }}
       />
+      <div className="mt-12 flex items-center justify-between gap-6">
+        <div className="min-w-0 flex-1">
+          <CrisisReminder />
+        </div>
+        <img
+          src={APPLICATION_PROCESS_PHOTO}
+          alt=""
+          className="hidden w-52 shrink-0 sm:block md:w-72"
+        />
+      </div>
     </div>
   );
 }

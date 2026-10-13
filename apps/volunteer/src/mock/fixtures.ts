@@ -37,6 +37,44 @@ export const JANE_MILLER: VolunteerApplicationStatus = {
         return { ...step, status: 'not_started', youDo: null };
     }
   }),
+  notifications: [
+    {
+      id: 'jane-team-photo',
+      source: 'portal',
+      kind: 'team_note',
+      title: 'Note from the i58 team',
+      body: 'Thanks for your passport details. When you can, add a clear, front-facing photo for your lanyard.',
+      sentAt: '2026-10-12T14:20:00Z',
+      read: false,
+    },
+    {
+      id: 'jane-reference-requested',
+      source: 'email',
+      kind: 'application',
+      title: 'We asked your pastor for a reference',
+      body: 'Your General Information is in. We emailed your pastor and will let you know when the reference arrives.',
+      sentAt: '2026-10-09T16:05:00Z',
+      read: false,
+    },
+    {
+      id: 'jane-passport-done',
+      source: 'portal',
+      kind: 'application',
+      title: 'Passport Details marked done',
+      body: 'Nothing else is needed on this step.',
+      sentAt: '2026-10-05T10:30:00Z',
+      read: true,
+    },
+    {
+      id: 'jane-orientation',
+      source: 'email',
+      kind: 'reminder',
+      title: 'Summer 2026 orientation',
+      body: 'Orientation calls start in the spring. We will email the schedule once it is set.',
+      sentAt: '2026-09-28T13:00:00Z',
+      read: true,
+    },
+  ],
 };
 
 /** Preview-only record after Create account. Not a Monday write. */
@@ -55,5 +93,16 @@ export function previewStatusForNewAccount(input: {
       ...step,
       status: 'not_started' as const,
     })),
+    notifications: [
+      {
+        id: 'welcome',
+        source: 'portal',
+        kind: 'application',
+        title: 'Welcome to the Volunteer Portal',
+        body: 'Start with Getting Started. Messages from the i58 team will show up here.',
+        sentAt: new Date().toISOString(),
+        read: false,
+      },
+    ],
   };
 }

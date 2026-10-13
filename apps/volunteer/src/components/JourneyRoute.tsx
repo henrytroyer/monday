@@ -40,8 +40,8 @@ export function JourneyRoute({
 
   return (
     <section
-      className={`rounded-2xl bg-white shadow-sm ring-1 ring-sand/70 ${
-        compact ? 'p-4' : 'p-5 sm:p-6'
+      className={`relative left-1/2 w-screen -translate-x-1/2 bg-white ${
+        compact ? 'py-4' : 'py-6 sm:py-8'
       } ${onSelectStep ? 'cursor-pointer' : ''}`}
       role={onSelectStep ? 'button' : undefined}
       tabIndex={onSelectStep ? 0 : undefined}
@@ -58,54 +58,53 @@ export function JourneyRoute({
       }
       aria-label={
         arrived
-          ? `Your journey has arrived in ${destination.label}`
-          : `Your journey toward ${destination.label}, ${percent}% of the way`
+          ? `Your application progress: complete, headed to ${destination.label}`
+          : `Your application progress: ${percent}% of the way to ${destination.label}`
       }
     >
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-navy/70">
-          Your journey
-        </p>
+      <div className="mx-auto max-w-5xl px-5">
         <p
           className={`font-display font-semibold text-navy ${
-            compact ? 'mt-1 text-lg' : 'mt-2 text-2xl'
+            compact ? 'text-lg' : 'text-2xl'
           }`}
         >
-          {arrived ? `You’re headed to ${destination.label}` : `Toward ${destination.label}`}
+          Your Application Progress
         </p>
       </div>
 
-      <div className={`relative ${compact ? 'mt-3' : 'mt-4'}`}>
-        <img src={WORLD_MAP} alt="" className="w-full" />
-        <svg
-          viewBox={WORLD_VIEWBOX}
-          className="absolute inset-0 h-full w-full"
-          aria-hidden
-        >
-          <path
-            d={journeyFlightPathD(destination.region)}
-            fill="none"
-            stroke="#c96c39"
-            strokeWidth="1.8"
-            strokeDasharray="5 4"
-            strokeLinecap="round"
-          />
-          <circle cx={start.x} cy={start.y} r="4" fill="#c96c39" />
-          <circle cx={end.x} cy={end.y} r="4" fill="#c96c39" />
-          <g
-            transform={`translate(${plane.x} ${plane.y}) rotate(${plane.angle + 28})`}
-            style={{ transition: 'transform 0.7s ease' }}
+      <div className={`mx-auto max-w-5xl px-5 ${compact ? 'mt-3' : 'mt-4'}`}>
+        <div className="relative">
+          <img src={WORLD_MAP} alt="" className="w-full" />
+          <svg
+            viewBox={WORLD_VIEWBOX}
+            className="absolute inset-0 h-full w-full"
+            aria-hidden
           >
-            <image
-              href={JOURNEY_PLANE}
-              x={-33}
-              y={-14.5}
-              width={66}
-              height={29}
-              preserveAspectRatio="xMidYMid meet"
+            <path
+              d={journeyFlightPathD(destination.region)}
+              fill="none"
+              stroke="#c96c39"
+              strokeWidth="2.8"
+              strokeDasharray="8 7"
+              strokeLinecap="round"
             />
-          </g>
-        </svg>
+            <circle cx={start.x} cy={start.y} r="6.5" fill="#c96c39" />
+            <circle cx={end.x} cy={end.y} r="6.5" fill="#c96c39" />
+            <g
+              transform={`translate(${plane.x} ${plane.y}) rotate(${plane.angle + 28})`}
+              style={{ transition: 'transform 0.7s ease' }}
+            >
+              <image
+                href={JOURNEY_PLANE}
+                x={-54}
+                y={-24}
+                width={108}
+                height={48}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            </g>
+          </svg>
+        </div>
       </div>
     </section>
   );

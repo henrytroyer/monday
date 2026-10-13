@@ -46,6 +46,19 @@ body {
   min-height: 100dvh;
 }
 
+@layer base {
+  button:not(:disabled),
+  [role='button'],
+  a[href],
+  select:not(:disabled),
+  summary,
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='file']:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 @media (max-width: 767px) {
   button,
   a,

@@ -1,12 +1,19 @@
 /**
- * GoogleSignInScreen.tsx — Landing sign-in. Replaces the mock email form.
+ * GoogleSignInScreen.tsx — Landing sign-in. Offers the mock email sign-in
+ * until the Firebase web config is set.
  */
 
 import { useState } from 'react';
 import { readFirebaseWebConfig, signInWithGoogle } from '../identity/firebaseClient.ts';
 import { LandingScreen } from './LandingScreen';
 
-export function GoogleSignInScreen() {
+export function GoogleSignInScreen({
+  onMockSignIn,
+  onMockCreateAccount,
+}: {
+  onMockSignIn: () => void;
+  onMockCreateAccount: () => void;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const configured = readFirebaseWebConfig() != null;
@@ -25,6 +32,8 @@ export function GoogleSignInScreen() {
   return (
     <LandingScreen
       onContinueWithGoogle={() => void handleSignIn()}
+      onMockSignIn={onMockSignIn}
+      onMockCreateAccount={onMockCreateAccount}
       pending={pending}
       error={error}
       configured={configured}

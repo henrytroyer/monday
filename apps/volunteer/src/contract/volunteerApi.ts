@@ -150,6 +150,25 @@ export interface VolunteerGuidelines {
   agreed: boolean;
 }
 
+export type VolunteerNotificationSource = 'email' | 'portal';
+
+export type VolunteerNotificationKind = 'application' | 'team_note' | 'reminder';
+
+/**
+ * A message sent to the volunteer by email or inside the portal.
+ * Volunteer-facing copy only — never staff internal notes.
+ */
+export interface VolunteerNotification {
+  id: string;
+  source: VolunteerNotificationSource;
+  kind: VolunteerNotificationKind;
+  title: string;
+  body: string;
+  /** ISO 8601 timestamp. */
+  sentAt: string;
+  read: boolean;
+}
+
 export interface VolunteerApplicationStatus extends VolunteerIdentity {
   /** Term label (e.g. "Summer 2026"). */
   term: string;
@@ -168,6 +187,7 @@ export interface VolunteerApplicationStatus extends VolunteerIdentity {
   termOfService?: VolunteerTermOfService;
   otherContacts?: VolunteerOtherContacts;
   guidelines?: VolunteerGuidelines;
+  notifications?: VolunteerNotification[];
 }
 
 export type FetchMeResult =

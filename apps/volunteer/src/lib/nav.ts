@@ -29,6 +29,7 @@ export const GREECE_MAP = '/brand/greece-map.png';
 export const GERMANY_MAP = '/brand/germany-map.png';
 export const APPLICATION_PROCESS_PHOTO = '/brand/application-process.png';
 export const WORLD_MAP = '/brand/world-map.png';
+export const HOME_GREETING_BACKDROP = '/brand/greece-backdrop.jpg';
 export const JOURNEY_PLANE = '/brand/journey-plane.png?v=4';
 export const ISAIAH_FOOTER =
   '…to loose the bands of wickedness, to undo the heavy burdens, and let the oppressed go free… to deal bread for the hungry… Isaiah 58:6-7';

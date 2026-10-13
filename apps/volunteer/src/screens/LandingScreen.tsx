@@ -8,11 +8,15 @@ import {
 
 export function LandingScreen({
   onContinueWithGoogle,
+  onMockSignIn,
+  onMockCreateAccount,
   pending = false,
   error = null,
   configured = true,
 }: {
   onContinueWithGoogle: () => void;
+  onMockSignIn: () => void;
+  onMockCreateAccount: () => void;
   pending?: boolean;
   error?: string | null;
   configured?: boolean;
@@ -35,26 +39,48 @@ export function LandingScreen({
             Sign in to track your short-term application, review your steps, and
             open the forms you still need.
           </p>
-          <p className="mt-3 text-xs text-crm-slate">
-            Use the Google account for the email we should keep on your contact
-            record. Your information is only seen by the i58 team.
-          </p>
           {configured ? (
-            <div className="mt-10">
-              <button
-                type="button"
-                onClick={onContinueWithGoogle}
-                disabled={pending}
-                className="min-h-12 rounded-full bg-navy px-10 text-[15px] font-semibold text-white hover:bg-navy-dark disabled:opacity-60"
-              >
-                {pending ? 'Opening Google…' : 'Continue with Google'}
-              </button>
-            </div>
+            <>
+              <p className="mt-3 text-xs text-crm-slate">
+                Use the Google account for the email we should keep on your contact
+                record. Your information is only seen by the i58 team.
+              </p>
+              <div className="mt-10">
+                <button
+                  type="button"
+                  onClick={onContinueWithGoogle}
+                  disabled={pending}
+                  className="min-h-12 rounded-full bg-navy px-10 text-[15px] font-semibold text-white hover:bg-navy-dark disabled:opacity-60"
+                >
+                  {pending ? 'Opening Google…' : 'Continue with Google'}
+                </button>
+              </div>
+            </>
           ) : (
-            <p role="alert" className="mt-10 max-w-xl text-sm text-crm-terracotta">
-              Google sign-in is not configured. Add the i58-finance Firebase web
-              config to apps/volunteer/.env and restart the dev server.
-            </p>
+            <>
+              <p className="mt-3 text-xs text-crm-slate">
+                Your information is only seen by the i58 team.
+              </p>
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={onMockSignIn}
+                  className="min-h-12 rounded-full bg-navy px-10 text-[15px] font-semibold text-white hover:bg-navy-dark"
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={onMockCreateAccount}
+                  className="min-h-12 rounded-full border border-navy bg-white px-10 text-[15px] font-semibold text-navy hover:bg-crm-indigo-50"
+                >
+                  Create account
+                </button>
+              </div>
+              <p className="mt-4 max-w-xl text-xs text-crm-slate">
+                Preview sign-in. Google sign-in replaces this once it is configured.
+              </p>
+            </>
           )}
           {error ? (
             <p role="alert" className="mt-4 max-w-xl text-sm text-crm-terracotta">

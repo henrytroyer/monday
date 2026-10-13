@@ -1,7 +1,47 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { JANE_MILLER, JANE_MILLER_EMAIL } from '../mock/fixtures.ts';
-import { portalStatusForIdentity } from './portalSession.ts';
+import {
+  mockCreateAccount,
+  mockSignIn,
+  portalStatusForIdentity,
+} from './portalSession.ts';
+
+describe('mock sign-in', () => {
+  it('signs Jane in by email, ignoring case and spaces', () => {
+    assert.deepEqual(mockSignIn('  Jane.Miller@Example.com ', {}), JANE_MILLER);
+  });
+
+  it('returns null for an unknown email', () => {
+    assert.equal(mockSignIn('nobody@example.com', {}), null);
+  });
+
+  it('finds an account created earlier in the session', () => {
+    const { me } = mockCreateAccount({ name: 'Sam Rivera', email: 'sam@example.com' }, {});
+    assert.deepEqual(mockSignIn('SAM@example.com', { 'sam@example.com': me }), me);
+  });
+});
+
+describe('mock create account', () => {
+  it('starts a fresh preview application for a new email', () => {
+    const { me, existed } = mockCreateAccount(
+      { name: 'Sam Rivera', email: 'sam@example.com' },
+      {},
+    );
+    assert.equal(existed, false);
+    assert.equal(me.name, 'Sam Rivera');
+    assert.ok(me.steps.every((step) => step.status === 'not_started'));
+  });
+
+  it('signs in instead when the email already has an account', () => {
+    const { me, existed } = mockCreateAccount(
+      { name: 'Someone Else', email: JANE_MILLER_EMAIL },
+      {},
+    );
+    assert.equal(existed, true);
+    assert.deepEqual(me, JANE_MILLER);
+  });
+});
 
 describe('portalStatusForIdentity', () => {
   it('opens Jane’s fixture when her contact is found', () => {

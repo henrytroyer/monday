@@ -17,7 +17,7 @@ export function PortalShell({
   children: ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-dvh flex-col bg-crm-white">
+    <div className="relative flex min-h-dvh flex-col overflow-x-clip bg-crm-white">
       <AppHeader tab={tab} onTabChange={onTabChange} onSignOut={onSignOut} />
       {toast ? (
         <p role="status" className="mx-auto mt-4 w-full max-w-5xl px-5">

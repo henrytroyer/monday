@@ -1,24 +1,26 @@
 import type { JourneyRegion } from './journey';
 
 /** Native pixel size of `/brand/world-map.png`. */
-export const WORLD_WIDTH = 508;
-export const WORLD_HEIGHT = 292;
+export const WORLD_WIDTH = 842;
+export const WORLD_HEIGHT = 440;
 export const WORLD_VIEWBOX = `0 0 ${WORLD_WIDTH} ${WORLD_HEIGHT}`;
 
 type Point = { x: number; y: number };
 
 /** Pins fitted to the stock world-map artwork, not a raw lon/lat projection. */
-export const JOURNEY_START: Point = { x: 132, y: 118 };
+export const JOURNEY_START: Point = { x: 166, y: 192 };
+
+const CENTRAL_EUROPE: Point = { x: 420, y: 160 };
 
 export const JOURNEY_ENDS: Record<JourneyRegion, Point> = {
-  greece: { x: 342, y: 134 },
-  germany: { x: 318, y: 104 },
-  europe: { x: 324, y: 114 },
+  greece: CENTRAL_EUROPE,
+  germany: CENTRAL_EUROPE,
+  europe: CENTRAL_EUROPE,
 };
 
 /** Cubic handles that lift the route over the North Atlantic. */
-export const JOURNEY_CONTROL_A: Point = { x: 188, y: 86 };
-export const JOURNEY_CONTROL_B: Point = { x: 252, y: 70 };
+export const JOURNEY_CONTROL_A: Point = { x: 232, y: 108 };
+export const JOURNEY_CONTROL_B: Point = { x: 336, y: 86 };
 
 export function journeyEndpoint(region: JourneyRegion): Point {
   return JOURNEY_ENDS[region];

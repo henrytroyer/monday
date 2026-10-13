@@ -14,6 +14,7 @@ import {
   GERMANY_MAP,
   APPLICATION_PROCESS_PHOTO,
   WORLD_MAP,
+  HOME_GREETING_BACKDROP,
   JOURNEY_PLANE,
   VOLUNTEER_PORTAL_TITLE,
 } from './nav.ts';
@@ -44,6 +45,7 @@ describe('portal destinations', () => {
     assert.equal(GERMANY_MAP, '/brand/germany-map.png');
     assert.equal(APPLICATION_PROCESS_PHOTO, '/brand/application-process.png');
     assert.equal(WORLD_MAP, '/brand/world-map.png');
+    assert.equal(HOME_GREETING_BACKDROP, '/brand/greece-backdrop.jpg');
     assert.equal(JOURNEY_PLANE, '/brand/journey-plane.png?v=4');
   });
 });

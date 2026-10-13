@@ -12,6 +12,10 @@ asks the person to confirm; yes keeps that contact and stores the Google
 address in Alt Email. Two emails, or several phone matches, stop for a staff
 person and do not merge.
 
+Until the Firebase web config is set in `.env`, the landing shows the mock
+Sign in and Create account buttons instead of Google sign-in. They do not
+touch Monday.
+
 When the contact is found or created, the portal opens. Portal data
 (application steps, forms) is still mock: `jane.miller@example.com` shows the
 mid-pipeline fixture, and any other email starts a fresh preview application.
