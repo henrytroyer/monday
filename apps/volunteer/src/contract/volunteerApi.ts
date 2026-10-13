@@ -7,7 +7,8 @@
  *
  * This folder must not import staff CRM `src/services/`, `src/pages/`, or `server/`.
  * Step ids are copied locally so `apps/volunteer` can leave this repo later.
- * Strings match `src/constants/onboardingPipelineSteps.ts` SHORT_TERM_BASE.
+ * Step ids match `src/constants/onboardingPipelineSteps.ts` SHORT_TERM_BASE,
+ * plus portal-only `guidelines` (not a staff CRM / Monday step).
  */
 
 export const SHORT_TERM_STEP_IDS = [
@@ -20,6 +21,7 @@ export const SHORT_TERM_STEP_IDS = [
   'flight_info',
   'invoice',
   'sent_to_field',
+  'guidelines',
 ] as const;
 
 export type ShortTermStepId = (typeof SHORT_TERM_STEP_IDS)[number];
@@ -42,12 +44,130 @@ export interface VolunteerStep {
   youDo: string | null;
 }
 
+/** Preview-only General Information form. Not a Monday field. */
+export interface VolunteerGeneralInformation {
+  gender: 'male' | 'female' | '';
+  birthdate: string;
+  phone: string;
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+/** Preview-only Passport Details form. Not a Monday field. Local file name only — no upload. */
+export interface VolunteerPassportDetails {
+  photoFileName: string;
+  passportNumber: string;
+  expirationDate: string;
+}
+
+/** Preview-only Profile Photo form. Not a Monday field. Local file name only — no upload. */
+export interface VolunteerProfilePhoto {
+  photoFileName: string;
+}
+
+/** Preview-only History / Skills / Languages form. Not a Monday field. */
+export interface VolunteerHistorySkillsLanguages {
+  medical: string;
+  travelledInternationally: 'yes' | 'no' | '';
+  heardAbout: string[];
+  friendName: string;
+  whyVolunteer: string;
+  testimony: string;
+  occupation: string;
+  skills: string[];
+  otherSkills: string;
+  leadership: 'yes' | 'no' | '';
+  leadershipExperience: string;
+  languages: string[];
+  otherLanguage: string;
+}
+
+/** Preview-only Family Status form. Not a Monday field. */
+export interface VolunteerFamilyStatus {
+  maritalStatus: 'single' | 'dating' | 'engaged' | 'married' | '';
+  childrenComing: 'yes' | 'no' | '';
+  familyMembers: string;
+}
+
+/** Preview-only Spouse Application form. Not a Monday field. */
+export interface VolunteerSpouseApplication {
+  spouseJoining: 'yes' | 'no' | '';
+  name: string;
+  email: string;
+  phone: string;
+  previousVolunteer: 'yes' | 'no' | '';
+  lastTermDate: string;
+  birthdate: string;
+  gender: 'male' | 'female' | '';
+  passportUpdated: 'yes' | 'no' | '';
+  passportPhotoFileName: string;
+  passportNumber: string;
+  passportExpiration: string;
+  updateProfilePhoto: 'yes' | 'no' | '';
+  profilePhotoFileName: string;
+  testimony: string;
+  languages: string[];
+  otherLanguage: string;
+  skills: string[];
+  otherSkills: string;
+  medical: string;
+}
+
+/** Preview-only Term of Service form. Not a Monday field. */
+export interface VolunteerTermOfService {
+  locationPreferences: string[];
+  lengthOfTerm: '3-months' | 'other' | '';
+  otherTerm: string;
+  preferredDates: string;
+  nearbyAirport: string;
+}
+
+/** Preview-only Other Contacts form. Not a Monday field. */
+export interface VolunteerOtherContacts {
+  churchName: string;
+  pastorName: string;
+  pastorEmail: string;
+  pastorPhone: string;
+  parentsNames: string;
+  parentEmail: string;
+  parentPhone: string;
+  emergencyName: string;
+  emergencyEmail: string;
+  emergencyPhone: string;
+  emergencyRelation: string[];
+  accountableName: string;
+  accountableEmail: string;
+  accountablePhone: string;
+  fieldContact: 'yes' | 'no' | '';
+  fieldContactName: string;
+}
+
+/** Preview-only Guidelines agreement. Not a Monday field. */
+export interface VolunteerGuidelines {
+  agreed: boolean;
+}
+
 export interface VolunteerApplicationStatus extends VolunteerIdentity {
   /** Term label (e.g. "Summer 2026"). */
   term: string;
   /** Confirmed assignment, or stated preference if not yet confirmed. */
   location: string;
   steps: VolunteerStep[];
+  /** Set in this preview after Getting Started. Not a Monday field. */
+  firstName?: string;
+  previousVolunteer?: 'yes' | 'no';
+  generalInformation?: VolunteerGeneralInformation;
+  passportDetails?: VolunteerPassportDetails;
+  profilePhoto?: VolunteerProfilePhoto;
+  historySkillsLanguages?: VolunteerHistorySkillsLanguages;
+  familyStatus?: VolunteerFamilyStatus;
+  spouseApplication?: VolunteerSpouseApplication;
+  termOfService?: VolunteerTermOfService;
+  otherContacts?: VolunteerOtherContacts;
+  guidelines?: VolunteerGuidelines;
 }
 
 export type FetchMeResult =
@@ -61,57 +181,63 @@ export type FetchMeResult =
 export const SHORT_TERM_STEP_DEFAULTS: readonly Omit<VolunteerStep, 'status'>[] = [
   {
     id: 'application_received',
-    title: 'Application received',
-    audience: 'system',
-    youDo: null,
+    title: 'Getting Started',
+    audience: 'volunteer',
+    youDo: 'Read what you will need, then continue.',
   },
   {
     id: 'pastor_reference',
-    title: 'Pastor reference',
-    audience: 'system',
-    youDo: 'Name your pastor if you have not already, then wait for their reference.',
+    title: 'General Information',
+    audience: 'volunteer',
+    youDo: 'Complete your volunteer and mailing information.',
   },
   {
     id: 'in_review',
-    title: 'In review',
-    audience: 'system',
-    youDo: null,
+    title: 'Passport Details',
+    audience: 'volunteer',
+    youDo: 'Add your passport photo, number, and expiration date.',
   },
   {
     id: 'background_check',
-    title: 'Background check',
-    audience: 'system',
-    youDo: 'Complete your Sterling background check, or upload a recent report.',
+    title: 'Profile Photo',
+    audience: 'volunteer',
+    youDo: 'Add your ID photo for your lanyard.',
   },
   {
     id: 'child_safeguarding',
-    title: 'Child safeguarding',
-    audience: 'system',
-    youDo: 'Complete Kaya child safeguarding training, or upload your certificate.',
+    title: 'History / Skills / Languages',
+    audience: 'volunteer',
+    youDo: 'Share your history, skills, and languages.',
   },
   {
     id: 'approved',
-    title: 'Approved (dates, checks, and location)',
-    audience: 'system',
-    youDo: null,
+    title: 'Family Status',
+    audience: 'volunteer',
+    youDo: 'Tell us your family status and who is coming with you.',
   },
   {
     id: 'flight_info',
-    title: 'Flight info',
-    audience: 'system',
-    youDo: null,
+    title: 'Spouse Application',
+    audience: 'volunteer',
+    youDo: 'Tell us if a spouse is joining you, then complete their details.',
   },
   {
     id: 'invoice',
-    title: 'Invoice',
-    audience: 'system',
-    youDo: 'Pay your invoice when it is sent.',
+    title: 'Term of Service',
+    audience: 'volunteer',
+    youDo: 'Share your location preference, term length, and travel details.',
   },
   {
     id: 'sent_to_field',
-    title: 'Sent to field',
-    audience: 'staff',
-    youDo: null,
+    title: 'Other Contacts',
+    audience: 'volunteer',
+    youDo: 'Add church, parent, emergency, and accountability contacts.',
+  },
+  {
+    id: 'guidelines',
+    title: 'Guidelines',
+    audience: 'volunteer',
+    youDo: 'Read the guidelines and agree to the rules of conduct.',
   },
 ];
 

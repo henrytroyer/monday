@@ -21,7 +21,7 @@ export const JANE_MILLER: VolunteerApplicationStatus = {
         return {
           ...step,
           status: 'received',
-          youDo: 'Waiting on your pastor. If you have not named them yet, send their name to i58.',
+          youDo: null,
         };
       case 'in_review':
         return { ...step, status: 'complete', youDo: null };
@@ -31,8 +31,29 @@ export const JANE_MILLER: VolunteerApplicationStatus = {
         return { ...step, status: 'not_started' };
       case 'invoice':
         return { ...step, status: 'not_started' };
+      case 'guidelines':
+        return { ...step, status: 'not_started' };
       default:
         return { ...step, status: 'not_started', youDo: null };
     }
   }),
 };
+
+/** Preview-only record after Create account. Not a Monday write. */
+export function previewStatusForNewAccount(input: {
+  name: string;
+  email: string;
+}): VolunteerApplicationStatus {
+  const name = input.name.trim() || 'Volunteer';
+  const email = input.email.trim().toLowerCase();
+  return {
+    name,
+    email,
+    term: 'Term not listed',
+    location: 'Preference not listed',
+    steps: SHORT_TERM_STEP_DEFAULTS.map((step) => ({
+      ...step,
+      status: 'not_started' as const,
+    })),
+  };
+}
