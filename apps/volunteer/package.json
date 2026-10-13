@@ -12,7 +12,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
-    "test": "tsx --test src/mock/volunteerClient.test.ts src/identity/profile.test.ts src/identity/resolveContactIdentity.test.ts src/identity/mondayContactIdentity.test.ts src/identity/firebaseIdToken.test.ts",
+    "test": "tsx --test src/mock/volunteerClient.test.ts src/identity/profile.test.ts src/identity/resolveContactIdentity.test.ts src/identity/mondayContactIdentity.test.ts src/identity/firebaseIdToken.test.ts src/lib/nextAction.test.ts src/lib/nav.test.ts src/lib/journey.test.ts src/lib/processFlow.test.ts src/lib/volunteerGuide.test.ts src/mock/fixtures.test.ts src/process/informationNeeded.test.ts src/process/gettingStarted.test.ts src/process/generalInformation.test.ts src/process/passportDetails.test.ts src/process/profilePhoto.test.ts src/process/historySkillsLanguages.test.ts src/process/familyStatus.test.ts src/process/spouseApplication.test.ts src/process/termOfService.test.ts src/process/otherContacts.test.ts src/process/guidelines.test.ts src/process/previewAccess.test.ts src/lib/portalSession.test.ts",
     "validate": "npm run typecheck && npm test && npm run lint && npm run build",
     "preview": "vite preview"
   },

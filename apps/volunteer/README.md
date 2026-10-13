@@ -1,8 +1,8 @@
-# Volunteer landing
+# Volunteer portal
 
-Google sign-in, a profile form, and find-or-create on the Contacts board.
-The staff CRM stays on http://localhost:4040. This app does not call
-`mondayApiProxy`.
+Google sign-in, a profile form, and find-or-create on the Contacts board,
+then the volunteer portal. The staff CRM stays on http://localhost:4040. This
+app does not call `mondayApiProxy`.
 
 Sign-in uses the i58-finance Firebase project (`signInWithGoogle`). The
 identity service checks that Firebase ID token, then looks up Email and Alt
@@ -12,7 +12,10 @@ asks the person to confirm; yes keeps that contact and stores the Google
 address in Alt Email. Two emails, or several phone matches, stop for a staff
 person and do not merge.
 
-Application status and pastor-reference routing are not in this version.
+When the contact is found or created, the portal opens. Portal data
+(application steps, forms) is still mock: `jane.miller@example.com` shows the
+mid-pipeline fixture, and any other email starts a fresh preview application.
+Application status and pastor-reference routing are not live yet.
 
 ## Run
 
@@ -37,6 +40,13 @@ Open **http://localhost:4050**
 `npm run identity` listens on http://127.0.0.1:4051. Vite proxies
 `/api/volunteer-identity` to it.
 
+## What is in the portal
+
+- Home: next step and the journey map (plane moves from North America toward Europe as steps complete)
+- Short-term: Application process (Getting Started → General Information → Passport Details → Profile Photo → History / Skills / Languages → Family Status → Spouse Application → Term of Service → Other Contacts → Guidelines on the No path)
+- Preview: `PREVIEW_OPEN_ANY_STEP` in `src/process/previewAccess.ts` lets you open any form step from the list. Set it to `false` to restore linear gating.
+- Long-term and Volunteer information pages
+
 ## Production
 
 Deploy `volunteerIdentity` from henrytroyer/i58finance
@@ -53,5 +63,6 @@ volunteer host to Firebase authorized domains.
 | `npm run identity` | Local find-or-create service on :4051 |
 | `npm run typecheck` | Typecheck |
 | `npm run lint` | ESLint |
-| `npm test` | Identity and mock-client tests |
+| `npm test` | Identity, portal, and mock-client tests |
 | `npm run build` | Production build |
+| `npm run validate` | typecheck + test + lint + build |
