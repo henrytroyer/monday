@@ -46,6 +46,8 @@ export const GUIDE_FACTS = [
   },
 ] as const;
 
+export const LOOKING_FOR_TITLE = "Who We're Looking For";
+
 export const GUIDE_VALUES = [
   { title: 'Team-Oriented', detail: 'Collaborating well across diverse cultures' },
   { title: 'Flexible', detail: 'Adaptable in changing refugee camp environments' },

@@ -13,9 +13,9 @@ import type {
   VolunteerTermOfService,
 } from '../contract/volunteerApi';
 import { BackButton } from '../components/BackButton';
-import { CrisisReminder } from '../components/CrisisReminder';
-import { ProcessFlow } from '../components/ProcessFlow';
-import { APPLICATION_PROCESS_PHOTO } from '../lib/nav';
+import { LookingFor } from '../components/LookingFor';
+import { ProcessFlow, ProcessStepControl } from '../components/ProcessFlow';
+import { APPLICATION_PROCESS_HERO, APPLICATION_PROCESS_TITLE } from '../lib/nav';
 import { nextVolunteerAction } from '../lib/nextAction';
 import type { GettingStartedDraft } from '../process/gettingStarted';
 import {
@@ -233,32 +233,68 @@ export function ProgressScreen({
     );
   }
 
+  const featured =
+    me.steps.find((step) => step.id === 'application_received') ?? null;
+  const gridSteps = featured
+    ? me.steps.filter((step) => step.id !== featured.id)
+    : me.steps;
+
+  function openStep(id: ShortTermStepId) {
+    const nextView = previewViewForStep(id);
+    if (nextView && canOpenProcessStep(id)) openFromList(nextView);
+  }
+
   return (
     <div>
-      <div className="mb-8 flex items-center gap-1">
-        <BackButton onClick={onBack} className="mb-0" />
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-navy">
-          Application process
-        </h1>
-      </div>
-      <ProcessFlow
-        steps={me.steps}
-        currentId={next?.id}
-        onOpen={(id) => {
-          const nextView = previewViewForStep(id);
-          if (nextView && canOpenProcessStep(id)) openFromList(nextView);
-        }}
-      />
-      <div className="mt-12 flex items-center justify-between gap-6">
-        <div className="min-w-0 flex-1">
-          <CrisisReminder />
-        </div>
-        <img
-          src={APPLICATION_PROCESS_PHOTO}
-          alt=""
-          className="hidden w-52 shrink-0 sm:block md:w-72"
+      <section className="relative left-1/2 -mt-8 w-screen -translate-x-1/2 overflow-hidden bg-[#d5dde3]">
+        <div
+          aria-hidden
+          className="absolute inset-0 hidden bg-[length:125%_auto] bg-[right_bottom] bg-no-repeat md:block"
+          style={{ backgroundImage: `url(${APPLICATION_PROCESS_HERO})` }}
         />
-      </div>
+        <img
+          src={APPLICATION_PROCESS_HERO}
+          alt=""
+          className="pointer-events-none absolute right-0 bottom-0 w-[320%] max-w-none md:hidden"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-r from-white from-0% via-white/90 via-[38%] to-transparent to-[72%]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-b from-transparent from-10% to-[#d5dde3]"
+        />
+        <div className="relative mx-auto flex min-h-[32rem] max-w-5xl items-end px-5 py-10 md:min-h-[28rem] md:items-center md:py-16">
+          <div className="flex w-full max-w-sm flex-col gap-5">
+            <div className="flex items-center gap-1">
+              <BackButton onClick={onBack} className="mb-0" />
+              <h1 className="font-display text-4xl font-bold tracking-tight text-navy md:text-5xl">
+                {APPLICATION_PROCESS_TITLE}
+              </h1>
+            </div>
+            {featured ? (
+              <ProcessStepControl
+                step={featured}
+                number={1}
+                emphasized
+                onOpen={openStep}
+              />
+            ) : null}
+          </div>
+        </div>
+      </section>
+      <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#d5dde3] py-10">
+        <div className="relative mx-auto max-w-5xl px-5">
+          <ProcessFlow
+            steps={gridSteps}
+            currentId={next?.id}
+            startNumber={featured ? 2 : 1}
+            onOpen={openStep}
+          />
+        </div>
+      </section>
+      <LookingFor />
     </div>
   );
 }

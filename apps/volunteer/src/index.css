@@ -27,6 +27,12 @@
   --color-advise-rose-wash: #fff1f2;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  svg animateTransform {
+    display: none;
+  }
+}
+
 html,
 body,
 #root {

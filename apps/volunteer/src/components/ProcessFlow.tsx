@@ -1,91 +1,120 @@
-import type { ShortTermStepId, VolunteerStep } from '../contract/volunteerApi';
-import { warmerStatusLabel } from '../lib/journey';
 import {
-  processFlowCell,
-  processFlowConnector,
-  processFlowTone,
-  type ProcessFlowTone,
-} from '../lib/processFlow';
+  SHORT_TERM_STEP_DEFAULTS,
+  type ShortTermStepId,
+  type VolunteerStep,
+} from '../contract/volunteerApi';
+import { warmerStatusLabel } from '../lib/journey';
+import { processFlowTone } from '../lib/processFlow';
 import { canOpenProcessStep, previewViewForStep } from '../process/previewAccess';
-
-const TONE_CLASS: Record<ProcessFlowTone, string> = {
-  done: 'bg-[#e7f6ec] text-navy ring-[#b7e0c4]',
-  current: 'bg-[#fff6d8] text-navy ring-[#f0d48a]',
-  todo: 'bg-[#fde8ea] text-navy ring-[#f3c0c6]',
-};
 
 export function ProcessFlow({
   steps,
   currentId,
   onOpen,
+  startNumber = 1,
 }: {
   steps: VolunteerStep[];
   currentId?: ShortTermStepId | null;
   onOpen: (id: ShortTermStepId) => void;
+  startNumber?: number;
 }) {
   return (
-    <ol className="mx-auto flex w-full max-w-4xl flex-col gap-10 md:grid md:grid-cols-3 md:gap-x-10 md:gap-y-10">
+    <ol className="grid w-full grid-cols-1 gap-6 md:grid-cols-3">
       {steps.map((step, index) => {
         const tone = processFlowTone(step, currentId);
-        const openable = canOpenProcessStep(step.id) && Boolean(previewViewForStep(step.id));
-        const { row, col } = processFlowCell(index);
-        const connector = processFlowConnector(index, steps.length);
-        const body = (
-          <article
-            className={`flex min-h-[7.5rem] flex-col items-center justify-center rounded-xl px-4 py-5 text-center shadow-sm ring-1 ${TONE_CLASS[tone]}`}
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-navy/50">
-              {index + 1}
-            </p>
-            <h2 className="mt-1 text-sm font-semibold leading-snug sm:text-[15px]">
-              {step.title}
-            </h2>
-            <p className="mt-2 text-xs text-navy/65">
-              {warmerStatusLabel(step.status, step.audience)}
-            </p>
-          </article>
-        );
-
         return (
-          <li
-            key={step.id}
-            className="relative"
-            style={{ gridColumn: col + 1, gridRow: row + 1 }}
-          >
-            {openable ? (
-              <button type="button" onClick={() => onOpen(step.id)} className="w-full text-left">
-                {body}
-              </button>
-            ) : (
-              body
-            )}
-            {index < steps.length - 1 ? (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -bottom-10 left-1/2 h-10 w-0 -translate-x-1/2 border-l-2 border-dotted border-navy/25 md:hidden"
-              />
-            ) : null}
-            {connector === 'right' ? (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute top-1/2 -right-10 hidden h-0 w-10 border-t-2 border-dotted border-navy/25 md:block"
-              />
-            ) : null}
-            {connector === 'left' ? (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute top-1/2 -left-10 hidden h-0 w-10 border-t-2 border-dotted border-navy/25 md:block"
-              />
-            ) : null}
-            {connector === 'down' ? (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -bottom-10 left-1/2 hidden h-10 w-0 -translate-x-1/2 border-l-2 border-dotted border-navy/25 md:block"
-              />
-            ) : null}
+          <li key={step.id} className="flex">
+            <ProcessStepControl
+              step={step}
+              number={startNumber + index}
+              emphasized={tone === 'current'}
+              onOpen={onOpen}
+            />
           </li>
         );
       })}
     </ol>
+  );
+}
+
+export function ProcessStepControl({
+  step,
+  number,
+  emphasized = false,
+  onOpen,
+}: {
+  step: VolunteerStep;
+  number: number;
+  emphasized?: boolean;
+  onOpen: (id: ShortTermStepId) => void;
+}) {
+  const openable =
+    canOpenProcessStep(step.id) && Boolean(previewViewForStep(step.id));
+  const card = (
+    <ProcessStepCard step={step} number={number} emphasized={emphasized} />
+  );
+  if (!openable) return card;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(step.id)}
+      className="flex h-full w-full text-left"
+    >
+      {card}
+    </button>
+  );
+}
+
+function ProcessStepCard({
+  step,
+  number,
+  emphasized,
+}: {
+  step: VolunteerStep;
+  number: number;
+  emphasized: boolean;
+}) {
+  const bodyCopy = stepCopy(step);
+  return (
+    <article
+      className={`flex h-full w-full flex-col rounded-2xl bg-white p-6 shadow-[0_8px_24px_rgba(27,54,93,0.08)] ${
+        emphasized ? 'ring-2 ring-navy/40' : ''
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-crm-terracotta text-sm font-semibold text-white">
+          {step.status === 'complete' ? <CheckIcon /> : number}
+        </span>
+        <h2 className="font-display text-xl font-bold leading-snug text-navy">
+          {step.title}
+        </h2>
+      </div>
+      {bodyCopy ? (
+        <p className="mt-4 text-[0.95rem] leading-relaxed text-navy">{bodyCopy}</p>
+      ) : null}
+      <p className="mt-auto pt-4 text-sm text-navy/70">
+        {warmerStatusLabel(step.status, step.audience)}
+      </p>
+    </article>
+  );
+}
+
+function stepCopy(step: VolunteerStep): string | null {
+  if (step.youDo) return step.youDo;
+  return SHORT_TERM_STEP_DEFAULTS.find((item) => item.id === step.id)?.youDo ?? null;
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 12.5 9.5 17 19 7"
+      />
+    </svg>
   );
 }

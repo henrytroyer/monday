@@ -1,10 +1,12 @@
 import type {
+  ShortTermStepId,
   VolunteerApplicationStatus,
   VolunteerStep,
   VolunteerStepAudience,
   VolunteerStepStatus,
 } from '../contract/volunteerApi';
 import { nextVolunteerAction } from './nextAction';
+import { GERMANY_GREETING_BACKDROP, HOME_GREETING_BACKDROP } from './nav';
 
 export type JourneyRegion = 'greece' | 'germany' | 'europe';
 
@@ -47,6 +49,82 @@ export function journeyDestination(
   if (fromPrefs) return fromPrefs;
 
   return { label: 'Europe', region: 'europe' };
+}
+
+/** Greece photo until a Germany assignment or preference is the place they are going. */
+export function greetingBackdrop(region: JourneyRegion): string {
+  return region === 'germany' ? GERMANY_GREETING_BACKDROP : HOME_GREETING_BACKDROP;
+}
+
+export const APPLICATION_PHASES = [
+  {
+    id: 'about-you',
+    title: 'Your info',
+    stepIds: [
+      'application_received',
+      'pastor_reference',
+      'in_review',
+      'background_check',
+    ],
+  },
+  {
+    id: 'your-story',
+    title: 'Your story',
+    stepIds: ['child_safeguarding', 'approved', 'flight_info'],
+  },
+  {
+    id: 'your-service',
+    title: 'Your service',
+    stepIds: ['invoice', 'sent_to_field', 'guidelines'],
+  },
+] as const satisfies readonly {
+  id: string;
+  title: string;
+  stepIds: readonly ShortTermStepId[];
+}[];
+
+export type ApplicationPhaseTone = 'done' | 'active' | 'upcoming';
+
+export interface ApplicationPhaseProgress {
+  id: (typeof APPLICATION_PHASES)[number]['id'];
+  title: string;
+  tone: ApplicationPhaseTone;
+  done: number;
+  total: number;
+}
+
+export function applicationPhaseProgress(me: VolunteerApplicationStatus): {
+  phases: ApplicationPhaseProgress[];
+  serviceComplete: boolean;
+} {
+  const phases = APPLICATION_PHASES.map((phase) => {
+    const done = phase.stepIds.filter((id) => stepIsComplete(me, id)).length;
+    return {
+      id: phase.id,
+      title: phase.title,
+      tone: 'upcoming' as ApplicationPhaseTone,
+      done,
+      total: phase.stepIds.length,
+    };
+  });
+  const activeIndex = phases.findIndex((phase) => phase.done < phase.total);
+  if (activeIndex === -1) {
+    return {
+      phases: phases.map((phase) => ({ ...phase, tone: 'done' as const })),
+      serviceComplete: true,
+    };
+  }
+  return {
+    phases: phases.map((phase, index) => ({
+      ...phase,
+      tone: index < activeIndex ? 'done' : index === activeIndex ? 'active' : 'upcoming',
+    })),
+    serviceComplete: false,
+  };
+}
+
+function stepIsComplete(me: VolunteerApplicationStatus, id: ShortTermStepId): boolean {
+  return me.steps.find((step) => step.id === id)?.status === 'complete';
 }
 
 export function warmerStatusLabel(
