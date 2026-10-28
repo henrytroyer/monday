@@ -46,10 +46,9 @@ Open **http://localhost:4050**
 
 ## What is in the portal
 
-- Home: next step and the journey map (plane moves from North America toward Europe as steps complete)
-- Short-term: Application process (Getting Started → General Information → Passport Details → Profile Photo → History / Skills / Languages → Family Status → Spouse Application → Term of Service → Other Contacts → Guidelines on the No path)
-- Preview: `PREVIEW_OPEN_ANY_STEP` in `src/process/previewAccess.ts` lets you open any form step from the list. Set it to `false` to restore linear gating.
-- Long-term and Volunteer information pages
+- Home: next step, and ten application bubbles (Getting Started through Guidelines). A started step fills with blue water, and a submitted step fills the bubble. Click a bubble to open that form.
+- Steps open in order. The next form stays closed until the one before it is submitted.
+- My Info: what to expect, plus your personal record
 
 ## Production
 

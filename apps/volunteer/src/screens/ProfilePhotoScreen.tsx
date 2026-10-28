@@ -1,4 +1,5 @@
 import { useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerProfilePhoto,
@@ -21,10 +22,12 @@ import {
 export function ProfilePhotoScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerProfilePhoto) => void;
   onNext: (draft: VolunteerProfilePhoto) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,6 +36,7 @@ export function ProfilePhotoScreen({
   );
   const [dragging, setDragging] = useState(false);
   const allowNext = isProfilePhotoComplete(draft);
+  useSaveOnExit(draft, onSave);
 
   function takeFile(file: File | undefined) {
     if (!file) return;

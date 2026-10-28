@@ -20,7 +20,7 @@ export function VolunteerInfoScreen({
     <div className="pb-20">
       <BackButton onClick={onBack} />
       <PageHeader
-        eyebrow="Volunteer"
+        eyebrow="My Info"
         title="What to expect"
         description="Facts for the field, plus your personal record."
       />

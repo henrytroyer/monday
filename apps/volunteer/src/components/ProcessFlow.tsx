@@ -26,6 +26,7 @@ export function ProcessFlow({
           <li key={step.id} className="flex">
             <ProcessStepControl
               step={step}
+              steps={steps}
               number={startNumber + index}
               emphasized={tone === 'current'}
               onOpen={onOpen}
@@ -39,17 +40,19 @@ export function ProcessFlow({
 
 export function ProcessStepControl({
   step,
+  steps,
   number,
   emphasized = false,
   onOpen,
 }: {
   step: VolunteerStep;
+  steps: readonly VolunteerStep[];
   number: number;
   emphasized?: boolean;
   onOpen: (id: ShortTermStepId) => void;
 }) {
   const openable =
-    canOpenProcessStep(step.id) && Boolean(previewViewForStep(step.id));
+    canOpenProcessStep(step.id, steps) && Boolean(previewViewForStep(step.id));
   const card = (
     <ProcessStepCard step={step} number={number} emphasized={emphasized} />
   );

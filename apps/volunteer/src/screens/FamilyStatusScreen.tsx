@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerFamilyStatus,
@@ -21,16 +22,19 @@ import {
 export function FamilyStatusScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerFamilyStatus) => void;
   onNext: (draft: VolunteerFamilyStatus) => void;
 }) {
   const [draft, setDraft] = useState<VolunteerFamilyStatus>(
     () => me.familyStatus ?? emptyFamilyStatus(),
   );
   const allowNext = isFamilyStatusComplete(draft);
+  useSaveOnExit(draft, onSave);
   const requireFamilyMembers = draft.childrenComing === 'yes';
 
   function patch<K extends keyof VolunteerFamilyStatus>(

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type {
   ShortTermStepId,
   VolunteerApplicationStatus,
+  VolunteerApplicationUpdate,
   VolunteerFamilyStatus,
   VolunteerGeneralInformation,
   VolunteerGuidelines,
@@ -12,16 +13,8 @@ import type {
   VolunteerSpouseApplication,
   VolunteerTermOfService,
 } from '../contract/volunteerApi';
-import { BackButton } from '../components/BackButton';
-import { LookingFor } from '../components/LookingFor';
-import { ProcessFlow, ProcessStepControl } from '../components/ProcessFlow';
-import { APPLICATION_PROCESS_HERO, APPLICATION_PROCESS_TITLE } from '../lib/nav';
-import { nextVolunteerAction } from '../lib/nextAction';
 import type { GettingStartedDraft } from '../process/gettingStarted';
-import {
-  canOpenProcessStep,
-  previewViewForStep,
-} from '../process/previewAccess';
+import { previewViewForStep } from '../process/previewAccess';
 import { InformationNeededScreen } from './InformationNeededScreen';
 import { GettingStartedScreen } from './GettingStartedScreen';
 import { GeneralInformationScreen } from './GeneralInformationScreen';
@@ -56,7 +49,7 @@ export function ProgressScreen({
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
-  onUpdateMe: (next: VolunteerApplicationStatus) => void;
+  onUpdateMe: (next: VolunteerApplicationUpdate) => void;
   initialStepId?: ShortTermStepId | null;
 }) {
   const [view, setView] = useState<ProcessView>(() => {
@@ -64,22 +57,21 @@ export function ProgressScreen({
     return previewViewForStep(initialStepId) ?? 'list';
   });
   const [openedFromList, setOpenedFromList] = useState(Boolean(initialStepId));
-  const next = nextVolunteerAction(me);
-
-  function openFromList(nextView: ProcessView) {
-    setOpenedFromList(true);
-    setView(nextView);
-  }
 
   function goTo(nextView: ProcessView) {
     setOpenedFromList(false);
     setView(nextView);
   }
 
+  function returnHomeOr(previous: ProcessView) {
+    if (openedFromList) onBack();
+    else setView(previous);
+  }
+
   if (view === 'advice') {
     return (
       <InformationNeededScreen
-        onBack={() => setView('list')}
+        onBack={onBack}
         onContinue={() => setView('getting-started')}
       />
     );
@@ -90,6 +82,9 @@ export function ProgressScreen({
       <GettingStartedScreen
         me={me}
         onBack={() => setView('advice')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, gettingStarted: draft }))
+        }
         onNext={(draft) => {
           onUpdateMe(applyGettingStarted(me, draft));
           goTo('general-information');
@@ -102,8 +97,9 @@ export function ProgressScreen({
     return (
       <GeneralInformationScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'getting-started')
+        onBack={() => returnHomeOr('getting-started')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, generalInformation: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyGeneralInformation(me, draft));
@@ -117,8 +113,9 @@ export function ProgressScreen({
     return (
       <PassportDetailsScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'general-information')
+        onBack={() => returnHomeOr('general-information')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, passportDetails: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyPassportDetails(me, draft));
@@ -132,8 +129,9 @@ export function ProgressScreen({
     return (
       <ProfilePhotoScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'passport-details')
+        onBack={() => returnHomeOr('passport-details')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, profilePhoto: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyProfilePhoto(me, draft));
@@ -147,8 +145,12 @@ export function ProgressScreen({
     return (
       <HistorySkillsLanguagesScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'profile-photo')
+        onBack={() => returnHomeOr('profile-photo')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({
+            ...current,
+            historySkillsLanguages: draft,
+          }))
         }
         onNext={(draft) => {
           onUpdateMe(applyHistorySkillsLanguages(me, draft));
@@ -162,8 +164,9 @@ export function ProgressScreen({
     return (
       <FamilyStatusScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'history-skills-languages')
+        onBack={() => returnHomeOr('history-skills-languages')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, familyStatus: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyFamilyStatus(me, draft));
@@ -177,8 +180,9 @@ export function ProgressScreen({
     return (
       <SpouseApplicationScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'family-status')
+        onBack={() => returnHomeOr('family-status')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, spouseApplication: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applySpouseApplication(me, draft));
@@ -192,8 +196,9 @@ export function ProgressScreen({
     return (
       <TermOfServiceScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'spouse-application')
+        onBack={() => returnHomeOr('spouse-application')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, termOfService: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyTermOfService(me, draft));
@@ -207,8 +212,9 @@ export function ProgressScreen({
     return (
       <OtherContactsScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'term-of-service')
+        onBack={() => returnHomeOr('term-of-service')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, otherContacts: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyOtherContacts(me, draft));
@@ -222,81 +228,19 @@ export function ProgressScreen({
     return (
       <GuidelinesScreen
         me={me}
-        onBack={() =>
-          setView(openedFromList ? 'list' : 'other-contacts')
+        onBack={() => returnHomeOr('other-contacts')}
+        onSave={(draft) =>
+          onUpdateMe((current) => ({ ...current, guidelines: draft }))
         }
         onSubmit={(draft) => {
           onUpdateMe(applyGuidelines(me, draft));
         }}
-        onFinished={() => setView('list')}
+        onFinished={onBack}
       />
     );
   }
 
-  const featured =
-    me.steps.find((step) => step.id === 'application_received') ?? null;
-  const gridSteps = featured
-    ? me.steps.filter((step) => step.id !== featured.id)
-    : me.steps;
-
-  function openStep(id: ShortTermStepId) {
-    const nextView = previewViewForStep(id);
-    if (nextView && canOpenProcessStep(id)) openFromList(nextView);
-  }
-
-  return (
-    <div>
-      <section className="relative left-1/2 -mt-8 w-screen -translate-x-1/2 overflow-hidden bg-[#d5dde3]">
-        <div
-          aria-hidden
-          className="absolute inset-0 hidden bg-[length:125%_auto] bg-[right_bottom] bg-no-repeat md:block"
-          style={{ backgroundImage: `url(${APPLICATION_PROCESS_HERO})` }}
-        />
-        <img
-          src={APPLICATION_PROCESS_HERO}
-          alt=""
-          className="pointer-events-none absolute right-0 bottom-0 w-[320%] max-w-none md:hidden"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-r from-white from-0% via-white/90 via-[38%] to-transparent to-[72%]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-b from-transparent from-10% to-[#d5dde3]"
-        />
-        <div className="relative mx-auto flex min-h-[32rem] max-w-5xl items-end px-5 py-10 md:min-h-[28rem] md:items-center md:py-16">
-          <div className="flex w-full max-w-sm flex-col gap-5">
-            <div className="flex items-center gap-1">
-              <BackButton onClick={onBack} className="mb-0" />
-              <h1 className="font-display text-4xl font-bold tracking-tight text-navy md:text-5xl">
-                {APPLICATION_PROCESS_TITLE}
-              </h1>
-            </div>
-            {featured ? (
-              <ProcessStepControl
-                step={featured}
-                number={1}
-                emphasized
-                onOpen={openStep}
-              />
-            ) : null}
-          </div>
-        </div>
-      </section>
-      <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#d5dde3] py-10">
-        <div className="relative mx-auto max-w-5xl px-5">
-          <ProcessFlow
-            steps={gridSteps}
-            currentId={next?.id}
-            startNumber={featured ? 2 : 1}
-            onOpen={openStep}
-          />
-        </div>
-      </section>
-      <LookingFor />
-    </div>
-  );
+  return null;
 }
 
 function applyGettingStarted(

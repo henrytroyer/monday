@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerHistorySkillsLanguages,
@@ -40,16 +41,19 @@ import {
 export function HistorySkillsLanguagesScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerHistorySkillsLanguages) => void;
   onNext: (draft: VolunteerHistorySkillsLanguages) => void;
 }) {
   const [draft, setDraft] = useState<VolunteerHistorySkillsLanguages>(
     () => me.historySkillsLanguages ?? emptyHistorySkillsLanguages(),
   );
   const allowNext = isHistorySkillsLanguagesComplete(draft);
+  useSaveOnExit(draft, onSave);
   const requireReferralName = needsReferralName(draft.heardAbout);
   const requireOtherSkills = draft.skills.includes('Other');
   const requireLeadershipExperience = draft.leadership === 'yes';

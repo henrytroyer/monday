@@ -1,4 +1,5 @@
 import { useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerPassportDetails,
@@ -22,10 +23,12 @@ import {
 export function PassportDetailsScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerPassportDetails) => void;
   onNext: (draft: VolunteerPassportDetails) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,6 +37,7 @@ export function PassportDetailsScreen({
   );
   const [dragging, setDragging] = useState(false);
   const allowNext = isPassportDetailsComplete(draft);
+  useSaveOnExit(draft, onSave);
 
   function patch<K extends keyof VolunteerPassportDetails>(
     key: K,

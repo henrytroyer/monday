@@ -4,11 +4,12 @@
  * web config is set, the landing offers the mock email sign-in instead.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import type {
   ShortTermStepId,
   VolunteerApplicationStatus,
+  VolunteerApplicationUpdate,
 } from './contract/volunteerApi';
 import { submitVolunteerProfile } from './identity/identityClient.ts';
 import type { IdentityResult } from './identity/identityClient.ts';
@@ -18,11 +19,12 @@ import {
 } from './identity/firebaseClient.ts';
 import type { VolunteerProfile } from './identity/profile.ts';
 import { PortalShell } from './components/PortalShell';
-import type { PortalDestination, PortalTab, ShortTermView } from './lib/nav';
+import type { PortalDestination, PortalTab } from './lib/nav';
 import {
   mockCreateAccount,
   mockSignIn,
   portalStatusForIdentity,
+  showWelcomeHome,
   type MockPreviews,
 } from './lib/portalSession';
 import { GoogleSignInScreen } from './screens/GoogleSignInScreen.tsx';
@@ -32,10 +34,11 @@ import { NotFoundScreen } from './screens/NotFoundScreen';
 import { IdentityResultScreen } from './screens/IdentityResultScreen.tsx';
 import { ProfileScreen } from './screens/ProfileScreen.tsx';
 import { HomeScreen } from './screens/HomeScreen';
+import { canOpenProcessStep } from './process/previewAccess';
 import { ProgressScreen } from './screens/ProgressScreen';
-import { DocumentsScreen } from './screens/DocumentsScreen';
-import { LongTermScreen } from './screens/LongTermScreen';
 import { VolunteerInfoScreen } from './screens/VolunteerInfoScreen';
+
+type PortalScreen = PortalTab | 'application';
 
 type MockGuestView = 'landing' | 'sign_in' | 'create_account' | 'not_found';
 
@@ -47,30 +50,32 @@ export default function App() {
   const [result, setResult] = useState<IdentityResult | null>(null);
   const [profile, setProfile] = useState<VolunteerProfile | null>(null);
   const [me, setMe] = useState<VolunteerApplicationStatus | null>(null);
-  const [tab, setTab] = useState<PortalTab>('home');
-  const [shortTermView, setShortTermView] = useState<ShortTermView>('progress');
+  const meRef = useRef(me);
+  meRef.current = me;
+  const [tab, setTab] = useState<PortalScreen>('home');
   const [processFocus, setProcessFocus] = useState<ShortTermStepId | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [guestView, setGuestView] = useState<MockGuestView>('landing');
   const [unknownEmail, setUnknownEmail] = useState('');
   const [mockPreviews, setMockPreviews] = useState<MockPreviews>({});
+  const [notificationsOpen, setNotificationsOpen] = useState(true);
 
   function resetPortal() {
     setMe(null);
     setTab('home');
-    setShortTermView('progress');
     setProcessFocus(null);
     setToast(null);
     setGuestView('landing');
     setUnknownEmail('');
+    setNotificationsOpen(true);
   }
 
   function enterPortal(next: VolunteerApplicationStatus, message: string | null = null) {
     setMe(next);
     setTab('home');
-    setShortTermView('progress');
     setProcessFocus(null);
     setToast(message);
+    setNotificationsOpen(true);
   }
 
   function rememberPreview(next: VolunteerApplicationStatus) {
@@ -97,7 +102,11 @@ export default function App() {
     );
   }
 
-  function handleUpdateMe(next: VolunteerApplicationStatus) {
+  function handleUpdateMe(update: VolunteerApplicationUpdate) {
+    const current = meRef.current;
+    if (!current) return;
+    const next = typeof update === 'function' ? update(current) : update;
+    meRef.current = next;
     if (!user) rememberPreview(next);
     setMe(next);
   }
@@ -160,13 +169,14 @@ export default function App() {
   }
 
   function handleGoTo(destination: PortalDestination) {
-    setTab(destination.tab);
-    if (destination.tab === 'short-term') {
-      setShortTermView(destination.view ?? 'progress');
-      if (!destination.view) {
-        setProcessFocus(null);
-      }
+    if (destination.tab === 'application') {
+      if (!me || !canOpenProcessStep(destination.step, me.steps)) return;
+      setTab('application');
+      setProcessFocus(destination.step);
+      return;
     }
+    setProcessFocus(null);
+    setTab(destination.tab);
   }
 
   if (!authReady) {
@@ -180,32 +190,32 @@ export default function App() {
   if (me) {
     return (
       <PortalShell
-        tab={tab}
+        tab={tab === 'application' ? 'home' : tab}
         onTabChange={(next) => handleGoTo({ tab: next })}
         onSignOut={() => void handleSignOut()}
         toast={toast}
+        footerTone={tab === 'home' && showWelcomeHome(me) ? 'white' : 'soft'}
       >
-        {tab === 'home' ? <HomeScreen me={me} onGoTo={handleGoTo} /> : null}
-        {tab === 'volunteer' ? (
-          <VolunteerInfoScreen me={me} onBack={() => setTab('home')} />
-        ) : null}
-        {tab === 'long-term' ? (
-          <LongTermScreen me={me} onBack={() => setTab('home')} />
-        ) : null}
-        {tab === 'short-term' && shortTermView === 'progress' ? (
-          <ProgressScreen
-            key={processFocus ?? 'list'}
+        {tab === 'home' ? (
+          <HomeScreen
             me={me}
-            initialStepId={processFocus}
-            onBack={() => {
-              setProcessFocus(null);
-              setTab('home');
-            }}
+            notificationsOpen={notificationsOpen}
+            onNotificationsOpenChange={setNotificationsOpen}
+            onGoTo={handleGoTo}
             onUpdateMe={handleUpdateMe}
           />
         ) : null}
-        {tab === 'short-term' && shortTermView === 'documents' ? (
-          <DocumentsScreen me={me} onBack={() => setTab('home')} />
+        {tab === 'volunteer' ? (
+          <VolunteerInfoScreen me={me} onBack={() => handleGoTo({ tab: 'home' })} />
+        ) : null}
+        {tab === 'application' && processFocus ? (
+          <ProgressScreen
+            key={processFocus}
+            me={me}
+            initialStepId={processFocus}
+            onBack={() => handleGoTo({ tab: 'home' })}
+            onUpdateMe={handleUpdateMe}
+          />
         ) : null}
       </PortalShell>
     );

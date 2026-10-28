@@ -36,6 +36,12 @@ export function mockCreateAccount(
  * fixture, anyone else starts a fresh preview application.
  * Returns null while the contact still needs confirmation or a staff person.
  */
+/** Plain Hello page until they open the first application step. */
+export function showWelcomeHome(me: VolunteerApplicationStatus): boolean {
+  if (me.applicationStarted) return false;
+  return me.steps.every((step) => step.status === 'not_started');
+}
+
 export function portalStatusForIdentity(
   result: IdentityResult,
 ): VolunteerApplicationStatus | null {

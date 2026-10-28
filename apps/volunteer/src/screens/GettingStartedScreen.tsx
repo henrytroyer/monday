@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type InputHTMLAttributes } from 'react';
 import type { VolunteerApplicationStatus } from '../contract/volunteerApi';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import { BackButton } from '../components/BackButton';
 import { FormCard } from '../components/FormCard';
 import {
@@ -22,20 +23,23 @@ import {
 export function GettingStartedScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: GettingStartedDraft) => void;
   onNext: (draft: GettingStartedDraft & { previousVolunteer: 'no' }) => void;
 }) {
-  const [fullName, setFullName] = useState(me.name);
+  const saved = me.gettingStarted;
+  const [fullName, setFullName] = useState(saved?.fullName ?? me.name);
   const [firstName, setFirstName] = useState(
-    me.firstName ?? firstNameFrom(me.name),
+    saved?.firstName ?? me.firstName ?? firstNameFrom(me.name),
   );
-  const [email, setEmail] = useState(me.email);
+  const [email, setEmail] = useState(saved?.email ?? me.email);
   const [previousVolunteer, setPreviousVolunteer] = useState<
     GettingStartedDraft['previousVolunteer']
-  >(me.previousVolunteer ?? '');
+  >(saved?.previousVolunteer ?? me.previousVolunteer ?? '');
 
   const draft: GettingStartedDraft = {
     fullName,
@@ -44,6 +48,7 @@ export function GettingStartedScreen({
     previousVolunteer,
   };
   const allowNoNext = canContinueNoPath(draft);
+  useSaveOnExit(draft, onSave);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

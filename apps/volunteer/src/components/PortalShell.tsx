@@ -8,12 +8,14 @@ export function PortalShell({
   onTabChange,
   onSignOut,
   toast,
+  footerTone = 'soft',
   children,
 }: {
   tab: PortalTab;
   onTabChange: (next: PortalTab) => void;
   onSignOut: () => void;
   toast?: string | null;
+  footerTone?: 'soft' | 'white';
   children: ReactNode;
 }) {
   return (
@@ -27,7 +29,7 @@ export function PortalShell({
         </p>
       ) : null}
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">{children}</main>
-      <SiteFooter />
+      <SiteFooter tone={footerTone} />
     </div>
   );
 }

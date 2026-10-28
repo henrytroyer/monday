@@ -26,6 +26,25 @@ export const SHORT_TERM_STEP_IDS = [
 
 export type ShortTermStepId = (typeof SHORT_TERM_STEP_IDS)[number];
 
+/**
+ * Post-submit timeline. Separate from the application form steps.
+ * Staff can mark a step received later. Not a Monday field in this preview.
+ */
+export const ONBOARDING_STEP_IDS = [
+  'application_received_post',
+  'pastor_reference_sent',
+  'pastor_reference_received',
+  'background_check_sent',
+  'acceptance',
+  'safeguarding_certificate',
+  'chat_groups',
+  'flights',
+  'team_training',
+  'final_checklist',
+] as const;
+
+export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number];
+
 export type VolunteerStepStatus = 'not_started' | 'waiting' | 'received' | 'complete';
 
 export type VolunteerStepAudience = 'volunteer' | 'staff' | 'system';
@@ -42,6 +61,12 @@ export interface VolunteerStep {
   audience: VolunteerStepAudience;
   /** Volunteer-facing next action, or null when there is nothing for them to do. */
   youDo: string | null;
+}
+
+export interface OnboardingStep {
+  id: OnboardingStepId;
+  title: string;
+  status: VolunteerStepStatus;
 }
 
 /** Preview-only General Information form. Not a Monday field. */
@@ -175,6 +200,18 @@ export interface VolunteerApplicationStatus extends VolunteerIdentity {
   /** Confirmed assignment, or stated preference if not yet confirmed. */
   location: string;
   steps: VolunteerStep[];
+  /**
+   * Set when the volunteer opens the first application step.
+   * Not a Monday field. Keeps the progress Home after they leave that step.
+   */
+  applicationStarted?: boolean;
+  /** Saved when the volunteer leaves Getting Started before Next. Not a Monday field. */
+  gettingStarted?: {
+    fullName: string;
+    firstName: string;
+    email: string;
+    previousVolunteer: 'yes' | 'no' | '';
+  };
   /** Set in this preview after Getting Started. Not a Monday field. */
   firstName?: string;
   previousVolunteer?: 'yes' | 'no';
@@ -188,7 +225,28 @@ export interface VolunteerApplicationStatus extends VolunteerIdentity {
   otherContacts?: VolunteerOtherContacts;
   guidelines?: VolunteerGuidelines;
   notifications?: VolunteerNotification[];
+  /**
+   * Set when the volunteer clicks "Continue to the next steps" after submit.
+   * Not a Monday field. Keeps the post-submit timeline after they leave Home.
+   */
+  onboardingRevealed?: boolean;
+  /** Post-submit timeline statuses. Missing steps stay not started. */
+  onboardingSteps?: OnboardingStep[];
+  /**
+   * Ids checked on the Final check-list. Not a Monday field.
+   * A reload clears them.
+   */
+  finalChecklistChecked?: readonly string[];
+  /**
+   * Set when the volunteer clicks "CLICK ME once you arrive in Europe!".
+   * Not a Monday field. A reload clears it.
+   */
+  arrivedInEurope?: boolean;
 }
+
+export type VolunteerApplicationUpdate =
+  | VolunteerApplicationStatus
+  | ((current: VolunteerApplicationStatus) => VolunteerApplicationStatus);
 
 export type FetchMeResult =
   | { status: 'ok'; me: VolunteerApplicationStatus }
@@ -259,6 +317,19 @@ export const SHORT_TERM_STEP_DEFAULTS: readonly Omit<VolunteerStep, 'status'>[] 
     audience: 'volunteer',
     youDo: 'Read the guidelines and agree to the rules of conduct.',
   },
+];
+
+export const ONBOARDING_STEP_DEFAULTS: readonly Omit<OnboardingStep, 'status'>[] = [
+  { id: 'application_received_post', title: 'Application received' },
+  { id: 'pastor_reference_sent', title: 'Pastor reference sent' },
+  { id: 'pastor_reference_received', title: 'Pastor reference received' },
+  { id: 'background_check_sent', title: 'Background check' },
+  { id: 'acceptance', title: 'Acceptance' },
+  { id: 'safeguarding_certificate', title: 'Safeguarding certificate' },
+  { id: 'chat_groups', title: 'Chat groups' },
+  { id: 'flights', title: 'Flights' },
+  { id: 'team_training', title: 'Team Training' },
+  { id: 'final_checklist', title: 'Final check-list' },
 ];
 
 /**

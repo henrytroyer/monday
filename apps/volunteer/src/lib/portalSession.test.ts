@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { JANE_MILLER, JANE_MILLER_EMAIL } from '../mock/fixtures.ts';
+import { JANE_MILLER, JANE_MILLER_EMAIL, previewStatusForNewAccount } from '../mock/fixtures.ts';
 import {
   mockCreateAccount,
   mockSignIn,
   portalStatusForIdentity,
+  showWelcomeHome,
 } from './portalSession.ts';
 
 describe('mock sign-in', () => {
@@ -83,5 +84,21 @@ describe('portalStatusForIdentity', () => {
       }),
       null,
     );
+  });
+});
+
+describe('showWelcomeHome', () => {
+  it('greets a new account that has not opened the first step', () => {
+    const me = previewStatusForNewAccount({ name: 'Sam Rivera', email: 'sam@example.com' });
+    assert.equal(showWelcomeHome(me), true);
+  });
+
+  it('keeps Jane on the progress Home', () => {
+    assert.equal(showWelcomeHome(JANE_MILLER), false);
+  });
+
+  it('uses the progress Home once the first step has been opened', () => {
+    const me = previewStatusForNewAccount({ name: 'Sam Rivera', email: 'sam@example.com' });
+    assert.equal(showWelcomeHome({ ...me, applicationStarted: true }), false);
   });
 });

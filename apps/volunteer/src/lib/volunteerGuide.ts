@@ -79,35 +79,3 @@ export const GUIDE_TESTIMONIAL = {
     'Being with you gave me hope again. I learned a lot from you and came to the conclusion that no matter how badly the world has treated us, there are still people who remind us that we are humanity.',
   attribution: 'Refugee on Lesvos',
 };
-
-export const LONG_TERM_INTRO =
-  'Long-term volunteers offer presence, consistency, and relationships over a year or more, serving alongside teams in Greece or Germany.';
-
-export const LONG_TERM_PATHS = [
-  {
-    title: 'Long-term in Greece',
-    detail: 'Lesvos and Malakasa — camp support, community centers, and hospitality.',
-  },
-  {
-    title: 'Long-term in Germany',
-    detail: 'Neustadt and Taunusstein — accompaniment, language, and spiritual care.',
-  },
-  {
-    title: 'One-year Internship',
-    detail: 'Mentorship, hands-on service, and leadership development in a team-based year.',
-  },
-] as const;
-
-export const LONG_TERM_COMPARE = [
-  { label: 'Term length', shortTerm: '3 months', longTerm: '1 year or more' },
-  {
-    label: 'Commitment',
-    shortTerm: 'A focused season of service',
-    longTerm: 'Presence and consistency with a team',
-  },
-  {
-    label: 'Next step',
-    shortTerm: 'Short-term application in this portal',
-    longTerm: 'Request an application from the i58 team',
-  },
-] as const;

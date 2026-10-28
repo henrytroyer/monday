@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerGeneralInformation,
@@ -26,16 +27,19 @@ import {
 export function GeneralInformationScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerGeneralInformation) => void;
   onNext: (draft: VolunteerGeneralInformation) => void;
 }) {
   const [draft, setDraft] = useState<VolunteerGeneralInformation>(
     () => me.generalInformation ?? emptyGeneralInformation(),
   );
   const allowNext = isGeneralInformationComplete(draft);
+  useSaveOnExit(draft, onSave);
 
   function patch<K extends keyof VolunteerGeneralInformation>(
     key: K,

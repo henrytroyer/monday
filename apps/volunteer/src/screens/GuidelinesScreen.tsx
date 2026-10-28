@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerGuidelines,
@@ -40,17 +41,20 @@ import {
 export function GuidelinesScreen({
   me,
   onBack,
+  onSave,
   onSubmit,
   onFinished,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerGuidelines) => void;
   onSubmit: (draft: VolunteerGuidelines) => void;
   onFinished: () => void;
 }) {
   const [draft, setDraft] = useState<VolunteerGuidelines>(
     () => me.guidelines ?? emptyGuidelines(),
   );
+  useSaveOnExit(draft, onSave);
   const [submitted, setSubmitted] = useState(false);
   const allowSubmit = isGuidelinesComplete(draft);
 

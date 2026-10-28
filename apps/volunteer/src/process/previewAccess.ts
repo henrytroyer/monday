@@ -1,10 +1,8 @@
-import type { ShortTermStepId } from '../contract/volunteerApi';
-
-/**
- * Temporary editing aid: any volunteer form step is open from the process list.
- * Set to `false` to restore linear access (finish the previous form first).
- */
-export const PREVIEW_OPEN_ANY_STEP = true;
+import {
+  SHORT_TERM_STEP_DEFAULTS,
+  type ShortTermStepId,
+  type VolunteerStep,
+} from '../contract/volunteerApi';
 
 export type VolunteerFormView =
   | 'advice'
@@ -48,13 +46,21 @@ export function previewViewForStep(
   }
 }
 
-/** When preview unlock is off, only Getting Started is open from the list. */
+/** The volunteer has submitted this step, or the team already has it. */
+export function stepIsFinished(status: VolunteerStep['status']): boolean {
+  return status === 'complete' || status === 'received';
+}
+
+/** A step opens only after the one before it is finished. The first step is always open. */
 export function canOpenProcessStep(
   id: ShortTermStepId,
-  previewOpenAnyStep = PREVIEW_OPEN_ANY_STEP,
+  steps: readonly Pick<VolunteerStep, 'id' | 'status'>[],
 ): boolean {
   const view = previewViewForStep(id);
   if (!view) return false;
-  if (previewOpenAnyStep) return true;
-  return id === 'application_received';
+  const order = SHORT_TERM_STEP_DEFAULTS.map((step) => step.id);
+  const index = order.indexOf(id);
+  if (index <= 0) return true;
+  const previous = steps.find((step) => step.id === order[index - 1]);
+  return previous ? stepIsFinished(previous.status) : false;
 }

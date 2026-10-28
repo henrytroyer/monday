@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerTermOfService,
@@ -29,16 +30,19 @@ import {
 export function TermOfServiceScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerTermOfService) => void;
   onNext: (draft: VolunteerTermOfService) => void;
 }) {
   const [draft, setDraft] = useState<VolunteerTermOfService>(
     () => me.termOfService ?? emptyTermOfService(),
   );
   const allowNext = isTermOfServiceComplete(draft);
+  useSaveOnExit(draft, onSave);
   const requireOtherTerm = draft.lengthOfTerm === 'other';
 
   function patch<K extends keyof VolunteerTermOfService>(

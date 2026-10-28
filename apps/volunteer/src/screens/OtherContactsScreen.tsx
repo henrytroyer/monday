@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerOtherContacts,
@@ -46,16 +47,19 @@ import {
 export function OtherContactsScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerOtherContacts) => void;
   onNext: (draft: VolunteerOtherContacts) => void;
 }) {
   const [draft, setDraft] = useState<VolunteerOtherContacts>(
     () => me.otherContacts ?? emptyOtherContacts(),
   );
   const allowNext = isOtherContactsComplete(draft);
+  useSaveOnExit(draft, onSave);
   const requireFieldContactName = draft.fieldContact === 'yes';
 
   function patch<K extends keyof VolunteerOtherContacts>(

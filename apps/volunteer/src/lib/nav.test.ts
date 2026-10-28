@@ -18,6 +18,7 @@ import {
   WORLD_MAP,
   HOME_GREETING_BACKDROP,
   GERMANY_GREETING_BACKDROP,
+  FIELD_HOME_BACKDROP,
   JOURNEY_PLANE,
   VOLUNTEER_PORTAL_TITLE,
 } from './nav.ts';
@@ -30,13 +31,9 @@ describe('short-term hub labels', () => {
 
 describe('portal destinations', () => {
   it('keeps the signed-in top nav order', () => {
-    assert.deepEqual([...PORTAL_TABS], [
-      'home',
-      'short-term',
-      'long-term',
-      'volunteer',
-    ]);
+    assert.deepEqual([...PORTAL_TABS], ['home', 'volunteer']);
     assert.equal(PORTAL_TAB_LABEL.home, 'Home');
+    assert.equal(PORTAL_TAB_LABEL.volunteer, 'My Info');
     assert.deepEqual([...SHORT_TERM_VIEWS], ['progress', 'documents']);
     assert.equal(APPLICATION_PROCESS_TITLE, 'Application Process');
     assert.equal(SHORT_TERM_APPLICATION_TITLE, 'Short-term application');
@@ -52,6 +49,7 @@ describe('portal destinations', () => {
     assert.equal(WORLD_MAP, '/brand/world-map.png');
     assert.equal(HOME_GREETING_BACKDROP, '/brand/greece-backdrop.jpg');
     assert.equal(GERMANY_GREETING_BACKDROP, '/brand/germany-greeting.jpg?v=4');
+    assert.equal(FIELD_HOME_BACKDROP, '/brand/field-home.png?v=sky');
     assert.equal(JOURNEY_PLANE, '/brand/journey-plane.png?v=4');
   });
 });

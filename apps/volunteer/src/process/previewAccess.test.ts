@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  canOpenProcessStep,
-  PREVIEW_OPEN_ANY_STEP,
-  previewViewForStep,
-} from './previewAccess.ts';
+import { JANE_MILLER, previewStatusForNewAccount } from '../mock/fixtures.ts';
+import { canOpenProcessStep, previewViewForStep } from './previewAccess.ts';
 
 describe('preview process-step access', () => {
   it('maps volunteer form steps to screens', () => {
@@ -20,30 +17,28 @@ describe('preview process-step access', () => {
     assert.equal(previewViewForStep('guidelines'), 'guidelines');
   });
 
-  it('unlocks every volunteer form step while the preview flag is on', () => {
-    assert.equal(PREVIEW_OPEN_ANY_STEP, true);
-    assert.equal(canOpenProcessStep('application_received', true), true);
-    assert.equal(canOpenProcessStep('pastor_reference', true), true);
-    assert.equal(canOpenProcessStep('in_review', true), true);
-    assert.equal(canOpenProcessStep('background_check', true), true);
-    assert.equal(canOpenProcessStep('child_safeguarding', true), true);
-    assert.equal(canOpenProcessStep('approved', true), true);
-    assert.equal(canOpenProcessStep('flight_info', true), true);
-    assert.equal(canOpenProcessStep('invoice', true), true);
-    assert.equal(canOpenProcessStep('sent_to_field', true), true);
-    assert.equal(canOpenProcessStep('guidelines', true), true);
+  it('opens only Getting Started on a new application', () => {
+    const steps = previewStatusForNewAccount({
+      name: 'Sam Rivera',
+      email: 'sam@example.com',
+    }).steps;
+    assert.equal(canOpenProcessStep('application_received', steps), true);
+    assert.equal(canOpenProcessStep('pastor_reference', steps), false);
+    assert.equal(canOpenProcessStep('in_review', steps), false);
+    assert.equal(canOpenProcessStep('guidelines', steps), false);
   });
 
-  it('restores Getting Started-only list access when the flag is off', () => {
-    assert.equal(canOpenProcessStep('application_received', false), true);
-    assert.equal(canOpenProcessStep('pastor_reference', false), false);
-    assert.equal(canOpenProcessStep('in_review', false), false);
-    assert.equal(canOpenProcessStep('background_check', false), false);
-    assert.equal(canOpenProcessStep('child_safeguarding', false), false);
-    assert.equal(canOpenProcessStep('approved', false), false);
-    assert.equal(canOpenProcessStep('flight_info', false), false);
-    assert.equal(canOpenProcessStep('invoice', false), false);
-    assert.equal(canOpenProcessStep('sent_to_field', false), false);
-    assert.equal(canOpenProcessStep('guidelines', false), false);
+  it('opens the next step only after the previous one is finished', () => {
+    const steps = JANE_MILLER.steps;
+    assert.equal(canOpenProcessStep('application_received', steps), true);
+    assert.equal(canOpenProcessStep('pastor_reference', steps), true);
+    assert.equal(canOpenProcessStep('in_review', steps), true);
+    assert.equal(canOpenProcessStep('background_check', steps), true);
+    assert.equal(canOpenProcessStep('child_safeguarding', steps), false);
+    assert.equal(canOpenProcessStep('approved', steps), false);
+    assert.equal(canOpenProcessStep('flight_info', steps), false);
+    assert.equal(canOpenProcessStep('invoice', steps), false);
+    assert.equal(canOpenProcessStep('sent_to_field', steps), false);
+    assert.equal(canOpenProcessStep('guidelines', steps), false);
   });
 });

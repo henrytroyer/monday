@@ -1,4 +1,5 @@
 import { useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react';
+import { useSaveOnExit } from '../lib/useSaveOnExit';
 import type {
   VolunteerApplicationStatus,
   VolunteerSpouseApplication,
@@ -59,16 +60,19 @@ import {
 export function SpouseApplicationScreen({
   me,
   onBack,
+  onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  onSave: (draft: VolunteerSpouseApplication) => void;
   onNext: (draft: VolunteerSpouseApplication) => void;
 }) {
   const [draft, setDraft] = useState<VolunteerSpouseApplication>(
     () => me.spouseApplication ?? emptySpouseApplication(),
   );
   const allowNext = isSpouseApplicationComplete(draft);
+  useSaveOnExit(draft, onSave);
   const showSpouseFields = draft.spouseJoining === 'yes';
   const requireLastTerm = draft.previousVolunteer === 'yes';
   const requireOtherLanguage = draft.languages.includes('Other');
