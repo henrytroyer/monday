@@ -3,7 +3,7 @@
  * supplies birthdays and special events.
  */
 
-export const FIELD_CALENDAR_TITLE = 'i58 Birthdays & Special Events';
+export const FIELD_CALENDAR_TITLE = 'i58 Birthdays & Events';
 
 export const CALENDAR_WEEKDAYS = [
   'Sunday',

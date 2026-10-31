@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type {
   OnboardingStep,
   OnboardingStepId,
+  PreparationDocumentId,
   VolunteerApplicationStatus,
   VolunteerApplicationUpdate,
 } from '../contract/volunteerApi';
@@ -16,13 +17,20 @@ import {
   resolveOnboardingSteps,
   type OnboardingWaterTone,
 } from '../lib/onboarding';
+import {
+  PREVIEW_DOCUMENT_STAGE_ARROWS,
+  documentStageFill,
+  isPreparationDocument,
+  type DocumentStage,
+} from '../lib/preparationDocuments';
 import { FinalChecklistPanel } from './FinalChecklistPanel';
+import { PreparationDocumentsBand } from './PreparationDocumentsBand';
 import { ProgressBubble } from './ProgressBubble';
 
 const STEPS_PER_ROW = 5;
 
 const THANK_YOU =
-  'Thank-you for submitting an application to i58 Global, we hope to welcome you to Europe soon!';
+  'Thank-you for submitting an application to i58 Global, we hope to see you in Europe soon!';
 
 interface OnboardingBubble {
   id: OnboardingStepId;
@@ -55,16 +63,27 @@ export function SubmittedThanks({ onReveal }: { onReveal: () => void }) {
 export function OnboardingRoute({
   me,
   onUpdateMe,
+  onOpenDocument,
+  onOpenTraining,
 }: {
   me: VolunteerApplicationStatus;
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
+  onOpenDocument: (id: PreparationDocumentId) => void;
+  onOpenTraining: () => void;
 }) {
   const [checklistOpen, setChecklistOpen] = useState(false);
-  const steps = onboardingBubbles(me);
+  const [formStagePreview, setFormStagePreview] = useState<
+    Partial<Record<PreparationDocumentId, DocumentStage>>
+  >({});
+  const steps = onboardingBubbles(
+    me,
+    PREVIEW_DOCUMENT_STAGE_ARROWS ? formStagePreview : {},
+  );
   const rows = chunk(steps, STEPS_PER_ROW);
   const done = steps.filter((step) => step.complete).length;
 
   return (
+    <>
     <section
       className="relative left-1/2 w-screen -translate-x-1/2 bg-white py-6 sm:py-8"
       aria-label={`Acceptance & Service Preparation Progress: ${done} of ${steps.length} complete`}
@@ -101,6 +120,7 @@ export function OnboardingRoute({
                       step={step}
                       svgId={`${step.id}-wide`}
                       onOpenChecklist={() => setChecklistOpen(true)}
+                      onOpen={openForStep(step.id, onOpenDocument, onOpenTraining)}
                     />
                   </li>
                 ))}
@@ -115,6 +135,7 @@ export function OnboardingRoute({
                   step={step}
                   svgId={`${step.id}-narrow`}
                   onOpenChecklist={() => setChecklistOpen(true)}
+                  onOpen={openForStep(step.id, onOpenDocument, onOpenTraining)}
                 />
               </li>
             ))}
@@ -129,6 +150,17 @@ export function OnboardingRoute({
         />
       ) : null}
     </section>
+    <PreparationDocumentsBand
+      me={me}
+      previewStages={formStagePreview}
+      onPreviewStage={(id, stage) =>
+        setFormStagePreview((current) => ({ ...current, [id]: stage }))
+      }
+      onOpenDocument={onOpenDocument}
+      onOpenTraining={onOpenTraining}
+      onUpdateMe={onUpdateMe}
+    />
+    </>
   );
 }
 
@@ -157,9 +189,13 @@ export function OnboardingReminder({
   );
 }
 
-function onboardingBubbles(me: VolunteerApplicationStatus): OnboardingBubble[] {
+function onboardingBubbles(
+  me: VolunteerApplicationStatus,
+  formStagePreview: Partial<Record<PreparationDocumentId, DocumentStage>>,
+): OnboardingBubble[] {
   return resolveOnboardingSteps(me).map((step) => {
-    const fill = onboardingFillPercent(step);
+    const preview = isPreparationDocument(step.id) ? formStagePreview[step.id] : undefined;
+    const fill = preview ? documentStageFill(preview) : onboardingFillPercent(step);
     return {
       id: step.id,
       title: step.title,
@@ -196,14 +232,26 @@ function StampLine({
   return <span aria-hidden className={`mx-1 min-w-2 flex-1 sm:mx-2 ${tone} ${offset}`} />;
 }
 
+function openForStep(
+  id: OnboardingStepId,
+  onOpenDocument: (id: PreparationDocumentId) => void,
+  onOpenTraining: () => void,
+): (() => void) | undefined {
+  if (isPreparationDocument(id)) return () => onOpenDocument(id);
+  if (id === 'team_training') return onOpenTraining;
+  return undefined;
+}
+
 function StepBubble({
   step,
   svgId,
   onOpenChecklist,
+  onOpen,
 }: {
   step: OnboardingBubble;
   svgId: string;
   onOpenChecklist: () => void;
+  onOpen?: () => void;
 }) {
   const bubble = (
     <ProgressBubble
@@ -215,26 +263,38 @@ function StepBubble({
       waterTone={step.tone}
     />
   );
-  if (step.id !== 'final_checklist') {
-    const statusLabel = step.complete ? 'complete' : 'not finished';
+  if (step.id === 'final_checklist') {
     return (
-      <div
+      <button
+        type="button"
+        onClick={onOpenChecklist}
         className="flex w-full flex-col items-center sm:w-28 sm:shrink-0"
-        aria-label={`${step.title}, ${statusLabel}`}
+        aria-label={`${step.title}, open checklist`}
       >
         {bubble}
-      </div>
+      </button>
     );
   }
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full flex-col items-center sm:w-28 sm:shrink-0"
+        aria-label={`${step.title}, open`}
+      >
+        {bubble}
+      </button>
+    );
+  }
+  const statusLabel = step.complete ? 'complete' : 'not finished';
   return (
-    <button
-      type="button"
-      onClick={onOpenChecklist}
+    <div
       className="flex w-full flex-col items-center sm:w-28 sm:shrink-0"
-      aria-label={`${step.title}, open checklist`}
+      aria-label={`${step.title}, ${statusLabel}`}
     >
       {bubble}
-    </button>
+    </div>
   );
 }
 

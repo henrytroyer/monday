@@ -21,6 +21,7 @@ import {
   FIELD_HOME_BACKDROP,
   JOURNEY_PLANE,
   VOLUNTEER_PORTAL_TITLE,
+  volunteerPortalLabel,
 } from './nav.ts';
 
 describe('short-term hub labels', () => {
@@ -31,15 +32,20 @@ describe('short-term hub labels', () => {
 
 describe('portal destinations', () => {
   it('keeps the signed-in top nav order', () => {
-    assert.deepEqual([...PORTAL_TABS], ['home', 'volunteer']);
+    assert.deepEqual([...PORTAL_TABS], ['home', 'volunteer', 'guidelinesFaith']);
     assert.equal(PORTAL_TAB_LABEL.home, 'Home');
     assert.equal(PORTAL_TAB_LABEL.volunteer, 'My Info');
+    assert.equal(PORTAL_TAB_LABEL.guidelinesFaith, 'Guidelines & Faith');
     assert.deepEqual([...SHORT_TERM_VIEWS], ['progress', 'documents']);
     assert.equal(APPLICATION_PROCESS_TITLE, 'Application Process');
     assert.equal(SHORT_TERM_APPLICATION_TITLE, 'Short-term application');
     assert.equal(HOPE_IN_ACTION, 'Hope in Action');
     assert.equal(HOPE_IN_ACTION_TAGLINE, 'Serving Refugees across Europe');
     assert.equal(VOLUNTEER_PORTAL_TITLE, 'Volunteer Portal');
+    assert.equal(volunteerPortalLabel('Jane Miller'), 'Your Volunteer Portal');
+    assert.equal(volunteerPortalLabel('Jane'), 'Your Volunteer Portal');
+    assert.equal(volunteerPortalLabel('  '), 'Volunteer Portal');
+    assert.equal(volunteerPortalLabel(null), 'Volunteer Portal');
     assert.equal(I58_MARK, '/brand/i58-mark.png');
     assert.equal(GREECE_MAP, '/brand/greece-map.png');
     assert.equal(GERMANY_MAP, '/brand/germany-map.png');

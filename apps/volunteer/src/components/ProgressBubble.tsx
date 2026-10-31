@@ -30,7 +30,7 @@ export function ProgressBubble({
 }) {
   const circle =
     size === 'lg'
-      ? 'h-18 w-18 shadow-[0_6px_16px_rgba(15,30,55,0.35)]'
+      ? 'h-16 w-16 shadow-[0_6px_16px_rgba(15,30,55,0.35)]'
       : size === 'xs'
         ? 'h-7 w-7'
         : size === 'sm'
@@ -38,7 +38,7 @@ export function ProgressBubble({
           : 'h-10 w-10 sm:h-12 sm:w-12';
   const icon =
     size === 'lg'
-      ? 'h-8 w-8'
+      ? 'h-7 w-7'
       : size === 'xs'
         ? 'h-4 w-4'
         : size === 'sm'

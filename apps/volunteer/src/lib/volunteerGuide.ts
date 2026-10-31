@@ -1,5 +1,16 @@
 export const COORDINATOR_EMAIL = 'info@i58global.org';
 
+export const I58_VISION = {
+  title: 'Vision',
+  statement: '"...That the whole world would see the Glory of the Lord."',
+} as const;
+
+export const I58_MISSION = {
+  title: 'Mission',
+  statement:
+    '"...to recruit, send, and organize relief workers; empowering them to provide aid and share hope with refugees in Greece and beyond."',
+} as const;
+
 export const CRISIS_TITLE = 'A Crisis Calling Us to Action';
 
 export const CRISIS_FACTS = [

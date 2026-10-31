@@ -4,7 +4,8 @@ import type {
   VolunteerApplicationStatus,
   VolunteerApplicationUpdate,
 } from '../contract/volunteerApi';
-import { FieldCalendar } from '../components/FieldCalendar';
+import { FieldPurpose } from '../components/FieldPurpose';
+import { FieldScheduleBar } from '../components/FieldScheduleBar';
 import { JourneyRoute } from '../components/JourneyRoute';
 import {
   OnboardingReminder,
@@ -22,43 +23,52 @@ import {
   applicationIsSubmitted,
   nextOnboardingStep,
   onboardingFillPercent,
-  previewDepartureProgress,
   processCompletionPercent,
   processCompletionSegments,
   revealOnboarding,
   type ProcessRingSegment,
 } from '../lib/onboarding';
 import { FIELD_HOME_BACKDROP, type PortalDestination } from '../lib/nav';
+import {
+  PREVIEW_HOME_COUNT,
+  PREVIEW_HOME_LABELS,
+  previewHomeStatus,
+  type PreviewHomeIndex,
+} from '../lib/previewHomeStepper';
 import { showWelcomeHome } from '../lib/portalSession';
 import { canOpenProcessStep } from '../process/previewAccess';
 
 export function HomeScreen({
   me,
+  previewHome = null,
+  onPreviewHomeChange,
   notificationsOpen,
   onNotificationsOpenChange,
   onGoTo,
   onUpdateMe,
 }: {
   me: VolunteerApplicationStatus;
+  previewHome?: PreviewHomeIndex | null;
+  onPreviewHomeChange?: (index: PreviewHomeIndex) => void;
   notificationsOpen: boolean;
   onNotificationsOpenChange: (open: boolean) => void;
   onGoTo: (destination: PortalDestination) => void;
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
 }) {
-  const progress = previewDepartureProgress(me);
-  const submitted = applicationIsSubmitted(progress);
-  const onField = Boolean(me.arrivedInEurope);
-  const showOnboarding = submitted && Boolean(progress.onboardingRevealed) && !onField;
+  const view = previewHome == null ? me : previewHomeStatus(me, previewHome);
+  const submitted = applicationIsSubmitted(view) && previewHome !== 1;
+  const onField = Boolean(view.arrivedInEurope);
+  const showOnboarding = submitted && Boolean(view.onboardingRevealed) && !onField;
   const awaitingNextSteps = submitted && !showOnboarding;
-  const onboardingNext = showOnboarding ? nextOnboardingStep(progress) : null;
+  const onboardingNext = showOnboarding ? nextOnboardingStep(view) : null;
   const onboardingFill = onboardingNext ? onboardingFillPercent(onboardingNext) : 0;
-  const next = awaitingNextSteps || showOnboarding ? null : nextVolunteerAction(progress);
-  const nextFill = next ? stepFillPercent(progress, next.id) : 0;
-  const completion = processCompletionPercent(progress);
-  const completionSegments = processCompletionSegments(progress);
-  const firstName = me.firstName || me.name.trim().split(/\s+/)[0] || me.name;
-  const arrived = journeyArrived(me);
-  const destination = journeyDestination(me);
+  const next = awaitingNextSteps || showOnboarding ? null : nextVolunteerAction(view);
+  const nextFill = next ? stepFillPercent(view, next.id) : 0;
+  const completion = processCompletionPercent(view);
+  const completionSegments = processCompletionSegments(view);
+  const firstName = view.firstName || view.name.trim().split(/\s+/)[0] || view.name;
+  const arrived = journeyArrived(view);
+  const destination = journeyDestination(view);
   const backdrop = onField ? FIELD_HOME_BACKDROP : greetingBackdrop(destination.region);
   const showServicePeriod = !onField && destination.region !== 'germany';
 
@@ -78,13 +88,26 @@ export function HomeScreen({
       return <SubmittedThanks onReveal={() => onUpdateMe(revealOnboarding)} />;
     }
     if (showOnboarding) {
-      return <OnboardingRoute me={progress} onUpdateMe={onUpdateMe} />;
+      return (
+        <OnboardingRoute
+          me={view}
+          onUpdateMe={onUpdateMe}
+          onOpenDocument={(id) => onGoTo({ tab: 'document', document: id })}
+          onOpenTraining={() => onGoTo({ tab: 'training' })}
+        />
+      );
     }
-    return <JourneyRoute me={me} onSelectStep={openStep} />;
+    return <JourneyRoute me={view} onSelectStep={openStep} />;
   }
 
-  if (showWelcomeHome(me)) {
+  const arrows =
+    previewHome == null || !onPreviewHomeChange ? null : (
+      <PreviewHomeArrows index={previewHome} onChange={onPreviewHomeChange} />
+    );
+
+  if (showWelcomeHome(view)) {
     return (
+      <>
       <div className="relative left-1/2 -my-8 flex min-h-[calc(100dvh-10.5rem)] w-screen -translate-x-1/2 flex-col items-center justify-center bg-gradient-to-b from-[#667b96] via-[#647fa8] to-[#224a6d] px-6 py-16 text-center">
         <h1 className="max-w-3xl text-balance font-display text-3xl font-medium leading-snug text-white! md:text-4xl">
           Hello {firstName}, welcome to the i58 volunteer portal
@@ -97,47 +120,60 @@ export function HomeScreen({
           Begin i58 Volunteer Application
         </button>
       </div>
+      {arrows}
+      </>
     );
   }
 
   return (
-    <div className={`flex flex-col ${onField ? 'gap-8' : '-mb-8'}`}>
+    <>
+    <div className="flex flex-col -mb-8">
       <section
         className={`relative left-1/2 -mt-8 w-screen -translate-x-1/2 ${
           onField ? '' : 'h-[32rem] md:h-[28rem]'
         }`}
       >
-        <img
-          src={backdrop}
-          alt=""
-          className={
-            onField
-              ? 'block h-auto w-full'
-              : 'absolute inset-0 h-full w-full object-cover object-center'
-          }
-        />
         {onField ? (
-          <h1 className="absolute top-4 left-4 z-10 font-display text-3xl font-extrabold tracking-tight text-white! drop-shadow-[0_1px_2px_rgba(15,23,42,0.85)]">
-            Hi {firstName}!
-          </h1>
+          <div className="relative">
+            <img
+              src={backdrop}
+              alt=""
+              className="block h-[36rem] w-full object-cover object-[center_28%] md:h-auto md:object-center"
+            />
+            <div className="absolute inset-0 z-10 grid grid-rows-[minmax(0,1fr)_auto]">
+              <div className="flex h-full min-h-0 flex-col gap-3 px-4 pt-4 md:flex-row md:items-start md:justify-between md:gap-4">
+                <div className="w-full max-w-md shrink-0">
+                  <FieldPurpose />
+                </div>
+                <div className="min-h-0 w-full max-w-md flex-1 md:h-full md:flex-none">
+                  <NotificationsPanel
+                    me={view}
+                    open={notificationsOpen}
+                    onOpenChange={onNotificationsOpenChange}
+                    fillAvailable
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <div className="px-4 pt-4 pb-[calc(1rem+3vw)]">
+                <FieldScheduleBar />
+              </div>
+            </div>
+          </div>
         ) : (
+          <img
+            src={backdrop}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
+        )}
+        {onField ? null : (
           <div
             className="pointer-events-none absolute inset-0 bg-gradient-to-b from-navy/45 via-navy/20 to-navy/35"
             aria-hidden
           />
         )}
-        {onField ? (
-          <div className="absolute inset-0 max-md:relative max-md:z-10">
-            <div className="mx-auto h-full max-w-5xl px-5 py-8">
-              <NotificationsPanel
-                me={me}
-                open={notificationsOpen}
-                onOpenChange={onNotificationsOpenChange}
-                className="mt-8 w-full md:absolute md:top-4 md:right-4 md:z-10 md:mt-0 md:w-full md:max-w-md"
-              />
-            </div>
-          </div>
-        ) : (
+        {onField ? null : (
           <div className="absolute inset-0 z-10 grid grid-rows-[minmax(0,1fr)_auto]">
             <div className="flex min-h-0 flex-col gap-3 px-4 pt-4 md:flex-row md:items-start md:justify-between md:gap-4">
               <h1 className="w-max max-w-xs shrink-0 font-display text-3xl font-extrabold tracking-tight text-white! md:ml-[max(0.25rem,calc((100vw-64rem)/2))]">
@@ -145,7 +181,7 @@ export function HomeScreen({
               </h1>
               <div className="min-h-0 w-full max-w-md flex-1 md:h-full md:flex-none">
                 <NotificationsPanel
-                  me={me}
+                  me={view}
                   open={notificationsOpen}
                   onOpenChange={onNotificationsOpenChange}
                   fillAvailable
@@ -237,7 +273,52 @@ export function HomeScreen({
       </section>
 
       {progressBand()}
-      {onField ? <FieldCalendar /> : null}
+    </div>
+    {arrows}
+    </>
+  );
+}
+
+function PreviewHomeArrows({
+  index,
+  onChange,
+}: {
+  index: PreviewHomeIndex;
+  onChange: (index: PreviewHomeIndex) => void;
+}) {
+  const label = PREVIEW_HOME_LABELS[index];
+
+  function step(delta: -1 | 1) {
+    const next = Math.min(PREVIEW_HOME_COUNT - 1, Math.max(0, index + delta));
+    onChange(next as PreviewHomeIndex);
+  }
+
+  return (
+    <div className="fixed bottom-4 left-1/2 z-40 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl bg-white px-3 py-2 text-center shadow-lg ring-1 ring-navy/15">
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          aria-label="Previous homepage"
+          disabled={index === 0}
+          onClick={() => step(-1)}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-navy text-lg text-white disabled:bg-crm-taupe disabled:text-navy/40"
+        >
+          ←
+        </button>
+        <p className="text-sm font-semibold text-navy">
+          Mock {index + 1}/{PREVIEW_HOME_COUNT} · {label}
+        </p>
+        <button
+          type="button"
+          aria-label="Next homepage"
+          disabled={index === PREVIEW_HOME_COUNT - 1}
+          onClick={() => step(1)}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-navy text-lg text-white disabled:bg-crm-taupe disabled:text-navy/40"
+        >
+          →
+        </button>
+      </div>
+      <p className="mt-1 text-xs font-semibold text-crm-terracotta">Remove before production</p>
     </div>
   );
 }

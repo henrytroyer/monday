@@ -29,6 +29,7 @@ export function resolveOnboardingSteps(
       id: step.id,
       title: step.title,
       status: live?.status ?? 'not_started',
+      progress: live?.progress,
     };
   });
 }
@@ -44,9 +45,10 @@ export function nextOnboardingStep(
   );
 }
 
-/** Full water only after staff mark the step received or complete. */
+/** Full water after staff mark the step received or complete. Otherwise the saved progress. */
 export function onboardingFillPercent(step: OnboardingStep): number {
-  return step.status === 'complete' || step.status === 'received' ? 100 : 0;
+  if (step.status === 'complete' || step.status === 'received') return 100;
+  return Math.min(100, Math.max(0, step.progress ?? 0));
 }
 
 const PROCESS_STEP_COUNT =

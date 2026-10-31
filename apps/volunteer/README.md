@@ -50,6 +50,12 @@ Open **http://localhost:4050**
 - Steps open in order. The next form stays closed until the one before it is submitted.
 - My Info: what to expect, plus your personal record
 
+## Remove before production
+
+The mock home arrows are only for building this portal. Before production, remove `PREVIEW_HOME_STEPPER`, the arrow control on Home, and `src/lib/previewHomeStepper.ts`. The control says “Remove before production”.
+
+The form-card arrows are the same kind of preview. Before production, turn off `PREVIEW_DOCUMENT_STAGE_ARROWS` in `src/lib/preparationDocuments.ts` and remove the arrow row on the Background check and Safeguarding certificate cards. That row also says “Remove before production”.
+
 ## Production
 
 Deploy `volunteerIdentity` from henrytroyer/i58finance

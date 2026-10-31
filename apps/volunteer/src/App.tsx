@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import type {
+  PreparationDocumentId,
   ShortTermStepId,
   VolunteerApplicationStatus,
   VolunteerApplicationUpdate,
@@ -20,6 +21,12 @@ import {
 import type { VolunteerProfile } from './identity/profile.ts';
 import { PortalShell } from './components/PortalShell';
 import type { PortalDestination, PortalTab } from './lib/nav';
+import {
+  PREVIEW_HOME_STEPPER,
+  homeIndexFor,
+  previewHomeStatus,
+  type PreviewHomeIndex,
+} from './lib/previewHomeStepper';
 import {
   mockCreateAccount,
   mockSignIn,
@@ -37,8 +44,12 @@ import { HomeScreen } from './screens/HomeScreen';
 import { canOpenProcessStep } from './process/previewAccess';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { VolunteerInfoScreen } from './screens/VolunteerInfoScreen';
+import { GuidelinesFaithScreen } from './screens/GuidelinesFaithScreen';
+import { PreparationDocumentScreen } from './screens/PreparationDocumentScreen';
+import { FlightItineraryScreen } from './screens/FlightItineraryScreen';
+import { TeamTrainingScreen } from './screens/TeamTrainingScreen';
 
-type PortalScreen = PortalTab | 'application';
+type PortalScreen = PortalTab | 'application' | 'document' | 'training';
 
 type MockGuestView = 'landing' | 'sign_in' | 'create_account' | 'not_found';
 
@@ -54,16 +65,28 @@ export default function App() {
   meRef.current = me;
   const [tab, setTab] = useState<PortalScreen>('home');
   const [processFocus, setProcessFocus] = useState<ShortTermStepId | null>(null);
+  const [documentFocus, setDocumentFocus] = useState<PreparationDocumentId | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [guestView, setGuestView] = useState<MockGuestView>('landing');
   const [unknownEmail, setUnknownEmail] = useState('');
   const [mockPreviews, setMockPreviews] = useState<MockPreviews>({});
   const [notificationsOpen, setNotificationsOpen] = useState(true);
+  const [previewHome, setPreviewHome] = useState<PreviewHomeIndex>(0);
+  const [previewForEmail, setPreviewForEmail] = useState<string | null>(null);
+  if (PREVIEW_HOME_STEPPER) {
+    if (!me && previewForEmail !== null) {
+      setPreviewForEmail(null);
+    } else if (me && me.email !== previewForEmail) {
+      setPreviewForEmail(me.email);
+      setPreviewHome(homeIndexFor(me));
+    }
+  }
 
   function resetPortal() {
     setMe(null);
     setTab('home');
     setProcessFocus(null);
+    setDocumentFocus(null);
     setToast(null);
     setGuestView('landing');
     setUnknownEmail('');
@@ -74,6 +97,7 @@ export default function App() {
     setMe(next);
     setTab('home');
     setProcessFocus(null);
+    setDocumentFocus(null);
     setToast(message);
     setNotificationsOpen(true);
   }
@@ -173,9 +197,17 @@ export default function App() {
       if (!me || !canOpenProcessStep(destination.step, me.steps)) return;
       setTab('application');
       setProcessFocus(destination.step);
+      setDocumentFocus(null);
+      return;
+    }
+    if (destination.tab === 'document') {
+      setTab('document');
+      setDocumentFocus(destination.document);
+      setProcessFocus(null);
       return;
     }
     setProcessFocus(null);
+    setDocumentFocus(null);
     setTab(destination.tab);
   }
 
@@ -190,15 +222,27 @@ export default function App() {
   if (me) {
     return (
       <PortalShell
-        tab={tab === 'application' ? 'home' : tab}
+        tab={tab === 'application' || tab === 'document' || tab === 'training' ? 'home' : tab}
         onTabChange={(next) => handleGoTo({ tab: next })}
         onSignOut={() => void handleSignOut()}
+        portalName={
+          tab === 'home' &&
+          (PREVIEW_HOME_STEPPER ? previewHomeStatus(me, previewHome) : me).arrivedInEurope
+            ? me.firstName?.trim() || me.name
+            : null
+        }
         toast={toast}
-        footerTone={tab === 'home' && showWelcomeHome(me) ? 'white' : 'soft'}
+        footerTone={
+          tab === 'home' && (PREVIEW_HOME_STEPPER ? previewHome === 0 : showWelcomeHome(me))
+            ? 'white'
+            : 'soft'
+        }
       >
         {tab === 'home' ? (
           <HomeScreen
             me={me}
+            previewHome={PREVIEW_HOME_STEPPER ? previewHome : null}
+            onPreviewHomeChange={PREVIEW_HOME_STEPPER ? setPreviewHome : undefined}
             notificationsOpen={notificationsOpen}
             onNotificationsOpenChange={setNotificationsOpen}
             onGoTo={handleGoTo}
@@ -207,6 +251,22 @@ export default function App() {
         ) : null}
         {tab === 'volunteer' ? (
           <VolunteerInfoScreen me={me} onBack={() => handleGoTo({ tab: 'home' })} />
+        ) : null}
+        {tab === 'guidelinesFaith' ? <GuidelinesFaithScreen /> : null}
+        {tab === 'training' ? (
+          <TeamTrainingScreen onBack={() => handleGoTo({ tab: 'home' })} />
+        ) : null}
+        {tab === 'document' && documentFocus === 'flights' ? (
+          <FlightItineraryScreen me={me} onBack={() => handleGoTo({ tab: 'home' })} />
+        ) : null}
+        {tab === 'document' && documentFocus && documentFocus !== 'flights' ? (
+          <PreparationDocumentScreen
+            key={documentFocus}
+            me={me}
+            documentId={documentFocus}
+            onBack={() => handleGoTo({ tab: 'home' })}
+            onUpdateMe={handleUpdateMe}
+          />
         ) : null}
         {tab === 'application' && processFocus ? (
           <ProgressScreen

@@ -1,12 +1,15 @@
-import type { ShortTermStepId } from '../contract/volunteerApi';
+import type { PreparationDocumentId, ShortTermStepId } from '../contract/volunteerApi';
 
-export const PORTAL_TABS = ['home', 'volunteer'] as const;
+export const PORTAL_TABS = ['home', 'volunteer', 'guidelinesFaith'] as const;
 
 export type PortalTab = (typeof PORTAL_TABS)[number];
+
+export const GUIDELINES_FAITH_TITLE = 'Guidelines & Faith';
 
 export const PORTAL_TAB_LABEL: Record<PortalTab, string> = {
   home: 'Home',
   volunteer: 'My Info',
+  guidelinesFaith: GUIDELINES_FAITH_TITLE,
 };
 
 export const SHORT_TERM_VIEWS = ['progress', 'documents'] as const;
@@ -18,6 +21,12 @@ export const SHORT_TERM_APPLICATION_TITLE = 'Short-term application';
 export const HOPE_IN_ACTION = 'Hope in Action';
 export const HOPE_IN_ACTION_TAGLINE = 'Serving Refugees across Europe';
 export const VOLUNTEER_PORTAL_TITLE = 'Volunteer Portal';
+
+/** “Your Volunteer Portal” on the arrived home. Other homes keep the plain title. */
+export function volunteerPortalLabel(name?: string | null): string {
+  if (!name?.trim()) return VOLUNTEER_PORTAL_TITLE;
+  return `Your ${VOLUNTEER_PORTAL_TITLE}`;
+}
 export const I58_MARK = '/brand/i58-mark.png';
 export const HOME_HERO_PHOTO = '/brand/home-page-main-photo.jpg';
 export const GREECE_MAP = '/brand/greece-map.png';
@@ -38,4 +47,7 @@ export type ShortTermView = (typeof SHORT_TERM_VIEWS)[number];
 export type PortalDestination =
   | { tab: 'home' }
   | { tab: 'volunteer' }
-  | { tab: 'application'; step: ShortTermStepId };
+  | { tab: 'guidelinesFaith' }
+  | { tab: 'application'; step: ShortTermStepId }
+  | { tab: 'document'; document: PreparationDocumentId }
+  | { tab: 'training' };

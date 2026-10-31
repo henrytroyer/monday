@@ -6,11 +6,13 @@ export function AppHeader({
   tab,
   onTabChange,
   onSignOut,
+  portalName,
   overlay = false,
 }: {
   tab?: PortalTab;
   onTabChange?: (next: PortalTab) => void;
   onSignOut?: () => void;
+  portalName?: string | null;
   overlay?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -36,7 +38,7 @@ export function AppHeader({
           onClick={() => (onTabChange ? goTo('home') : undefined)}
           aria-label="Home"
         >
-          <BrandMark />
+          <BrandMark name={portalName} />
         </button>
         {showNav ? (
           <>

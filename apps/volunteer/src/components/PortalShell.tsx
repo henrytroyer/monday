@@ -7,6 +7,7 @@ export function PortalShell({
   tab,
   onTabChange,
   onSignOut,
+  portalName,
   toast,
   footerTone = 'soft',
   children,
@@ -14,13 +15,19 @@ export function PortalShell({
   tab: PortalTab;
   onTabChange: (next: PortalTab) => void;
   onSignOut: () => void;
+  portalName?: string | null;
   toast?: string | null;
   footerTone?: 'soft' | 'white';
   children: ReactNode;
 }) {
   return (
     <div className="relative flex min-h-dvh flex-col overflow-x-clip bg-crm-white">
-      <AppHeader tab={tab} onTabChange={onTabChange} onSignOut={onSignOut} />
+      <AppHeader
+        tab={tab}
+        onTabChange={onTabChange}
+        onSignOut={onSignOut}
+        portalName={portalName}
+      />
       {toast ? (
         <p role="status" className="mx-auto mt-4 w-full max-w-5xl px-5">
           <span className="block rounded-xl border border-navy/15 bg-crm-indigo-50 px-3 py-2 text-sm text-navy">

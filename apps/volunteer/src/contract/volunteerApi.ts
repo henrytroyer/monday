@@ -67,7 +67,30 @@ export interface OnboardingStep {
   id: OnboardingStepId;
   title: string;
   status: VolunteerStepStatus;
+  /** Partial water, 0–100, while the step is still in process. */
+  progress?: number;
 }
+
+export type PreparationDocumentId =
+  | 'background_check_sent'
+  | 'safeguarding_certificate'
+  | 'flights';
+
+/** Placeholder answers for a preparation document. Not a Monday field. */
+export type PreparationDocumentReview = 'received' | 'accepted' | 'declined';
+
+export interface PreparationDocumentDraft {
+  name: string;
+  date: string;
+  confirmed: '' | 'yes';
+  submitted: boolean;
+  /** Set by the preview review controls. Not a Monday field. */
+  review?: PreparationDocumentReview;
+}
+
+export type PreparationDocuments = Partial<
+  Record<PreparationDocumentId, PreparationDocumentDraft>
+>;
 
 /** Preview-only General Information form. Not a Monday field. */
 export interface VolunteerGeneralInformation {
@@ -232,6 +255,8 @@ export interface VolunteerApplicationStatus extends VolunteerIdentity {
   onboardingRevealed?: boolean;
   /** Post-submit timeline statuses. Missing steps stay not started. */
   onboardingSteps?: OnboardingStep[];
+  /** In-portal preparation documents. Not a Monday field. A reload clears them. */
+  preparationDocuments?: PreparationDocuments;
   /**
    * Ids checked on the Final check-list. Not a Monday field.
    * A reload clears them.

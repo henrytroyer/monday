@@ -20,6 +20,12 @@ export function finalChecklistIsComplete(
   return FINAL_CHECKLIST_ITEMS.every((item) => checked?.includes(item.id));
 }
 
+/** Share of the Final check-list bubble filled by the items that are checked. */
+export function finalChecklistProgress(checked: readonly string[] | undefined): number {
+  const done = FINAL_CHECKLIST_ITEMS.filter((item) => checked?.includes(item.id)).length;
+  return Math.round((done / FINAL_CHECKLIST_ITEMS.length) * 100);
+}
+
 /** The arrival button stays hidden until every line item is checked. */
 export function showArrivalButton(me: VolunteerApplicationStatus): boolean {
   return finalChecklistIsComplete(me.finalChecklistChecked) && !me.arrivedInEurope;
@@ -30,12 +36,17 @@ export function withFinalChecklist(
   checked: readonly string[],
 ): VolunteerApplicationStatus {
   const complete = finalChecklistIsComplete(checked);
+  const progress = finalChecklistProgress(checked);
   return {
     ...me,
     finalChecklistChecked: checked,
     onboardingSteps: resolveOnboardingSteps(me).map((step) =>
       step.id === 'final_checklist'
-        ? { ...step, status: complete ? 'complete' : 'not_started' }
+        ? {
+            ...step,
+            status: complete ? 'complete' : 'not_started',
+            progress: complete || progress === 0 ? undefined : progress,
+          }
         : step,
     ),
   };

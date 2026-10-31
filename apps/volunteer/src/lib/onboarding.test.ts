@@ -59,6 +59,7 @@ describe('post-submit onboarding', () => {
     const steps = resolveOnboardingSteps(submitted());
     const received = { ...steps[0], status: 'received' as const };
     assert.equal(onboardingFillPercent(received), 100);
+    assert.equal(onboardingFillPercent({ ...steps[1], progress: 40 }), 40);
     const me = revealOnboarding({
       ...submitted(),
       onboardingSteps: steps.map((step, index) =>

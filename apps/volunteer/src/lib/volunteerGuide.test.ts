@@ -1,6 +1,26 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { CRISIS_FACTS, CRISIS_TITLE, GUIDE_VALUES, LOOKING_FOR_TITLE } from './volunteerGuide.ts';
+import {
+  CRISIS_FACTS,
+  CRISIS_TITLE,
+  GUIDE_VALUES,
+  I58_MISSION,
+  I58_VISION,
+  LOOKING_FOR_TITLE,
+} from './volunteerGuide.ts';
+
+describe('i58 vision and mission', () => {
+  it('uses the public vision and mission statements', () => {
+    assert.equal(I58_VISION.title, 'Vision');
+    assert.equal(
+      I58_VISION.statement,
+      '"...That the whole world would see the Glory of the Lord."',
+    );
+    assert.equal(I58_MISSION.title, 'Mission');
+    assert.match(I58_MISSION.statement, /recruit, send, and organize relief workers/);
+    assert.match(I58_MISSION.statement, /Greece and beyond/);
+  });
+});
 
 describe('crisis reminder copy', () => {
   it('names the three public displacement facts', () => {
