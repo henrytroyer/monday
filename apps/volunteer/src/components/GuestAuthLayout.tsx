@@ -14,7 +14,7 @@ export function GuestAuthLayout({ children }: { children: ReactNode }) {
           <img
             src={HOME_HERO_PHOTO}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-[center_42%]"
+            className="absolute inset-0 h-full w-full origin-[60%_58%] scale-[1.28] object-cover object-[60%_58%]"
           />
         </div>
         <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-10 md:px-12">

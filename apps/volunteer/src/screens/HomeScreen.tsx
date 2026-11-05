@@ -5,13 +5,12 @@ import type {
   VolunteerApplicationUpdate,
 } from '../contract/volunteerApi';
 import { FieldPurpose } from '../components/FieldPurpose';
+import { SubmissionThanksOverlay } from '../components/SubmissionThanksOverlay';
 import { FieldScheduleBar } from '../components/FieldScheduleBar';
+import { FieldServiceWays } from '../components/FieldServiceWays';
+import { SectionWave } from '../components/SectionWave';
 import { JourneyRoute } from '../components/JourneyRoute';
-import {
-  OnboardingReminder,
-  OnboardingRoute,
-  SubmittedThanks,
-} from '../components/OnboardingRoute';
+import { OnboardingReminder, OnboardingRoute } from '../components/OnboardingRoute';
 import { NotificationsPanel } from '../components/NotificationsPanel';
 import { ProgressBubble } from '../components/ProgressBubble';
 import { WATER_COLORS } from '../lib/bubbleWater';
@@ -25,7 +24,6 @@ import {
   onboardingFillPercent,
   processCompletionPercent,
   processCompletionSegments,
-  revealOnboarding,
   type ProcessRingSegment,
 } from '../lib/onboarding';
 import { FIELD_HOME_BACKDROP, type PortalDestination } from '../lib/nav';
@@ -37,6 +35,7 @@ import {
 import {
   PREVIEW_HOME_COUNT,
   PREVIEW_HOME_LABELS,
+  PREVIEW_THANKS_HOME,
   previewHomeStatus,
   type PreviewHomeIndex,
 } from '../lib/previewHomeStepper';
@@ -72,13 +71,13 @@ export function HomeScreen({
   const view = PREVIEW_DOCUMENT_STAGE_ARROWS
     ? withStaffUploadProgress(displayed, { flights: flightsUpload, training: trainingUpload })
     : displayed;
-  const submitted = applicationIsSubmitted(view) && previewHome !== 1;
+  const showThanks = previewHome === PREVIEW_THANKS_HOME;
+  const submitted = applicationIsSubmitted(view) && previewHome !== 1 && !showThanks;
   const onField = Boolean(view.arrivedInEurope);
-  const showOnboarding = submitted && Boolean(view.onboardingRevealed) && !onField;
-  const awaitingNextSteps = submitted && !showOnboarding;
+  const showOnboarding = submitted && !onField;
   const onboardingNext = showOnboarding ? nextOnboardingStep(view) : null;
   const onboardingFill = onboardingNext ? onboardingFillPercent(onboardingNext) : 0;
-  const next = awaitingNextSteps || showOnboarding ? null : nextVolunteerAction(view);
+  const next = submitted ? null : nextVolunteerAction(view);
   const nextFill = next ? stepFillPercent(view, next.id) : 0;
   const completion = processCompletionPercent(view);
   const completionSegments = processCompletionSegments(view);
@@ -100,9 +99,6 @@ export function HomeScreen({
 
   function progressBand() {
     if (onField) return null;
-    if (awaitingNextSteps) {
-      return <SubmittedThanks onReveal={() => onUpdateMe(revealOnboarding)} />;
-    }
     if (showOnboarding) {
       return (
         <OnboardingRoute
@@ -124,6 +120,15 @@ export function HomeScreen({
     previewHome == null || !onPreviewHomeChange ? null : (
       <PreviewHomeArrows index={previewHome} onChange={onPreviewHomeChange} />
     );
+
+  if (showThanks) {
+    return (
+      <>
+        <SubmissionThanksOverlay hold />
+        {arrows}
+      </>
+    );
+  }
 
   if (showWelcomeHome(view)) {
     return (
@@ -154,13 +159,13 @@ export function HomeScreen({
         }`}
       >
         {onField ? (
-          <div className="relative">
+          <div className="relative overflow-hidden">
             <img
               src={backdrop}
               alt=""
-              className="block h-[36rem] w-full object-cover object-[center_28%] md:h-auto md:object-center"
+              className="block h-[36rem] w-full object-cover object-[center_28%] -mb-16 md:h-auto md:object-center"
             />
-            <div className="absolute inset-x-0 top-0 bottom-16 z-10 flex flex-col gap-3 px-4 py-4 md:flex-row md:items-start md:justify-between md:gap-6">
+            <div className="absolute inset-0 z-10 flex flex-col gap-3 px-4 py-4 md:flex-row md:items-start md:justify-between md:gap-6">
               <div className="min-w-0 max-w-xl shrink-0 md:flex-1">
                 <FieldPurpose />
               </div>
@@ -210,9 +215,7 @@ export function HomeScreen({
                 }`}
               >
                 <FooterCell divider>
-                  {awaitingNextSteps ? (
-                    <SubmittedCheck />
-                  ) : onboardingNext ? (
+                  {onboardingNext ? (
                     <div className="flex items-center justify-center gap-4">
                       <div className="flex shrink-0 flex-col items-center">
                         <p className="text-center text-lg font-semibold leading-tight text-navy whitespace-nowrap">
@@ -287,12 +290,16 @@ export function HomeScreen({
       </section>
 
       {onField ? (
-        <section
-          aria-label="Field schedules"
-          className="relative left-1/2 w-screen -translate-x-1/2 bg-[#f1f1ef] px-4 pt-8 pb-28"
-        >
-          <FieldScheduleBar />
-        </section>
+        <>
+          <section
+            aria-label="Field schedules"
+            className="relative left-1/2 w-screen -translate-x-1/2 border-t-2 border-white bg-[#667b96] px-4 pt-8 pb-24"
+          >
+            <FieldScheduleBar />
+            <SectionWave className="pointer-events-none absolute inset-x-0 bottom-0 h-[4.25rem] w-full text-crm-white" />
+          </section>
+          <FieldServiceWays />
+        </>
       ) : null}
 
       {progressBand()}
@@ -317,7 +324,7 @@ function PreviewHomeArrows({
   }
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-40 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl bg-white px-3 py-2 text-center shadow-lg ring-1 ring-navy/15">
+    <div className="fixed bottom-4 left-1/2 z-[60] w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl bg-white px-3 py-2 text-center shadow-lg ring-1 ring-navy/15">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -479,22 +486,4 @@ function ringTip(
     cx: 18 + 15.5 * Math.cos(theta),
     cy: 18 + 15.5 * Math.sin(theta),
   };
-}
-
-function SubmittedCheck() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-10 w-10 text-[#1f9d55]"
-      fill="none"
-      role="img"
-      aria-label="Application submitted"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4.5 12.6 9.2 17.3 19.5 6.8" />
-    </svg>
-  );
 }

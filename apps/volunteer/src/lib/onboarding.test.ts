@@ -26,7 +26,7 @@ function submitted(): typeof JANE_MILLER {
 }
 
 describe('post-submit onboarding', () => {
-  it('treats a completed guidelines step as submitted until the arrow is clicked', () => {
+  it('treats a completed guidelines step as submitted before preparation is revealed', () => {
     const me = submitted();
     assert.equal(applicationIsSubmitted(JANE_MILLER), false);
     assert.equal(applicationIsSubmitted(me), true);

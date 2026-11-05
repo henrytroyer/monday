@@ -30,11 +30,13 @@ import {
 export function TermOfServiceScreen({
   me,
   onBack,
+  backLabel,
   onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  backLabel: 'Back' | 'Home';
   onSave: (draft: VolunteerTermOfService) => void;
   onNext: (draft: VolunteerTermOfService) => void;
 }) {
@@ -60,7 +62,7 @@ export function TermOfServiceScreen({
 
   return (
     <FormCard onSubmit={handleSubmit}>
-      <BackButton onClick={onBack} />
+      <BackButton label={backLabel} onClick={onBack} />
 
       <p className="mt-5 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white">
         {TERM_OF_SERVICE_BANNER}

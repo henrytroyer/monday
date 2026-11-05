@@ -162,3 +162,24 @@ h2.font-display.text-crm-terracotta {
 .site-nav-link[aria-current="page"]::after {
   transform: scaleX(1);
 }
+
+@keyframes submission-thanks-zoom {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.submission-thanks-zoom {
+  animation: submission-thanks-zoom 200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submission-thanks-zoom {
+    animation: none;
+  }
+}

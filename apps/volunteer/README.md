@@ -56,6 +56,8 @@ The mock home arrows are only for building this portal. Before production, remov
 
 The form-card arrows are the same kind of preview. Before production, turn off `PREVIEW_DOCUMENT_STAGE_ARROWS` in `src/lib/preparationDocuments.ts` and remove the arrow rows on the Background check, Safeguarding certificate, Flights, and Team Training cards. Those rows also say “Remove before production”.
 
+Application steps can be opened in any order while `PREVIEW_OPEN_ANY_STEP` is true in `src/process/previewAccess.ts`. Before production, set that flag to false so a volunteer can open a step only after the previous one is finished.
+
 ## Production
 
 Deploy `volunteerIdentity` from henrytroyer/i58finance

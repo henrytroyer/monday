@@ -27,11 +27,13 @@ import {
 export function GeneralInformationScreen({
   me,
   onBack,
+  backLabel,
   onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  backLabel: 'Back' | 'Home';
   onSave: (draft: VolunteerGeneralInformation) => void;
   onNext: (draft: VolunteerGeneralInformation) => void;
 }) {
@@ -56,7 +58,7 @@ export function GeneralInformationScreen({
 
   return (
     <FormCard onSubmit={handleSubmit}>
-      <BackButton onClick={onBack} />
+      <BackButton label={backLabel} onClick={onBack} />
 
       <SectionBanner>{VOLUNTEER_INFO_BANNER}</SectionBanner>
       <hr className="mt-3 border-crm-taupe/40" />

@@ -80,7 +80,7 @@ function ScheduleDialog({ id, onClose }: { id: ScheduleId; onClose: () => void }
         role="dialog"
         aria-modal="true"
         aria-labelledby={id === 'birthdays' ? 'field-calendar-title' : titleId}
-        className={`relative max-h-full w-full overflow-y-auto rounded-3xl bg-[#e8eef3] px-4 py-5 shadow-lg sm:px-8 ${
+        className={`relative max-h-full w-full overflow-y-auto rounded-3xl bg-[#667b96] px-4 py-5 shadow-lg sm:px-8 ${
           wide ? 'max-w-5xl' : 'max-w-3xl'
         }`}
         onClick={(event) => event.stopPropagation()}
@@ -88,14 +88,14 @@ function ScheduleDialog({ id, onClose }: { id: ScheduleId; onClose: () => void }
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 rounded-full px-2 py-1 text-sm font-semibold text-navy hover:bg-white"
+          className="absolute right-4 top-4 z-10 rounded-full px-2 py-1 text-sm font-semibold text-white hover:bg-white/15"
         >
           Close
         </button>
         {id === 'birthdays' ? <FieldCalendar /> : null}
         {id === 'camp' ? (
           <>
-            <h2 id={titleId} className="pr-16 text-center font-display text-2xl font-semibold text-navy">
+            <h2 id={titleId} className="pr-16 text-center font-display text-2xl font-semibold text-white!">
               Camp Schedule
             </h2>
             <div className="mt-5 overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-white/70">
@@ -124,7 +124,7 @@ function ScheduleDialog({ id, onClose }: { id: ScheduleId; onClose: () => void }
         ) : null}
         {id === 'cleaning' ? (
           <>
-            <h2 id={titleId} className="pr-16 text-center font-display text-2xl font-semibold text-navy">
+            <h2 id={titleId} className="pr-16 text-center font-display text-2xl font-semibold text-white!">
               Cleaning Schedule
             </h2>
             <div className="mt-5 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-white/70">

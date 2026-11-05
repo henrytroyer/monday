@@ -14,7 +14,8 @@ import type {
   VolunteerTermOfService,
 } from '../contract/volunteerApi';
 import type { GettingStartedDraft } from '../process/gettingStarted';
-import { previewViewForStep } from '../process/previewAccess';
+import { revealOnboarding } from '../lib/onboarding';
+import { applicationStepBackLabel, previewViewForStep } from '../process/previewAccess';
 import { InformationNeededScreen } from './InformationNeededScreen';
 import { GettingStartedScreen } from './GettingStartedScreen';
 import { GeneralInformationScreen } from './GeneralInformationScreen';
@@ -45,32 +46,24 @@ export function ProgressScreen({
   me,
   onBack,
   onUpdateMe,
+  onGuidelinesFinished,
   initialStepId = null,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
+  onGuidelinesFinished?: () => void;
   initialStepId?: ShortTermStepId | null;
 }) {
   const [view, setView] = useState<ProcessView>(() => {
     if (!initialStepId) return 'list';
     return previewViewForStep(initialStepId) ?? 'list';
   });
-  const [openedFromList, setOpenedFromList] = useState(Boolean(initialStepId));
-
-  function goTo(nextView: ProcessView) {
-    setOpenedFromList(false);
-    setView(nextView);
-  }
-
-  function returnHomeOr(previous: ProcessView) {
-    if (openedFromList) onBack();
-    else setView(previous);
-  }
 
   if (view === 'advice') {
     return (
       <InformationNeededScreen
+        backLabel={applicationStepBackLabel('advice')}
         onBack={onBack}
         onContinue={() => setView('getting-started')}
       />
@@ -81,13 +74,14 @@ export function ProgressScreen({
     return (
       <GettingStartedScreen
         me={me}
+        backLabel={applicationStepBackLabel('getting-started')}
         onBack={() => setView('advice')}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, gettingStarted: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyGettingStarted(me, draft));
-          goTo('general-information');
+          setView('general-information');
         }}
       />
     );
@@ -97,13 +91,14 @@ export function ProgressScreen({
     return (
       <GeneralInformationScreen
         me={me}
-        onBack={() => returnHomeOr('getting-started')}
+        backLabel={applicationStepBackLabel('general-information')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, generalInformation: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyGeneralInformation(me, draft));
-          goTo('passport-details');
+          setView('passport-details');
         }}
       />
     );
@@ -113,13 +108,14 @@ export function ProgressScreen({
     return (
       <PassportDetailsScreen
         me={me}
-        onBack={() => returnHomeOr('general-information')}
+        backLabel={applicationStepBackLabel('passport-details')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, passportDetails: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyPassportDetails(me, draft));
-          goTo('profile-photo');
+          setView('profile-photo');
         }}
       />
     );
@@ -129,13 +125,14 @@ export function ProgressScreen({
     return (
       <ProfilePhotoScreen
         me={me}
-        onBack={() => returnHomeOr('passport-details')}
+        backLabel={applicationStepBackLabel('profile-photo')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, profilePhoto: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyProfilePhoto(me, draft));
-          goTo('history-skills-languages');
+          setView('history-skills-languages');
         }}
       />
     );
@@ -145,7 +142,8 @@ export function ProgressScreen({
     return (
       <HistorySkillsLanguagesScreen
         me={me}
-        onBack={() => returnHomeOr('profile-photo')}
+        backLabel={applicationStepBackLabel('history-skills-languages')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({
             ...current,
@@ -154,7 +152,7 @@ export function ProgressScreen({
         }
         onNext={(draft) => {
           onUpdateMe(applyHistorySkillsLanguages(me, draft));
-          goTo('family-status');
+          setView('family-status');
         }}
       />
     );
@@ -164,13 +162,14 @@ export function ProgressScreen({
     return (
       <FamilyStatusScreen
         me={me}
-        onBack={() => returnHomeOr('history-skills-languages')}
+        backLabel={applicationStepBackLabel('family-status')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, familyStatus: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyFamilyStatus(me, draft));
-          goTo('spouse-application');
+          setView('spouse-application');
         }}
       />
     );
@@ -180,13 +179,14 @@ export function ProgressScreen({
     return (
       <SpouseApplicationScreen
         me={me}
-        onBack={() => returnHomeOr('family-status')}
+        backLabel={applicationStepBackLabel('spouse-application')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, spouseApplication: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applySpouseApplication(me, draft));
-          goTo('term-of-service');
+          setView('term-of-service');
         }}
       />
     );
@@ -196,13 +196,14 @@ export function ProgressScreen({
     return (
       <TermOfServiceScreen
         me={me}
-        onBack={() => returnHomeOr('spouse-application')}
+        backLabel={applicationStepBackLabel('term-of-service')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, termOfService: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyTermOfService(me, draft));
-          goTo('other-contacts');
+          setView('other-contacts');
         }}
       />
     );
@@ -212,13 +213,14 @@ export function ProgressScreen({
     return (
       <OtherContactsScreen
         me={me}
-        onBack={() => returnHomeOr('term-of-service')}
+        backLabel={applicationStepBackLabel('other-contacts')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, otherContacts: draft }))
         }
         onNext={(draft) => {
           onUpdateMe(applyOtherContacts(me, draft));
-          goTo('guidelines');
+          setView('guidelines');
         }}
       />
     );
@@ -228,14 +230,15 @@ export function ProgressScreen({
     return (
       <GuidelinesScreen
         me={me}
-        onBack={() => returnHomeOr('other-contacts')}
+        backLabel={applicationStepBackLabel('guidelines')}
+        onBack={onBack}
         onSave={(draft) =>
           onUpdateMe((current) => ({ ...current, guidelines: draft }))
         }
         onSubmit={(draft) => {
           onUpdateMe(applyGuidelines(me, draft));
         }}
-        onFinished={onBack}
+        onFinished={onGuidelinesFinished ?? onBack}
       />
     );
   }
@@ -355,7 +358,7 @@ function applyGuidelines(
   me: VolunteerApplicationStatus,
   draft: VolunteerGuidelines,
 ): VolunteerApplicationStatus {
-  return {
+  return revealOnboarding({
     ...me,
     guidelines: draft,
     steps: me.steps.map((step) =>
@@ -363,7 +366,7 @@ function applyGuidelines(
         ? { ...step, status: 'complete' as const, youDo: null }
         : step,
     ),
-  };
+  });
 }
 
 function applyPassportDetails(

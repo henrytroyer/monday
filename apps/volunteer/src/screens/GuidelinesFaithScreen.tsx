@@ -1,4 +1,5 @@
 import type { ReactNode, SVGProps } from 'react';
+import { SectionWave } from '../components/SectionWave';
 import {
   GUIDELINES_FAITH_CONDUCT_BULLETS,
   GUIDELINES_FAITH_CONDUCT_HEADING,
@@ -34,34 +35,38 @@ export function GuidelinesFaithScreen() {
               <span className="block">& Faith</span>
             </h1>
           </div>
-          <TornEdge />
         </div>
       </section>
 
-      <p className="mx-auto mt-12 max-w-3xl text-center text-base leading-8 text-navy sm:mt-16 sm:text-lg">
-        {GUIDELINES_FAITH_PURPOSE}
-      </p>
+      <section className="relative left-1/2 w-screen -translate-x-1/2 border-t-2 border-white bg-[#667b96]">
+        <blockquote className="mx-auto max-w-3xl px-5 pt-12 pb-20 text-center text-xl font-semibold leading-9 text-white sm:pt-16 sm:pb-24 sm:text-2xl sm:leading-10">
+          “{GUIDELINES_FAITH_PURPOSE}”
+        </blockquote>
+        <SectionWave className="pointer-events-none absolute inset-x-0 bottom-0 h-[4.25rem] w-full text-crm-white" />
+      </section>
 
       <ApproachBlock heading={GUIDELINES_FAITH_CONDUCT_HEADING} icon={<PeopleIcon />}>
         <BulletList items={GUIDELINES_FAITH_CONDUCT_BULLETS} />
       </ApproachBlock>
 
       <ApproachBlock heading={DRESS_CODE_HEADING} icon={<ShirtIcon />}>
-        <div className="grid gap-10 sm:grid-cols-2">
-          <div>
-            <h3 className="font-display text-2xl font-extrabold text-navy">
+        <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+          <div className="rounded-2xl bg-rose-50 px-5 py-5">
+            <h3 className="font-display text-center text-2xl font-extrabold text-navy">
               {DRESS_CODE_LADIES_HEADING.replace(/:$/, '')}
             </h3>
             <BulletList items={DRESS_CODE_LADIES_BULLETS} />
           </div>
-          <div>
-            <h3 className="font-display text-2xl font-extrabold text-navy">
+          <div className="rounded-2xl bg-sky-50 px-5 py-5">
+            <h3 className="font-display text-center text-2xl font-extrabold text-navy">
               {DRESS_CODE_MEN_HEADING.replace(/:$/, '')}
             </h3>
             <BulletList items={DRESS_CODE_MEN_BULLETS} />
           </div>
         </div>
-        <p className="mt-8 text-base leading-7 text-navy">{DRESS_CODE_BRACELET_NOTE}.</p>
+        <p className="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-base leading-7 text-navy">
+          {DRESS_CODE_BRACELET_NOTE}.
+        </p>
       </ApproachBlock>
 
       <ApproachBlock heading={DRESS_CODE_GENERAL_HEADING} icon={<HeartIcon />}>
@@ -82,16 +87,16 @@ function ApproachBlock({
   children: ReactNode;
 }) {
   return (
-    <section className="mx-auto mt-14 flex max-w-3xl scroll-mt-28 gap-5 sm:mt-20 sm:gap-7">
-      <span className="mt-1 flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center rounded-full bg-white shadow-[0_4px_18px_rgba(27,54,93,0.1)]">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <h2 className="font-display text-[1.85rem] font-extrabold leading-tight text-navy">
+    <section className="mx-auto mt-14 max-w-3xl scroll-mt-28 sm:mt-20">
+      <div className="flex items-center justify-center gap-4">
+        <h2 className="font-display text-[1.85rem] font-extrabold leading-tight text-crm-terracotta">
           {heading}
         </h2>
-        <div className="mt-4">{children}</div>
+        <span className="flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center rounded-full bg-white shadow-[0_4px_18px_rgba(27,54,93,0.1)]">
+          {icon}
+        </span>
       </div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -103,22 +108,6 @@ function BulletList({ items }: { items: readonly string[] }) {
         <li key={item}>{item}</li>
       ))}
     </ul>
-  );
-}
-
-function TornEdge() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 bottom-0 h-8 w-full text-crm-white"
-      viewBox="0 0 1440 40"
-      preserveAspectRatio="none"
-    >
-      <path
-        fill="currentColor"
-        d="M0 28c32-10 54 8 86 2 28-6 46-18 78-8 30 10 52-12 84-4 26 6 44 16 76 4 34-12 58 10 90 2 24-6 40-16 72-6 28 8 50-10 82-2 24 6 42 14 74 2 36-14 60 8 94 0 26-6 44-14 76-4 30 10 52-8 84 0 24 6 40 14 72 4 34-10 58 8 90 0 22-6 38-12 70-2 28 8 48-10 80-2 18 4 28 10 46 6V40H0Z"
-      />
-    </svg>
   );
 }
 

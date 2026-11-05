@@ -28,7 +28,11 @@ export function LandingScreen({
           <BrandMark />
         </div>
         <div className="relative h-52 overflow-hidden md:h-auto md:w-1/2">
-          <img src={HOME_HERO_PHOTO} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_42%]" />
+          <img
+            src={HOME_HERO_PHOTO}
+            alt=""
+            className="absolute inset-0 h-full w-full origin-[60%_58%] scale-[1.28] object-cover object-[60%_58%]"
+          />
         </div>
         <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-10 text-center md:px-12">
           <h1 className="font-display max-w-xl text-5xl font-extrabold tracking-tight text-crm-terracotta sm:text-6xl">

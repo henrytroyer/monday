@@ -17,6 +17,13 @@ export type VolunteerFormView =
   | 'other-contacts'
   | 'guidelines';
 
+export type ApplicationStepBackLabel = 'Back' | 'Home';
+
+/** Home leaves the step. Back returns to an earlier page of the same step. */
+export function applicationStepBackLabel(view: VolunteerFormView): ApplicationStepBackLabel {
+  return view === 'getting-started' ? 'Back' : 'Home';
+}
+
 export function previewViewForStep(
   id: ShortTermStepId,
 ): VolunteerFormView | null {
@@ -46,18 +53,30 @@ export function previewViewForStep(
   }
 }
 
+/**
+ * Mock only. Set this to false before production.
+ * While it is true, any application step can be opened.
+ * At launch, a step opens only after the one before it is finished.
+ */
+export const PREVIEW_OPEN_ANY_STEP = true;
+
 /** The volunteer has submitted this step, or the team already has it. */
 export function stepIsFinished(status: VolunteerStep['status']): boolean {
   return status === 'complete' || status === 'received';
 }
 
-/** A step opens only after the one before it is finished. The first step is always open. */
+/**
+ * A step opens only after the one before it is finished. The first step is always open.
+ * Pass `false` to test the launch rule. The portal uses `PREVIEW_OPEN_ANY_STEP`.
+ */
 export function canOpenProcessStep(
   id: ShortTermStepId,
   steps: readonly Pick<VolunteerStep, 'id' | 'status'>[],
+  openAnyStep = PREVIEW_OPEN_ANY_STEP,
 ): boolean {
   const view = previewViewForStep(id);
   if (!view) return false;
+  if (openAnyStep) return true;
   const order = SHORT_TERM_STEP_DEFAULTS.map((step) => step.id);
   const index = order.indexOf(id);
   if (index <= 0) return true;

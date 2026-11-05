@@ -249,8 +249,8 @@ export interface VolunteerApplicationStatus extends VolunteerIdentity {
   guidelines?: VolunteerGuidelines;
   notifications?: VolunteerNotification[];
   /**
-   * Set when the volunteer clicks "Continue to the next steps" after submit.
-   * Not a Monday field. Keeps the post-submit timeline after they leave Home.
+   * Set when Guidelines is submitted. Not a Monday field.
+   * Keeps the preparation timeline after they leave Home.
    */
   onboardingRevealed?: boolean;
   /** Post-submit timeline statuses. Missing steps stay not started. */

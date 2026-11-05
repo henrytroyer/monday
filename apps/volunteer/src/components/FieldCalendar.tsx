@@ -33,7 +33,7 @@ export function FieldCalendar() {
 
   return (
     <section aria-labelledby="field-calendar-title" className="mx-auto w-full pb-4">
-      <h2 id="field-calendar-title" className="pr-16 font-display text-2xl font-semibold text-navy">
+      <h2 id="field-calendar-title" className="pr-16 font-display text-2xl font-semibold text-white!">
         {FIELD_CALENDAR_TITLE}
       </h2>
       <div className="mt-3 w-full overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-sand">

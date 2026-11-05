@@ -41,11 +41,13 @@ import {
 export function HistorySkillsLanguagesScreen({
   me,
   onBack,
+  backLabel,
   onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  backLabel: 'Back' | 'Home';
   onSave: (draft: VolunteerHistorySkillsLanguages) => void;
   onNext: (draft: VolunteerHistorySkillsLanguages) => void;
 }) {
@@ -83,7 +85,7 @@ export function HistorySkillsLanguagesScreen({
 
   return (
     <FormCard onSubmit={handleSubmit}>
-      <BackButton onClick={onBack} />
+      <BackButton label={backLabel} onClick={onBack} />
 
       <SectionBanner className="mt-5">{HISTORY_BANNER}</SectionBanner>
       <hr className="mt-3 border-crm-taupe/40" />

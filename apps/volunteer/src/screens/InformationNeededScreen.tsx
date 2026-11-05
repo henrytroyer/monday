@@ -16,14 +16,16 @@ import {
 
 export function InformationNeededScreen({
   onBack,
+  backLabel,
   onContinue,
 }: {
   onBack: () => void;
+  backLabel: 'Back' | 'Home';
   onContinue: () => void;
 }) {
   return (
     <FormCard>
-      <BackButton onClick={onBack} />
+      <BackButton label={backLabel} onClick={onBack} />
 
       <h1 className="text-lg font-bold text-navy">
         {INFORMATION_NEEDED_HEADING}

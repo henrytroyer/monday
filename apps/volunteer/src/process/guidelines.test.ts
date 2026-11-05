@@ -9,11 +9,12 @@ import {
   DRESS_CODE_GENERAL_BULLETS,
   DRESS_CODE_LADIES_BULLETS,
   DRESS_CODE_MEN_BULLETS,
-  isCopyEmailValid,
   PERSONAL_CONDUCT_BULLETS,
   PERSONAL_CONDUCT_HEADING,
-  THANK_YOU_SUBTITLE,
-  THANK_YOU_TITLE,
+  SUBMISSION_THANKS_NOTE,
+  SUBMISSION_THANKS_NOTICE,
+  SUBMISSION_THANKS_TITLE,
+  submissionThanksSecondsLeft,
 } from './guidelines.ts';
 
 describe('guidelines copy', () => {
@@ -46,14 +47,22 @@ describe('guidelines gate', () => {
 });
 
 describe('guidelines thank-you copy', () => {
-  it('matches the confirmation screenshot', () => {
-    assert.equal(THANK_YOU_TITLE, 'Thank you!');
-    assert.equal(THANK_YOU_SUBTITLE, 'Your application has been sent.');
+  it('uses the submit overlay lines', () => {
+    assert.equal(
+      SUBMISSION_THANKS_TITLE,
+      'Thank-you for submitting an application to\ni58 Global!',
+    );
+    assert.equal(SUBMISSION_THANKS_NOTICE, 'You will be notified when we receive it.');
+    assert.equal(SUBMISSION_THANKS_NOTE, 'Next steps coming soon . . .');
   });
 
-  it('requires a valid email before sending a copy', () => {
-    assert.equal(isCopyEmailValid(''), false);
-    assert.equal(isCopyEmailValid('you@company'), false);
-    assert.equal(isCopyEmailValid('you@company.com'), true);
+  it('counts down from 10 seconds across the overlay pause', () => {
+    assert.equal(submissionThanksSecondsLeft(0), 10);
+    assert.equal(submissionThanksSecondsLeft(999), 10);
+    assert.equal(submissionThanksSecondsLeft(1000), 9);
+    assert.equal(submissionThanksSecondsLeft(9000), 1);
+    assert.equal(submissionThanksSecondsLeft(9999), 1);
+    assert.equal(submissionThanksSecondsLeft(10000), 0);
+    assert.equal(submissionThanksSecondsLeft(11000), 0);
   });
 });

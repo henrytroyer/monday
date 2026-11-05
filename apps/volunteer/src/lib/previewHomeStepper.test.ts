@@ -25,13 +25,14 @@ describe('preview home stepper', () => {
     assert.deepEqual(PREVIEW_HOME_LABELS, [
       'Welcome',
       'Application',
-      'Submitted',
+      'Thanks',
       'Preparation',
       'Arrived',
     ]);
     assert.equal(homeIndexFor(fresh), 0);
+    assert.equal(homeIndexFor({ ...fresh, applicationStarted: true }), 1);
     assert.equal(homeIndexFor(JANE_MILLER), 1);
-    assert.equal(homeIndexFor(submitted), 2);
+    assert.equal(homeIndexFor(submitted), 3);
     assert.equal(homeIndexFor({ ...submitted, onboardingRevealed: true }), 3);
     assert.equal(
       homeIndexFor({ ...submitted, onboardingRevealed: true, arrivedInEurope: true }),
@@ -59,7 +60,6 @@ describe('preview home stepper', () => {
     assert.equal(thanks.steps.find((step) => step.id === 'guidelines')?.status, 'complete');
     assert.equal(thanks.onboardingRevealed, false);
     assert.equal(thanks.arrivedInEurope, false);
-    assert.equal(thanks.steps.find((step) => step.id === 'application_received')?.status, 'complete');
 
     const preparation = previewHomeStatus(JANE_MILLER, 3);
     assert.equal(preparation.steps.find((step) => step.id === 'guidelines')?.status, 'complete');
@@ -123,8 +123,8 @@ describe('preview home stepper', () => {
     );
   });
 
-  it('keeps welcome, submitted, preparation, and arrived on those homes', () => {
-    const indexes: PreviewHomeIndex[] = [0, 2, 3, 4];
+  it('keeps welcome, preparation, and arrived on those homes', () => {
+    const indexes: PreviewHomeIndex[] = [0, 3, 4];
     for (const index of indexes) {
       const copy = previewHomeStatus(JANE_MILLER, index);
       assert.equal(homeIndexFor(copy), index);

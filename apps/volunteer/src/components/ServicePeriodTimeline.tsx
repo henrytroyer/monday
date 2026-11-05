@@ -10,31 +10,50 @@ const PLANE = '/brand/flights-airplane.png?v=navy';
 const PLANE_DOWN = 'rotate(57deg)';
 const PLANE_UP = 'rotate(-13.5deg)';
 
-export function ServicePeriodTimeline({ period }: { period: ServicePeriod }) {
+export function ServicePeriodTimeline({
+  period,
+  labelled = true,
+}: {
+  period: ServicePeriod;
+  labelled?: boolean;
+}) {
   const progress = Math.min(100, Math.max(0, period.progress));
+  const Tag = labelled ? 'section' : 'div';
 
   return (
-    <section aria-labelledby="service-period-title" className="mx-auto w-full">
-      <h2
-        id="service-period-title"
-        className="mb-8 text-center font-display text-3xl font-extrabold text-navy sm:text-4xl"
+    <Tag aria-labelledby={labelled ? 'service-period-title' : undefined} className="mx-auto w-full">
+      {labelled ? (
+        <h2
+          id="service-period-title"
+          className="mb-8 text-center font-display text-3xl font-extrabold text-navy sm:text-4xl"
+        >
+          Your time of service
+        </h2>
+      ) : null}
+      <div
+        className="flex items-center gap-2"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+        aria-label={timelineLabel(period)}
       >
-        Your time of service
-      </h2>
-      <p className="sr-only">{timelineLabel(period)}</p>
-      <div className="flex items-center gap-2">
         <ServicePlane direction="down" />
         <div className="relative h-6 min-w-0 flex-1">
           <span
             aria-hidden
-            className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 rounded-full bg-crm-taupe"
+            className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-[#e4e2dc]"
           />
           <span
             aria-hidden
-            className="absolute top-1/2 left-0 h-[3px] -translate-y-1/2 rounded-full bg-gradient-to-r from-[#c45b78] via-[#e7a8b8] to-[#f8dce3] shadow-[0_0_10px_rgba(196,91,120,0.35)]"
+            className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-full bg-gradient-to-r from-[#c45b78] to-[#f0b7c4]"
             style={{ width: `${progress}%` }}
           />
-          <span aria-hidden className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <span
+            aria-hidden
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{ left: `${progress}%` }}
+          >
             <ServiceHeart />
           </span>
         </div>
@@ -44,7 +63,7 @@ export function ServicePeriodTimeline({ period }: { period: ServicePeriod }) {
         <span>{period.start ? formatDay(period.start) : 'Arrival'}</span>
         <span>{period.end ? formatDay(period.end) : 'Departure'}</span>
       </div>
-    </section>
+    </Tag>
   );
 }
 

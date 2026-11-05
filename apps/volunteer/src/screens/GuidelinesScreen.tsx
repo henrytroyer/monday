@@ -6,15 +6,11 @@ import type {
 } from '../contract/volunteerApi';
 import { BackButton } from '../components/BackButton';
 import { FormCard } from '../components/FormCard';
+import { SubmissionThanksOverlay } from '../components/SubmissionThanksOverlay';
 import {
   AGREEMENT_LABEL,
   AGREEMENT_NOTE,
   AGREEMENT_SECTION,
-  COPY_EMAIL_PLACEHOLDER,
-  COPY_HEADING,
-  COPY_HINT,
-  COPY_SEND_LABEL,
-  COPY_SENT_MESSAGE,
   DRESS_CODE_BRACELET_NOTE,
   DRESS_CODE_GENERAL_BULLETS,
   DRESS_CODE_GENERAL_HEADING,
@@ -25,28 +21,22 @@ import {
   DRESS_CODE_MEN_HEADING,
   emptyGuidelines,
   GUIDELINES_BANNER,
-  isCopyEmailValid,
   isGuidelinesComplete,
   PERSONAL_CONDUCT_BULLETS,
   PERSONAL_CONDUCT_HEADING,
-  THANK_YOU_CONTACT_END,
-  THANK_YOU_CONTACT_LEAD,
-  THANK_YOU_EMAIL,
-  THANK_YOU_PHONE,
-  THANK_YOU_SUBTITLE,
-  THANK_YOU_TITLE,
-  THANK_YOU_WAIT,
 } from '../process/guidelines';
 
 export function GuidelinesScreen({
   me,
   onBack,
+  backLabel,
   onSave,
   onSubmit,
   onFinished,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  backLabel: 'Back' | 'Home';
   onSave: (draft: VolunteerGuidelines) => void;
   onSubmit: (draft: VolunteerGuidelines) => void;
   onFinished: () => void;
@@ -67,8 +57,8 @@ export function GuidelinesScreen({
 
   return (
     <>
-      <FormCard onSubmit={handleSubmit} hidden={submitted}>
-        <BackButton onClick={onBack} />
+      <FormCard onSubmit={handleSubmit} hidden={submitted} className={submitted ? 'invisible' : undefined}>
+        <BackButton label={backLabel} onClick={onBack} />
 
         <p className="mt-5 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white">
           {GUIDELINES_BANNER}
@@ -141,106 +131,8 @@ export function GuidelinesScreen({
           </button>
         </div>
       </FormCard>
-      {submitted ? <ThankYouDialog onBack={onFinished} /> : null}
+      {submitted ? <SubmissionThanksOverlay onFinished={onFinished} /> : null}
     </>
-  );
-}
-
-function ThankYouDialog({ onBack }: { onBack: () => void }) {
-  const [copyEmail, setCopyEmail] = useState('');
-  const [copySent, setCopySent] = useState(false);
-  const allowSend = isCopyEmailValid(copyEmail);
-
-  function handleSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!allowSend) return;
-    setCopySent(true);
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-10">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="guidelines-thank-you-title"
-        className="w-full max-w-md rounded-2xl bg-white px-5 py-8 shadow-lg"
-      >
-        <BackButton onClick={onBack} />
-        <h2
-          id="guidelines-thank-you-title"
-          className="mt-4 text-center text-xl font-semibold leading-snug text-crm-heading"
-        >
-          {THANK_YOU_TITLE}
-          <span className="mt-1 block">{THANK_YOU_SUBTITLE}</span>
-        </h2>
-        <hr className="mt-5 border-crm-taupe/40" />
-        <div className="mt-5 rounded-xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-[#2b6cb0]">
-          <div className="flex gap-3">
-            <span aria-hidden="true" className="mt-0.5 shrink-0">
-              ℹ️
-            </span>
-            <div className="space-y-2">
-              <p className="font-semibold">{THANK_YOU_WAIT}</p>
-              <p>
-                {THANK_YOU_CONTACT_LEAD}{' '}
-                <a
-                  className="font-semibold underline-offset-2 hover:underline"
-                  href={`mailto:${THANK_YOU_EMAIL}`}
-                >
-                  {THANK_YOU_EMAIL}
-                </a>{' '}
-                or call{' '}
-                <a
-                  className="font-semibold underline-offset-2 hover:underline"
-                  href={`tel:${THANK_YOU_PHONE.replace(/\s+/g, '')}`}
-                >
-                  {THANK_YOU_PHONE}
-                </a>{' '}
-                {THANK_YOU_CONTACT_END}
-              </p>
-            </div>
-          </div>
-        </div>
-        <hr className="mt-5 border-crm-taupe/40" />
-        <form
-          onSubmit={handleSend}
-          className="mt-5 rounded-xl border border-crm-taupe/30 bg-crm-surface px-4 py-5"
-        >
-          <h3 className="text-center text-base font-semibold text-crm-heading">
-            {COPY_HEADING}
-          </h3>
-          <p className="mt-1 text-center text-sm text-crm-slate">{COPY_HINT}</p>
-          <div className="mt-4 flex gap-2">
-            <input
-              id="application-copy-email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              aria-label="Email"
-              placeholder={COPY_EMAIL_PLACEHOLDER}
-              value={copyEmail}
-              onChange={(event) => {
-                setCopyEmail(event.target.value);
-                setCopySent(false);
-              }}
-              className="min-h-10 min-w-0 flex-1 rounded-md border border-crm-taupe/40 bg-white px-3 text-sm text-crm-heading outline-none placeholder:text-crm-slate/70 focus:border-navy focus:ring-2 focus:ring-navy/15"
-            />
-            <button
-              type="submit"
-              disabled={!allowSend}
-              className="min-h-10 shrink-0 rounded-md bg-black px-5 text-sm font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-crm-slate"
-            >
-              {COPY_SEND_LABEL}
-            </button>
-          </div>
-          {copySent ? (
-            <p role="status" className="mt-3 text-center text-sm text-crm-heading">
-              {COPY_SENT_MESSAGE}
-            </p>
-          ) : null}
-        </form>
-      </div>
-    </div>
   );
 }
 

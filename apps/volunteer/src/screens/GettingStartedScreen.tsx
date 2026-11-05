@@ -23,11 +23,13 @@ import {
 export function GettingStartedScreen({
   me,
   onBack,
+  backLabel,
   onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  backLabel: 'Back' | 'Home';
   onSave: (draft: GettingStartedDraft) => void;
   onNext: (draft: GettingStartedDraft & { previousVolunteer: 'no' }) => void;
 }) {
@@ -58,7 +60,7 @@ export function GettingStartedScreen({
 
   return (
     <FormCard onSubmit={handleSubmit}>
-      <BackButton onClick={onBack} />
+      <BackButton label={backLabel} onClick={onBack} />
 
       <p className="mt-5 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white">
         {GETTING_STARTED_BANNER}

@@ -7,20 +7,23 @@ export function FormCard({
   children,
   onSubmit,
   hidden = false,
+  className,
 }: {
   children: ReactNode;
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
   hidden?: boolean;
+  className?: string;
 }) {
+  const cardClass = className ? `${CARD} ${className}` : CARD;
   if (onSubmit) {
     return (
-      <form onSubmit={onSubmit} aria-hidden={hidden} className={CARD}>
+      <form onSubmit={onSubmit} aria-hidden={hidden} className={cardClass}>
         {children}
       </form>
     );
   }
   return (
-    <div aria-hidden={hidden || undefined} className={CARD}>
+    <div aria-hidden={hidden || undefined} className={cardClass}>
       {children}
     </div>
   );

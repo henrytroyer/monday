@@ -8,7 +8,6 @@ import {
   type OnboardingStep,
   type PreparationDocumentId,
   type VolunteerApplicationStatus,
-  type VolunteerStep,
 } from '../contract/volunteerApi';
 import {
   documentIsAccepted,
@@ -24,10 +23,13 @@ export const PREVIEW_HOME_STEPPER = true;
 
 export const PREVIEW_HOME_COUNT = 5;
 
+/** The submit message. Preview only — a real account never lands here. */
+export const PREVIEW_THANKS_HOME = 2;
+
 export const PREVIEW_HOME_LABELS = [
   'Welcome',
   'Application',
-  'Submitted',
+  'Thanks',
   'Preparation',
   'Arrived',
 ] as const;
@@ -110,22 +112,11 @@ function documentPreviewStep(
   };
 }
 
-function withGuidelines(
-  me: VolunteerApplicationStatus,
-  status: VolunteerStep['status'],
-): VolunteerApplicationStatus {
-  return {
-    ...me,
-    steps: me.steps.map((step) => (step.id === GUIDELINES ? { ...step, status } : step)),
-  };
-}
-
 /** Which homepage this account is actually on. */
 export function homeIndexFor(me: VolunteerApplicationStatus): PreviewHomeIndex {
   if (me.arrivedInEurope) return 4;
   const submitted = me.steps.some((step) => step.id === GUIDELINES && step.status === 'complete');
-  if (submitted && me.onboardingRevealed) return 3;
-  if (submitted) return 2;
+  if (submitted) return 3;
   if (showWelcomeHome(me)) return 0;
   return 1;
 }
@@ -152,9 +143,9 @@ export function previewHomeStatus(
       arrivedInEurope: false,
     };
   }
-  if (index === 2) {
+  if (index === PREVIEW_THANKS_HOME) {
     return {
-      ...withGuidelines(me, 'complete'),
+      ...withEveryStepComplete(me),
       applicationStarted: true,
       onboardingRevealed: false,
       arrivedInEurope: false,

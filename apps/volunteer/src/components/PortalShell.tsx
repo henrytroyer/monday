@@ -35,7 +35,13 @@ export function PortalShell({
           </span>
         </p>
       ) : null}
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">{children}</main>
+      <main
+        className={`mx-auto w-full flex-1 px-5 ${
+          tab === 'volunteer' ? 'max-w-6xl pt-0 pb-8' : 'max-w-5xl py-8'
+        }`}
+      >
+        {children}
+      </main>
       <SiteFooter tone={footerTone} />
     </div>
   );

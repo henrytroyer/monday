@@ -139,6 +139,9 @@ export default function App() {
     meRef.current = next;
     if (!user) rememberPreview(next);
     setMe(next);
+    if (PREVIEW_HOME_STEPPER && next.applicationStarted && !current.applicationStarted) {
+      setPreviewHome(homeIndexFor(next));
+    }
   }
 
   useEffect(() => {
@@ -260,7 +263,7 @@ export default function App() {
           />
         ) : null}
         {tab === 'volunteer' ? (
-          <VolunteerInfoScreen me={me} onBack={() => handleGoTo({ tab: 'home' })} />
+          <VolunteerInfoScreen me={me} />
         ) : null}
         {tab === 'guidelinesFaith' ? <GuidelinesFaithScreen /> : null}
         {tab === 'visionValues' ? <VisionValuesScreen /> : null}
@@ -292,6 +295,11 @@ export default function App() {
             me={me}
             initialStepId={processFocus}
             onBack={() => handleGoTo({ tab: 'home' })}
+            onGuidelinesFinished={() => {
+              const current = meRef.current;
+              if (PREVIEW_HOME_STEPPER && current) setPreviewHome(homeIndexFor(current));
+              handleGoTo({ tab: 'home' });
+            }}
             onUpdateMe={handleUpdateMe}
           />
         ) : null}

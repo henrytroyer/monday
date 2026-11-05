@@ -43,21 +43,14 @@ export const DRESS_CODE_GENERAL_BULLETS = [
   'Full attention is expected on the work at hand, and if an exception is granted, a hands-off policy must be maintained in the field',
 ] as const;
 
-export const THANK_YOU_TITLE = 'Thank you!';
-export const THANK_YOU_SUBTITLE = 'Your application has been sent.';
-export const THANK_YOU_WAIT =
-  'Please allow several weeks for us to get back to you.';
-export const THANK_YOU_CONTACT_LEAD =
-  'If you have any questions in the mean time. Please email';
-export const THANK_YOU_EMAIL = 'info@i58greece.org';
-export const THANK_YOU_PHONE = '717-314-8425';
-export const THANK_YOU_CONTACT_END = 'Thank you';
-export const COPY_HEADING = 'Copy of Application';
-export const COPY_HINT =
-  'Would you like a copy of your application? Send yourself a copy here.';
-export const COPY_EMAIL_PLACEHOLDER = 'you@company.com';
-export const COPY_SEND_LABEL = 'Send';
-export const COPY_SENT_MESSAGE = 'Copy sent.';
+export const SUBMISSION_THANKS_MS = 10000;
+
+export const SUBMISSION_THANKS_TITLE =
+  'Thank-you for submitting an application to\ni58 Global!';
+
+export const SUBMISSION_THANKS_NOTICE = 'You will be notified when we receive it.';
+
+export const SUBMISSION_THANKS_NOTE = 'Next steps coming soon . . .';
 
 export const emptyGuidelines = (): VolunteerGuidelines => ({
   agreed: false,
@@ -67,6 +60,8 @@ export function isGuidelinesComplete(draft: VolunteerGuidelines): boolean {
   return draft.agreed === true;
 }
 
-export function isCopyEmailValid(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+/** Whole seconds still showing on the submit overlay. 10 at the start, 0 when the pause is over. */
+export function submissionThanksSecondsLeft(elapsedMs: number): number {
+  const left = Math.max(0, SUBMISSION_THANKS_MS - elapsedMs);
+  return Math.ceil(left / 1000);
 }

@@ -22,11 +22,13 @@ import {
 export function FamilyStatusScreen({
   me,
   onBack,
+  backLabel,
   onSave,
   onNext,
 }: {
   me: VolunteerApplicationStatus;
   onBack: () => void;
+  backLabel: 'Back' | 'Home';
   onSave: (draft: VolunteerFamilyStatus) => void;
   onNext: (draft: VolunteerFamilyStatus) => void;
 }) {
@@ -52,7 +54,7 @@ export function FamilyStatusScreen({
 
   return (
     <FormCard onSubmit={handleSubmit}>
-      <BackButton onClick={onBack} />
+      <BackButton label={backLabel} onClick={onBack} />
 
       <p className="mt-5 rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white">
         {FAMILY_STATUS_BANNER}

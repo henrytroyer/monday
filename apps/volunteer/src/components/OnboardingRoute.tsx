@@ -31,35 +31,12 @@ import { StepConnector } from './StepConnector';
 
 const STEPS_PER_ROW = 5;
 
-const THANK_YOU =
-  'Thank-you for submitting an application to i58 Global, we hope to see you in Europe soon!';
-
 interface OnboardingBubble {
   id: OnboardingStepId;
   title: string;
   complete: boolean;
   fill: number;
   tone: OnboardingWaterTone;
-}
-
-export function SubmittedThanks({ onReveal }: { onReveal: () => void }) {
-  return (
-    <section className="relative left-1/2 w-screen -translate-x-1/2 bg-white py-6 sm:py-8">
-      <div className="mx-auto flex max-w-5xl flex-col items-center px-5 text-center">
-        <p className="font-display text-2xl font-semibold text-navy">
-          “{THANK_YOU}”
-        </p>
-        <button
-          type="button"
-          onClick={onReveal}
-          className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95"
-        >
-          Continue to the next steps
-          <ArrowIcon />
-        </button>
-      </div>
-    </section>
-  );
 }
 
 export function OnboardingRoute({
@@ -292,24 +269,6 @@ function StepBubble({
     >
       {bubble}
     </div>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5 shrink-0"
-      fill="none"
-      aria-hidden
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 12h15" />
-      <path d="M13 6.5 19 12l-6 5.5" />
-    </svg>
   );
 }
 
