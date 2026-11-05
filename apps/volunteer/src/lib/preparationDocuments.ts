@@ -114,6 +114,52 @@ export function documentStageFill(stage: DocumentStage): number {
   return DOCUMENT_STAGE_FILL[stage];
 }
 
+/** Waiting for staff, then the itinerary or training details are on the card. */
+export const STAFF_UPLOAD_CYCLE = ['waiting', 'uploaded'] as const;
+
+export type StaffUploadStage = (typeof STAFF_UPLOAD_CYCLE)[number];
+
+const STAFF_UPLOAD_WAITING = {
+  flights: '... waiting for i58 to upload flight info ...',
+  training: '... waiting for i58 to upload training info ...',
+} as const;
+
+/**
+ * Flights and Team Training stay empty until i58 uploads, then the bubble is full.
+ * Other preparation steps are left as they are.
+ */
+export function withStaffUploadProgress(
+  me: VolunteerApplicationStatus,
+  uploads: { flights: StaffUploadStage; training: StaffUploadStage },
+): VolunteerApplicationStatus {
+  return {
+    ...me,
+    onboardingSteps: resolveOnboardingSteps(me).map((step) => {
+      const stage =
+        step.id === 'flights' ? uploads.flights : step.id === 'team_training' ? uploads.training : null;
+      if (stage == null) return step;
+      if (stage === 'uploaded') return { ...step, status: 'complete', progress: 100 };
+      return { ...step, status: 'not_started', progress: 0 };
+    }),
+  };
+}
+
+/** Copy under the card, and on the opened page, until i58 uploads the details. */
+export function staffUploadWaitingLine(
+  kind: keyof typeof STAFF_UPLOAD_WAITING,
+  uploaded: boolean,
+): string | null {
+  if (uploaded) return null;
+  return STAFF_UPLOAD_WAITING[kind];
+}
+
+/** Preview-only. Switches a flights or training card between waiting and uploaded. */
+export function stepStaffUpload(stage: StaffUploadStage, delta: -1 | 1): StaffUploadStage {
+  const index = STAFF_UPLOAD_CYCLE.indexOf(stage);
+  const next = (index + delta + STAFF_UPLOAD_CYCLE.length) % STAFF_UPLOAD_CYCLE.length;
+  return STAFF_UPLOAD_CYCLE[next] ?? 'waiting';
+}
+
 /** Preview-only. Steps the card label and icon without writing the account. */
 export function stepDocumentStage(stage: DocumentStage, delta: -1 | 1): DocumentStage {
   const index = DOCUMENT_STAGE_CYCLE.indexOf(stage);

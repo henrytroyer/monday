@@ -30,6 +30,11 @@ import {
 } from '../lib/onboarding';
 import { FIELD_HOME_BACKDROP, type PortalDestination } from '../lib/nav';
 import {
+  PREVIEW_DOCUMENT_STAGE_ARROWS,
+  withStaffUploadProgress,
+  type StaffUploadStage,
+} from '../lib/preparationDocuments';
+import {
   PREVIEW_HOME_COUNT,
   PREVIEW_HOME_LABELS,
   previewHomeStatus,
@@ -42,6 +47,10 @@ export function HomeScreen({
   me,
   previewHome = null,
   onPreviewHomeChange,
+  flightsUpload,
+  trainingUpload,
+  onFlightsUpload,
+  onTrainingUpload,
   notificationsOpen,
   onNotificationsOpenChange,
   onGoTo,
@@ -50,12 +59,19 @@ export function HomeScreen({
   me: VolunteerApplicationStatus;
   previewHome?: PreviewHomeIndex | null;
   onPreviewHomeChange?: (index: PreviewHomeIndex) => void;
+  flightsUpload: StaffUploadStage;
+  trainingUpload: StaffUploadStage;
+  onFlightsUpload: (stage: StaffUploadStage) => void;
+  onTrainingUpload: (stage: StaffUploadStage) => void;
   notificationsOpen: boolean;
   onNotificationsOpenChange: (open: boolean) => void;
   onGoTo: (destination: PortalDestination) => void;
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
 }) {
-  const view = previewHome == null ? me : previewHomeStatus(me, previewHome);
+  const displayed = previewHome == null ? me : previewHomeStatus(me, previewHome);
+  const view = PREVIEW_DOCUMENT_STAGE_ARROWS
+    ? withStaffUploadProgress(displayed, { flights: flightsUpload, training: trainingUpload })
+    : displayed;
   const submitted = applicationIsSubmitted(view) && previewHome !== 1;
   const onField = Boolean(view.arrivedInEurope);
   const showOnboarding = submitted && Boolean(view.onboardingRevealed) && !onField;
@@ -91,6 +107,10 @@ export function HomeScreen({
       return (
         <OnboardingRoute
           me={view}
+          flightsUpload={flightsUpload}
+          trainingUpload={trainingUpload}
+          onFlightsUpload={onFlightsUpload}
+          onTrainingUpload={onTrainingUpload}
           onUpdateMe={onUpdateMe}
           onOpenDocument={(id) => onGoTo({ tab: 'document', document: id })}
           onOpenTraining={() => onGoTo({ tab: 'training' })}
@@ -140,23 +160,17 @@ export function HomeScreen({
               alt=""
               className="block h-[36rem] w-full object-cover object-[center_28%] md:h-auto md:object-center"
             />
-            <div className="absolute inset-0 z-10 grid grid-rows-[minmax(0,1fr)_auto]">
-              <div className="flex h-full min-h-0 flex-col gap-3 px-4 pt-4 md:flex-row md:items-start md:justify-between md:gap-4">
-                <div className="w-full max-w-md shrink-0">
-                  <FieldPurpose />
-                </div>
-                <div className="min-h-0 w-full max-w-md flex-1 md:h-full md:flex-none">
-                  <NotificationsPanel
-                    me={view}
-                    open={notificationsOpen}
-                    onOpenChange={onNotificationsOpenChange}
-                    fillAvailable
-                    className="w-full"
-                  />
-                </div>
+            <div className="absolute inset-x-0 top-0 bottom-16 z-10 flex flex-col gap-3 px-4 py-4 md:flex-row md:items-start md:justify-between md:gap-6">
+              <div className="min-w-0 max-w-xl shrink-0 md:flex-1">
+                <FieldPurpose />
               </div>
-              <div className="px-4 pt-4 pb-[calc(1rem+3vw)]">
-                <FieldScheduleBar />
+              <div className="flex min-h-0 w-full flex-1 flex-col md:h-full md:w-[28rem] md:flex-none">
+                <NotificationsPanel
+                  me={view}
+                  open={notificationsOpen}
+                  onOpenChange={onNotificationsOpenChange}
+                  className="max-h-full min-h-0 w-full"
+                />
               </div>
             </div>
           </div>
@@ -271,6 +285,15 @@ export function HomeScreen({
           </div>
         )}
       </section>
+
+      {onField ? (
+        <section
+          aria-label="Field schedules"
+          className="relative left-1/2 w-screen -translate-x-1/2 bg-[#f1f1ef] px-4 pt-8 pb-28"
+        >
+          <FieldScheduleBar />
+        </section>
+      ) : null}
 
       {progressBand()}
     </div>

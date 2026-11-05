@@ -32,10 +32,11 @@ describe('short-term hub labels', () => {
 
 describe('portal destinations', () => {
   it('keeps the signed-in top nav order', () => {
-    assert.deepEqual([...PORTAL_TABS], ['home', 'volunteer', 'guidelinesFaith']);
+    assert.deepEqual([...PORTAL_TABS], ['home', 'volunteer', 'guidelinesFaith', 'visionValues']);
     assert.equal(PORTAL_TAB_LABEL.home, 'Home');
     assert.equal(PORTAL_TAB_LABEL.volunteer, 'My Info');
     assert.equal(PORTAL_TAB_LABEL.guidelinesFaith, 'Guidelines & Faith');
+    assert.equal(PORTAL_TAB_LABEL.visionValues, 'Vision & Values');
     assert.deepEqual([...SHORT_TERM_VIEWS], ['progress', 'documents']);
     assert.equal(APPLICATION_PROCESS_TITLE, 'Application Process');
     assert.equal(SHORT_TERM_APPLICATION_TITLE, 'Short-term application');

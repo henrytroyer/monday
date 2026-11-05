@@ -39,9 +39,6 @@ const GUIDELINES = 'guidelines';
 /** Seven of the ten preparation bubbles: two-thirds, rounded to the nearest step. */
 const PREVIEW_PREPARATION_FILLED = Math.round((ONBOARDING_STEP_DEFAULTS.length * 2) / 3);
 
-/** Flights is the next preparation step, started far enough to show the water line. */
-const PREVIEW_FLIGHTS_PROGRESS = 40;
-
 function withEveryStepComplete(me: VolunteerApplicationStatus): VolunteerApplicationStatus {
   return {
     ...me,
@@ -98,9 +95,6 @@ function documentPreviewStep(
 ): OnboardingStep {
   const draft = me.preparationDocuments?.[id];
   if (!documentIsEdited(draft)) {
-    if (id === 'flights') {
-      return { id, title, status: 'not_started', progress: PREVIEW_FLIGHTS_PROGRESS };
-    }
     return {
       id,
       title,

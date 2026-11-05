@@ -3,6 +3,7 @@ import { SHORT_TERM_STEP_DEFAULTS } from '../contract/volunteerApi';
 import { stepFillPercent } from '../lib/formProgress';
 import { canOpenProcessStep } from '../process/previewAccess';
 import { ProgressBubble } from './ProgressBubble';
+import { StepConnector } from './StepConnector';
 
 const STEPS_PER_ROW = 5;
 
@@ -50,9 +51,9 @@ export function JourneyRoute({
                 {row.map((step, index) => (
                   <li key={step.id} className="contents">
                     {index > 0 ? (
-                      <StampLine
+                      <StepConnector
                         compact={compact}
-                        flowed={row[index - 1].fill > 0 && step.fill > 0}
+                        tone={row[index - 1].fill > 0 && step.fill > 0 ? 'blue' : 'muted'}
                       />
                     ) : null}
                     <StepBubble
@@ -106,22 +107,6 @@ function chunk<T>(items: T[], size: number): T[][] {
     rows.push(items.slice(index, index + size));
   }
   return rows;
-}
-
-function StampLine({ compact, flowed }: { compact: boolean; flowed: boolean }) {
-  const tone = flowed
-    ? 'h-[3px] rounded-full bg-gradient-to-r from-[#1b365d] via-[#2f78aa] to-[#7ec8e4] shadow-[0_0_10px_rgba(47,120,170,0.45)]'
-    : 'h-px bg-crm-taupe';
-  const offset = flowed
-    ? compact
-      ? 'mt-[18.5px]'
-      : 'mt-[18.5px] sm:mt-[22.5px]'
-    : compact
-      ? 'mt-5'
-      : 'mt-5 sm:mt-6';
-  return (
-    <span aria-hidden className={`mx-1 min-w-2 flex-1 sm:mx-2 ${tone} ${offset}`} />
-  );
 }
 
 function StepBubble({

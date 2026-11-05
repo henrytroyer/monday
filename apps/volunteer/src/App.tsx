@@ -27,6 +27,7 @@ import {
   previewHomeStatus,
   type PreviewHomeIndex,
 } from './lib/previewHomeStepper';
+import type { StaffUploadStage } from './lib/preparationDocuments';
 import {
   mockCreateAccount,
   mockSignIn,
@@ -45,6 +46,7 @@ import { canOpenProcessStep } from './process/previewAccess';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { VolunteerInfoScreen } from './screens/VolunteerInfoScreen';
 import { GuidelinesFaithScreen } from './screens/GuidelinesFaithScreen';
+import { VisionValuesScreen } from './screens/VisionValuesScreen';
 import { PreparationDocumentScreen } from './screens/PreparationDocumentScreen';
 import { FlightItineraryScreen } from './screens/FlightItineraryScreen';
 import { TeamTrainingScreen } from './screens/TeamTrainingScreen';
@@ -73,6 +75,8 @@ export default function App() {
   const [notificationsOpen, setNotificationsOpen] = useState(true);
   const [previewHome, setPreviewHome] = useState<PreviewHomeIndex>(0);
   const [previewForEmail, setPreviewForEmail] = useState<string | null>(null);
+  const [flightsUpload, setFlightsUpload] = useState<StaffUploadStage>('waiting');
+  const [trainingUpload, setTrainingUpload] = useState<StaffUploadStage>('waiting');
   if (PREVIEW_HOME_STEPPER) {
     if (!me && previewForEmail !== null) {
       setPreviewForEmail(null);
@@ -91,6 +95,8 @@ export default function App() {
     setGuestView('landing');
     setUnknownEmail('');
     setNotificationsOpen(true);
+    setFlightsUpload('waiting');
+    setTrainingUpload('waiting');
   }
 
   function enterPortal(next: VolunteerApplicationStatus, message: string | null = null) {
@@ -243,6 +249,10 @@ export default function App() {
             me={me}
             previewHome={PREVIEW_HOME_STEPPER ? previewHome : null}
             onPreviewHomeChange={PREVIEW_HOME_STEPPER ? setPreviewHome : undefined}
+            flightsUpload={flightsUpload}
+            trainingUpload={trainingUpload}
+            onFlightsUpload={setFlightsUpload}
+            onTrainingUpload={setTrainingUpload}
             notificationsOpen={notificationsOpen}
             onNotificationsOpenChange={setNotificationsOpen}
             onGoTo={handleGoTo}
@@ -253,11 +263,19 @@ export default function App() {
           <VolunteerInfoScreen me={me} onBack={() => handleGoTo({ tab: 'home' })} />
         ) : null}
         {tab === 'guidelinesFaith' ? <GuidelinesFaithScreen /> : null}
+        {tab === 'visionValues' ? <VisionValuesScreen /> : null}
         {tab === 'training' ? (
-          <TeamTrainingScreen onBack={() => handleGoTo({ tab: 'home' })} />
+          <TeamTrainingScreen
+            uploaded={trainingUpload === 'uploaded'}
+            onBack={() => handleGoTo({ tab: 'home' })}
+          />
         ) : null}
         {tab === 'document' && documentFocus === 'flights' ? (
-          <FlightItineraryScreen me={me} onBack={() => handleGoTo({ tab: 'home' })} />
+          <FlightItineraryScreen
+            me={me}
+            uploaded={flightsUpload === 'uploaded'}
+            onBack={() => handleGoTo({ tab: 'home' })}
+          />
         ) : null}
         {tab === 'document' && documentFocus && documentFocus !== 'flights' ? (
           <PreparationDocumentScreen

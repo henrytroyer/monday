@@ -22,10 +22,12 @@ import {
   documentStageFill,
   isPreparationDocument,
   type DocumentStage,
+  type StaffUploadStage,
 } from '../lib/preparationDocuments';
 import { FinalChecklistPanel } from './FinalChecklistPanel';
 import { PreparationDocumentsBand } from './PreparationDocumentsBand';
 import { ProgressBubble } from './ProgressBubble';
+import { StepConnector } from './StepConnector';
 
 const STEPS_PER_ROW = 5;
 
@@ -62,11 +64,19 @@ export function SubmittedThanks({ onReveal }: { onReveal: () => void }) {
 
 export function OnboardingRoute({
   me,
+  flightsUpload,
+  trainingUpload,
+  onFlightsUpload,
+  onTrainingUpload,
   onUpdateMe,
   onOpenDocument,
   onOpenTraining,
 }: {
   me: VolunteerApplicationStatus;
+  flightsUpload: StaffUploadStage;
+  trainingUpload: StaffUploadStage;
+  onFlightsUpload: (stage: StaffUploadStage) => void;
+  onTrainingUpload: (stage: StaffUploadStage) => void;
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
   onOpenDocument: (id: PreparationDocumentId) => void;
   onOpenTraining: () => void;
@@ -111,9 +121,10 @@ export function OnboardingRoute({
                 {row.map((step, index) => (
                   <li key={step.id} className="contents">
                     {index > 0 ? (
-                      <StampLine
-                        flowed={row[index - 1].fill > 0 && step.fill > 0}
-                        tone={step.tone}
+                      <StepConnector
+                        tone={
+                          row[index - 1].fill > 0 && step.fill > 0 ? step.tone : 'muted'
+                        }
                       />
                     ) : null}
                     <StepBubble
@@ -153,6 +164,10 @@ export function OnboardingRoute({
     <PreparationDocumentsBand
       me={me}
       previewStages={formStagePreview}
+      flightsUpload={flightsUpload}
+      trainingUpload={trainingUpload}
+      onFlightsUpload={onFlightsUpload}
+      onTrainingUpload={onTrainingUpload}
       onPreviewStage={(id, stage) =>
         setFormStagePreview((current) => ({ ...current, [id]: stage }))
       }
@@ -212,24 +227,6 @@ function chunk<T>(items: T[], size: number): T[][] {
     rows.push(items.slice(index, index + size));
   }
   return rows;
-}
-
-function StampLine({
-  flowed,
-  tone: water,
-}: {
-  flowed: boolean;
-  tone: OnboardingWaterTone;
-}) {
-  const tone = flowed
-    ? water === 'orange'
-      ? 'h-[3px] rounded-full bg-gradient-to-r from-[#8a4320] via-[#c96c39] to-[#f0b48a] shadow-[0_0_10px_rgba(201,108,57,0.45)]'
-      : water === 'green'
-        ? 'h-[3px] rounded-full bg-gradient-to-r from-[#1b365d] via-[#1f9d55] to-[#8ed4a8] shadow-[0_0_10px_rgba(31,157,85,0.45)]'
-        : 'h-[3px] rounded-full bg-gradient-to-r from-[#1b365d] via-[#2f78aa] to-[#7ec8e4] shadow-[0_0_10px_rgba(47,120,170,0.45)]'
-    : 'h-px bg-crm-taupe';
-  const offset = flowed ? 'mt-[18.5px] sm:mt-[22.5px]' : 'mt-5 sm:mt-6';
-  return <span aria-hidden className={`mx-1 min-w-2 flex-1 sm:mx-2 ${tone} ${offset}`} />;
 }
 
 function openForStep(

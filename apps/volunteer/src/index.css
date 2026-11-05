@@ -119,6 +119,11 @@ h4 {
   font-family: var(--font-display);
 }
 
+.font-story {
+  font-family: "Merriweather", Georgia, "Times New Roman", serif;
+  font-weight: 300;
+}
+
 h1.font-display.text-crm-terracotta,
 h2.font-display.text-crm-terracotta {
   color: var(--color-crm-terracotta);

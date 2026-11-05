@@ -172,8 +172,8 @@ function AreaRows({
 }
 
 const SCHEDULE_MARKS: Record<ScheduleId, string> = {
-  camp: '/brand/camp-schedule.png?v=original',
-  birthdays: '/brand/birthdays-events.png?v=original',
+  camp: '/brand/camp-schedule.png?v=edge',
+  birthdays: '/brand/birthdays-events.png?v=edge',
   cleaning: '/brand/cleaning-schedule.png?v=original',
 };
 

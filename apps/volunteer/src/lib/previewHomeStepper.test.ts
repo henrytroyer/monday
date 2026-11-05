@@ -84,7 +84,11 @@ describe('preview home stepper', () => {
     assert.equal(JANE_MILLER.onboardingSteps, undefined);
     assert.equal(
       preparation.onboardingSteps?.find((step) => step.id === 'flights')?.progress,
-      40,
+      undefined,
+    );
+    assert.equal(
+      preparation.onboardingSteps?.find((step) => step.id === 'team_training')?.status,
+      'not_started',
     );
 
     const arrived = previewHomeStatus(JANE_MILLER, 4);
@@ -104,7 +108,7 @@ describe('preview home stepper', () => {
     const partial = half.onboardingSteps?.find((step) => step.id === 'final_checklist');
     assert.equal(partial?.status, 'not_started');
     assert.equal(partial?.progress, 50);
-    assert.equal(half.onboardingSteps?.find((step) => step.id === 'flights')?.progress, 40);
+    assert.equal(half.onboardingSteps?.find((step) => step.id === 'flights')?.progress, undefined);
 
     const done = previewHomeStatus(
       {

@@ -71,23 +71,19 @@ export function NotificationsPanel({
       <div
         id={listId}
         className={`grid min-h-0 motion-safe:transition-[grid-template-rows] motion-safe:duration-300 motion-safe:ease-out ${
-          fillAvailable && open ? 'min-h-0 flex-1' : ''
-        } ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+          fillAvailable && open ? 'min-h-0 flex-1' : 'min-h-0'
+        } ${open ? 'grid-rows-[minmax(0,1fr)]' : 'grid-rows-[0fr]'}`}
         aria-hidden={!open}
         inert={!open}
       >
-        <div className={fillAvailable ? 'h-full min-h-0 overflow-hidden' : 'overflow-hidden'}>
+        <div className="min-h-0 overflow-y-auto">
           {items.length === 0 ? (
             <p className="px-4 py-6 text-sm text-crm-slate">
               No messages yet. Updates about your application and notes from the i58 team will show
               up here.
             </p>
           ) : (
-            <ul
-              className={`divide-y divide-sand/60 overflow-y-auto ${
-                fillAvailable ? 'h-full' : 'max-h-96'
-              }`}
-            >
+            <ul className="divide-y divide-sand/60">
               {items.map((item) => (
                 <li key={item.id} className="flex gap-3 px-4 py-3">
                   <SourceIcon source={item.source} />

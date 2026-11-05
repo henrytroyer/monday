@@ -1,15 +1,17 @@
 import type { PreparationDocumentId, ShortTermStepId } from '../contract/volunteerApi';
 
-export const PORTAL_TABS = ['home', 'volunteer', 'guidelinesFaith'] as const;
+export const PORTAL_TABS = ['home', 'volunteer', 'guidelinesFaith', 'visionValues'] as const;
 
 export type PortalTab = (typeof PORTAL_TABS)[number];
 
 export const GUIDELINES_FAITH_TITLE = 'Guidelines & Faith';
+export const VISION_VALUES_TITLE = 'Vision & Values';
 
 export const PORTAL_TAB_LABEL: Record<PortalTab, string> = {
   home: 'Home',
   volunteer: 'My Info',
   guidelinesFaith: GUIDELINES_FAITH_TITLE,
+  visionValues: VISION_VALUES_TITLE,
 };
 
 export const SHORT_TERM_VIEWS = ['progress', 'documents'] as const;
@@ -48,6 +50,7 @@ export type PortalDestination =
   | { tab: 'home' }
   | { tab: 'volunteer' }
   | { tab: 'guidelinesFaith' }
+  | { tab: 'visionValues' }
   | { tab: 'application'; step: ShortTermStepId }
   | { tab: 'document'; document: PreparationDocumentId }
   | { tab: 'training' };

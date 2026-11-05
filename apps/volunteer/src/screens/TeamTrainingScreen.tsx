@@ -1,8 +1,28 @@
 import { BackButton } from '../components/BackButton';
 import { FormCard, PageHeader } from '../components/FormCard';
+import { staffUploadWaitingLine } from '../lib/preparationDocuments';
 import { teamTrainingDetails } from '../lib/teamTraining';
 
-export function TeamTrainingScreen({ onBack }: { onBack: () => void }) {
+export function TeamTrainingScreen({
+  uploaded,
+  onBack,
+}: {
+  uploaded: boolean;
+  onBack: () => void;
+}) {
+  const waiting = staffUploadWaitingLine('training', uploaded);
+  if (waiting) {
+    return (
+      <div>
+        <BackButton onClick={onBack} />
+        <PageHeader eyebrow="Team Training" title="Training details" />
+        <FormCard>
+          <p className="text-center text-sm text-crm-slate">{waiting}</p>
+        </FormCard>
+      </div>
+    );
+  }
+
   const details = teamTrainingDetails();
 
   return (

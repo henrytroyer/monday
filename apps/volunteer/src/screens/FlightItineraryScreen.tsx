@@ -2,14 +2,30 @@ import type { VolunteerApplicationStatus } from '../contract/volunteerApi';
 import { BackButton } from '../components/BackButton';
 import { FormCard, PageHeader } from '../components/FormCard';
 import { flightItineraryFor, type FlightLeg } from '../lib/flightItinerary';
+import { staffUploadWaitingLine } from '../lib/preparationDocuments';
 
 export function FlightItineraryScreen({
   me,
+  uploaded,
   onBack,
 }: {
   me: VolunteerApplicationStatus;
+  uploaded: boolean;
   onBack: () => void;
 }) {
+  const waiting = staffUploadWaitingLine('flights', uploaded);
+  if (waiting) {
+    return (
+      <div>
+        <BackButton onClick={onBack} />
+        <PageHeader eyebrow="Flights" title="Your itinerary" />
+        <FormCard>
+          <p className="text-center text-sm text-crm-slate">{waiting}</p>
+        </FormCard>
+      </div>
+    );
+  }
+
   const itinerary = flightItineraryFor(me.name);
 
   return (

@@ -15,6 +15,9 @@ import {
   documentStageFill,
   emptyPreparationDocument,
   stepDocumentStage,
+  staffUploadWaitingLine,
+  stepStaffUpload,
+  withStaffUploadProgress,
   receivePreparationDocument,
   savePreparationDocument,
 } from './preparationDocuments.ts';
@@ -65,7 +68,7 @@ describe('preparation documents', () => {
       ],
       'Form accepted',
     );
-    assert.equal(untouched.onboardingSteps?.find((step) => step.id === 'flights')?.progress, 40);
+    assert.equal(untouched.onboardingSteps?.find((step) => step.id === 'flights')?.progress, undefined);
 
     const edited = previewHomeStatus(
       savePreparationDocument(JANE_MILLER, 'background_check_sent', {
@@ -77,7 +80,7 @@ describe('preparation documents', () => {
     const background = edited.onboardingSteps?.find((step) => step.id === 'background_check_sent');
     assert.equal(background?.status, 'not_started');
     assert.equal(background?.progress, 28);
-    assert.equal(edited.onboardingSteps?.find((step) => step.id === 'flights')?.progress, 40);
+    assert.equal(edited.onboardingSteps?.find((step) => step.id === 'flights')?.progress, undefined);
   });
 
   it('names each form stage and fills the bubble only when the form is accepted', () => {
@@ -163,6 +166,67 @@ describe('preparation documents', () => {
     assert.equal(stepDocumentStage('accepted', 1), 'declined');
     assert.equal(stepDocumentStage('declined', 1), 'start');
     assert.equal(stepDocumentStage('start', -1), 'declined');
+  });
+
+  it('cycles a staff upload between waiting and uploaded', () => {
+    assert.equal(stepStaffUpload('waiting', 1), 'uploaded');
+    assert.equal(stepStaffUpload('uploaded', 1), 'waiting');
+    assert.equal(stepStaffUpload('waiting', -1), 'uploaded');
+    assert.equal(stepStaffUpload('uploaded', -1), 'waiting');
+  });
+
+  it('tells the volunteer they are waiting until i58 uploads flights or training', () => {
+    assert.equal(
+      staffUploadWaitingLine('flights', false),
+      '... waiting for i58 to upload flight info ...',
+    );
+    assert.equal(
+      staffUploadWaitingLine('training', false),
+      '... waiting for i58 to upload training info ...',
+    );
+    assert.equal(staffUploadWaitingLine('flights', true), null);
+    assert.equal(staffUploadWaitingLine('training', true), null);
+  });
+
+  it('keeps the flights and training bubbles empty until i58 uploads, then fills them', () => {
+    const preparation = previewHomeStatus(JANE_MILLER, 3);
+    const waiting = withStaffUploadProgress(preparation, {
+      flights: 'waiting',
+      training: 'waiting',
+    });
+    const flightsWaiting = waiting.onboardingSteps?.find((step) => step.id === 'flights');
+    const trainingWaiting = waiting.onboardingSteps?.find((step) => step.id === 'team_training');
+    const chatGroups = waiting.onboardingSteps?.find((step) => step.id === 'chat_groups');
+    assert.equal(onboardingFillPercent(flightsWaiting!), 0);
+    assert.equal(onboardingFillPercent(trainingWaiting!), 0);
+    assert.equal(onboardingFillPercent(chatGroups!), 100);
+
+    const flightsReady = withStaffUploadProgress(preparation, {
+      flights: 'uploaded',
+      training: 'waiting',
+    });
+    const flightsUploaded = flightsReady.onboardingSteps?.find((step) => step.id === 'flights');
+    const trainingStillWaiting = flightsReady.onboardingSteps?.find(
+      (step) => step.id === 'team_training',
+    );
+    assert.ok(flightsUploaded);
+    assert.ok(trainingStillWaiting);
+    assert.equal(onboardingFillPercent(flightsUploaded), 100);
+    assert.equal(onboardingFillPercent(trainingStillWaiting), 0);
+
+    const bothReady = withStaffUploadProgress(preparation, {
+      flights: 'uploaded',
+      training: 'uploaded',
+    });
+    const bothFlights = bothReady.onboardingSteps?.find((step) => step.id === 'flights');
+    const bothTraining = bothReady.onboardingSteps?.find((step) => step.id === 'team_training');
+    const bothChat = bothReady.onboardingSteps?.find((step) => step.id === 'chat_groups');
+    assert.ok(bothFlights);
+    assert.ok(bothTraining);
+    assert.ok(bothChat);
+    assert.equal(onboardingFillPercent(bothFlights), 100);
+    assert.equal(onboardingFillPercent(bothTraining), 100);
+    assert.equal(onboardingFillPercent(bothChat), 100);
   });
 
   it('puts the submitted answers in a downloadable PDF', () => {
