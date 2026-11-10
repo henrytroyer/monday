@@ -84,6 +84,8 @@ export interface PreparationDocumentDraft {
   date: string;
   confirmed: '' | 'yes';
   submitted: boolean;
+  /** Local certificate file name. Not a Monday field. */
+  fileName?: string;
   /** Set by the preview review controls. Not a Monday field. */
   review?: PreparationDocumentReview;
 }
@@ -263,10 +265,30 @@ export interface VolunteerApplicationStatus extends VolunteerIdentity {
    */
   finalChecklistChecked?: readonly string[];
   /**
-   * Set when the volunteer clicks "CLICK ME once you arrive in Europe!".
+   * Set when the Europe arrival time has passed.
    * Not a Monday field. A reload clears it.
    */
   arrivedInEurope?: boolean;
+  /**
+   * Vehicle times this volunteer reserved. Not a Monday field.
+   * `volunteerId` is the account email so staff can see who reserved.
+   * A reload clears it.
+   */
+  vehicleReservations?: VehicleReservation[];
+}
+
+/** A submitted vehicle time. Staff match `volunteerId` to the account. */
+export interface VehicleReservation {
+  id: string;
+  volunteerId: string;
+  volunteerName: string;
+  vehicleId: string;
+  lengthId: string;
+  date: string;
+  slotId: string;
+  startLabel: string;
+  endLabel: string;
+  submittedAt: string;
 }
 
 export type VolunteerApplicationUpdate =

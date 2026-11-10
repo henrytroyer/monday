@@ -20,7 +20,7 @@ export function FieldScheduleBar() {
 
   return (
     <>
-      <div className="grid grid-cols-3 rounded-2xl bg-white/95 text-center shadow-lg ring-1 ring-white/60 backdrop-blur">
+      <div className="relative z-10 grid grid-cols-3 rounded-2xl bg-white/95 text-center shadow-lg ring-1 ring-white/60 backdrop-blur">
         {SCHEDULES.map((schedule, index) => (
           <div
             key={schedule.id}

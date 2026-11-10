@@ -6,11 +6,8 @@ import type {
   VolunteerApplicationStatus,
   VolunteerApplicationUpdate,
 } from '../contract/volunteerApi';
-import {
-  showArrivalButton,
-  toggleFinalChecklistItem,
-  arriveInEurope,
-} from '../lib/finalChecklist';
+import { FIELD_ARRIVAL_NOTICE, showFieldArrivalNotice } from '../lib/fieldArrival';
+import { toggleFinalChecklistItem } from '../lib/finalChecklist';
 import {
   onboardingFillPercent,
   onboardingWaterTone,
@@ -19,14 +16,20 @@ import {
 } from '../lib/onboarding';
 import {
   PREVIEW_DOCUMENT_STAGE_ARROWS,
+  certificateStageFill,
+  chatGroupLabel,
   documentStageFill,
+  isCertificateUpload,
   isPreparationDocument,
+  stepChatGroup,
+  type ChatGroupStage,
   type DocumentStage,
   type StaffUploadStage,
 } from '../lib/preparationDocuments';
 import { FinalChecklistPanel } from './FinalChecklistPanel';
 import { PreparationDocumentsBand } from './PreparationDocumentsBand';
 import { ProgressBubble } from './ProgressBubble';
+import { progressConnectorTone } from '../lib/stepConnector';
 import { StepConnector } from './StepConnector';
 
 const STEPS_PER_ROW = 5;
@@ -43,8 +46,10 @@ export function OnboardingRoute({
   me,
   flightsUpload,
   trainingUpload,
+  chatGroup,
   onFlightsUpload,
   onTrainingUpload,
+  onChatGroup,
   onUpdateMe,
   onOpenDocument,
   onOpenTraining,
@@ -52,8 +57,10 @@ export function OnboardingRoute({
   me: VolunteerApplicationStatus;
   flightsUpload: StaffUploadStage;
   trainingUpload: StaffUploadStage;
+  chatGroup: ChatGroupStage;
   onFlightsUpload: (stage: StaffUploadStage) => void;
   onTrainingUpload: (stage: StaffUploadStage) => void;
+  onChatGroup: (stage: ChatGroupStage) => void;
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
   onOpenDocument: (id: PreparationDocumentId) => void;
   onOpenTraining: () => void;
@@ -80,14 +87,17 @@ export function OnboardingRoute({
           <p className="font-display text-2xl font-semibold text-navy">
             Acceptance & Service Preparation Progress
           </p>
-          {showArrivalButton(me) ? (
-            <button
-              type="button"
-              onClick={() => onUpdateMe(arriveInEurope)}
-              className="min-h-11 w-fit shrink-0 rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95"
+          {showFieldArrivalNotice(me) ? (
+            <p
+              role="status"
+              aria-label={FIELD_ARRIVAL_NOTICE}
+              className="w-fit max-w-full rounded-2xl border-2 border-crm-terracotta bg-[#ffe8dc] px-6 py-4 text-center text-lg leading-7 text-navy shadow-md"
             >
-              CLICK ME once you arrive in Europe!
-            </button>
+              <span className="block">
+                The <span className="font-semibold text-crm-terracotta">On-Field Volunteer Page</span> will
+              </span>
+              <span className="block">appear when you've landed in Europe.</span>
+            </p>
           ) : null}
         </div>
 
@@ -99,14 +109,18 @@ export function OnboardingRoute({
                   <li key={step.id} className="contents">
                     {index > 0 ? (
                       <StepConnector
-                        tone={
-                          row[index - 1].fill > 0 && step.fill > 0 ? step.tone : 'muted'
-                        }
+                        tone={progressConnectorTone(steps, row[index - 1], step, step.tone)}
                       />
                     ) : null}
                     <StepBubble
                       step={step}
                       svgId={`${step.id}-wide`}
+                      detail={step.id === 'chat_groups' ? chatGroupLabel(chatGroup) : undefined}
+                      onChatStep={
+                        step.id === 'chat_groups' && PREVIEW_DOCUMENT_STAGE_ARROWS
+                          ? (delta) => onChatGroup(stepChatGroup(chatGroup, delta))
+                          : undefined
+                      }
                       onOpenChecklist={() => setChecklistOpen(true)}
                       onOpen={openForStep(step.id, onOpenDocument, onOpenTraining)}
                     />
@@ -122,6 +136,12 @@ export function OnboardingRoute({
                 <StepBubble
                   step={step}
                   svgId={`${step.id}-narrow`}
+                  detail={step.id === 'chat_groups' ? chatGroupLabel(chatGroup) : undefined}
+                  onChatStep={
+                    step.id === 'chat_groups' && PREVIEW_DOCUMENT_STAGE_ARROWS
+                      ? (delta) => onChatGroup(stepChatGroup(chatGroup, delta))
+                      : undefined
+                  }
                   onOpenChecklist={() => setChecklistOpen(true)}
                   onOpen={openForStep(step.id, onOpenDocument, onOpenTraining)}
                 />
@@ -186,8 +206,13 @@ function onboardingBubbles(
   formStagePreview: Partial<Record<PreparationDocumentId, DocumentStage>>,
 ): OnboardingBubble[] {
   return resolveOnboardingSteps(me).map((step) => {
-    const preview = isPreparationDocument(step.id) ? formStagePreview[step.id] : undefined;
-    const fill = preview ? documentStageFill(preview) : onboardingFillPercent(step);
+    const documentId = isPreparationDocument(step.id) ? step.id : undefined;
+    const preview = documentId ? formStagePreview[documentId] : undefined;
+    const fill = preview
+      ? documentId && isCertificateUpload(documentId)
+        ? certificateStageFill(preview)
+        : documentStageFill(preview)
+      : onboardingFillPercent(step);
     return {
       id: step.id,
       title: step.title,
@@ -219,11 +244,15 @@ function openForStep(
 function StepBubble({
   step,
   svgId,
+  detail,
+  onChatStep,
   onOpenChecklist,
   onOpen,
 }: {
   step: OnboardingBubble;
   svgId: string;
+  detail?: string;
+  onChatStep?: (delta: -1 | 1) => void;
   onOpenChecklist: () => void;
   onOpen?: () => void;
 }) {
@@ -237,37 +266,69 @@ function StepBubble({
       waterTone={step.tone}
     />
   );
+  const openCue = <span className="mt-1 text-[11px] font-semibold text-crm-terracotta">Open</span>;
+  let control;
   if (step.id === 'final_checklist') {
-    return (
+    control = (
       <button
         type="button"
         onClick={onOpenChecklist}
-        className="flex w-full flex-col items-center sm:w-28 sm:shrink-0"
+        className="flex w-full flex-col items-center"
         aria-label={`${step.title}, open checklist`}
       >
         {bubble}
+        {openCue}
       </button>
     );
-  }
-  if (onOpen) {
-    return (
+  } else if (onOpen) {
+    control = (
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full flex-col items-center sm:w-28 sm:shrink-0"
+        className="flex w-full flex-col items-center"
         aria-label={`${step.title}, open`}
       >
         {bubble}
+        {openCue}
       </button>
     );
+  } else {
+    const statusLabel = detail ?? (step.complete ? 'complete' : 'not finished');
+    control = (
+      <div className="flex w-full flex-col items-center" aria-label={`${step.title}, ${statusLabel}`}>
+        {bubble}
+      </div>
+    );
   }
-  const statusLabel = step.complete ? 'complete' : 'not finished';
   return (
-    <div
-      className="flex w-full flex-col items-center sm:w-28 sm:shrink-0"
-      aria-label={`${step.title}, ${statusLabel}`}
-    >
-      {bubble}
+    <div className="flex w-full flex-col items-center sm:w-28 sm:shrink-0">
+      {control}
+      {detail ? (
+        <p className="mt-1 text-center text-[11px] font-semibold leading-tight text-navy">{detail}</p>
+      ) : null}
+      {onChatStep ? (
+        <div className="mt-1 flex items-center justify-between gap-1">
+          <button
+            type="button"
+            aria-label="Previous chat status"
+            onClick={() => onChatStep(-1)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs text-white hover:brightness-110"
+          >
+            ←
+          </button>
+          <p className="text-center text-[10px] font-semibold leading-tight text-crm-terracotta">
+            Remove before production
+          </p>
+          <button
+            type="button"
+            aria-label="Next chat status"
+            onClick={() => onChatStep(1)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs text-white hover:brightness-110"
+          >
+            →
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

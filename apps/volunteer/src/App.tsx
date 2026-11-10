@@ -20,14 +20,16 @@ import {
 } from './identity/firebaseClient.ts';
 import type { VolunteerProfile } from './identity/profile.ts';
 import { PortalShell } from './components/PortalShell';
-import type { PortalDestination, PortalTab } from './lib/nav';
+import { arriveInEurope } from './lib/finalChecklist';
+import { arrivalWaitMs, fieldLandingAt } from './lib/fieldArrival';
+import type { GeneralInfoSectionId, PortalDestination, PortalTab } from './lib/nav';
 import {
   PREVIEW_HOME_STEPPER,
   homeIndexFor,
   previewHomeStatus,
   type PreviewHomeIndex,
 } from './lib/previewHomeStepper';
-import type { StaffUploadStage } from './lib/preparationDocuments';
+import type { ChatGroupStage, StaffUploadStage } from './lib/preparationDocuments';
 import {
   mockCreateAccount,
   mockSignIn,
@@ -45,6 +47,7 @@ import { HomeScreen } from './screens/HomeScreen';
 import { canOpenProcessStep } from './process/previewAccess';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { VolunteerInfoScreen } from './screens/VolunteerInfoScreen';
+import { GeneralInfoScreen } from './screens/GeneralInfoScreen';
 import { GuidelinesFaithScreen } from './screens/GuidelinesFaithScreen';
 import { VisionValuesScreen } from './screens/VisionValuesScreen';
 import { PreparationDocumentScreen } from './screens/PreparationDocumentScreen';
@@ -66,6 +69,7 @@ export default function App() {
   const meRef = useRef(me);
   meRef.current = me;
   const [tab, setTab] = useState<PortalScreen>('home');
+  const [generalInfoSection, setGeneralInfoSection] = useState<GeneralInfoSectionId | null>(null);
   const [processFocus, setProcessFocus] = useState<ShortTermStepId | null>(null);
   const [documentFocus, setDocumentFocus] = useState<PreparationDocumentId | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -77,6 +81,7 @@ export default function App() {
   const [previewForEmail, setPreviewForEmail] = useState<string | null>(null);
   const [flightsUpload, setFlightsUpload] = useState<StaffUploadStage>('waiting');
   const [trainingUpload, setTrainingUpload] = useState<StaffUploadStage>('waiting');
+  const [chatGroup, setChatGroup] = useState<ChatGroupStage>('waiting');
   if (PREVIEW_HOME_STEPPER) {
     if (!me && previewForEmail !== null) {
       setPreviewForEmail(null);
@@ -89,6 +94,7 @@ export default function App() {
   function resetPortal() {
     setMe(null);
     setTab('home');
+    setGeneralInfoSection(null);
     setProcessFocus(null);
     setDocumentFocus(null);
     setToast(null);
@@ -97,11 +103,13 @@ export default function App() {
     setNotificationsOpen(true);
     setFlightsUpload('waiting');
     setTrainingUpload('waiting');
+    setChatGroup('waiting');
   }
 
   function enterPortal(next: VolunteerApplicationStatus, message: string | null = null) {
     setMe(next);
     setTab('home');
+    setGeneralInfoSection(null);
     setProcessFocus(null);
     setDocumentFocus(null);
     setToast(message);
@@ -143,6 +151,35 @@ export default function App() {
       setPreviewHome(homeIndexFor(next));
     }
   }
+
+  const updateMeRef = useRef(handleUpdateMe);
+  updateMeRef.current = handleUpdateMe;
+
+  useEffect(() => {
+    if (!me || me.arrivedInEurope) return;
+    const landing = fieldLandingAt(me);
+    if (!landing) return;
+
+    let timer = 0;
+    const arriveIfDue = () => {
+      if (Date.now() < landing.getTime()) return;
+      updateMeRef.current(arriveInEurope);
+      if (PREVIEW_HOME_STEPPER) setPreviewHome(4);
+    };
+    const schedule = () => {
+      const wait = arrivalWaitMs(landing);
+      if (wait === 0) {
+        arriveIfDue();
+        return;
+      }
+      timer = window.setTimeout(() => {
+        if (Date.now() >= landing.getTime()) arriveIfDue();
+        else schedule();
+      }, wait);
+    };
+    schedule();
+    return () => window.clearTimeout(timer);
+  }, [me, me?.email, me?.name, me?.term, me?.arrivedInEurope]);
 
   useEffect(() => {
     return watchVolunteerUser((next) => {
@@ -207,16 +244,26 @@ export default function App() {
       setTab('application');
       setProcessFocus(destination.step);
       setDocumentFocus(null);
+      setGeneralInfoSection(null);
       return;
     }
     if (destination.tab === 'document') {
       setTab('document');
       setDocumentFocus(destination.document);
       setProcessFocus(null);
+      setGeneralInfoSection(null);
+      return;
+    }
+    if (destination.tab === 'generalInfo') {
+      setTab('generalInfo');
+      setGeneralInfoSection(destination.section);
+      setProcessFocus(null);
+      setDocumentFocus(null);
       return;
     }
     setProcessFocus(null);
     setDocumentFocus(null);
+    setGeneralInfoSection(null);
     setTab(destination.tab);
   }
 
@@ -232,7 +279,9 @@ export default function App() {
     return (
       <PortalShell
         tab={tab === 'application' || tab === 'document' || tab === 'training' ? 'home' : tab}
+        generalInfoSection={generalInfoSection}
         onTabChange={(next) => handleGoTo({ tab: next })}
+        onGeneralInfoSection={(section) => handleGoTo({ tab: 'generalInfo', section })}
         onSignOut={() => void handleSignOut()}
         portalName={
           tab === 'home' &&
@@ -254,8 +303,10 @@ export default function App() {
             onPreviewHomeChange={PREVIEW_HOME_STEPPER ? setPreviewHome : undefined}
             flightsUpload={flightsUpload}
             trainingUpload={trainingUpload}
+            chatGroup={chatGroup}
             onFlightsUpload={setFlightsUpload}
             onTrainingUpload={setTrainingUpload}
+            onChatGroup={setChatGroup}
             notificationsOpen={notificationsOpen}
             onNotificationsOpenChange={setNotificationsOpen}
             onGoTo={handleGoTo}
@@ -264,6 +315,9 @@ export default function App() {
         ) : null}
         {tab === 'volunteer' ? (
           <VolunteerInfoScreen me={me} />
+        ) : null}
+        {tab === 'generalInfo' && generalInfoSection ? (
+          <GeneralInfoScreen section={generalInfoSection} />
         ) : null}
         {tab === 'guidelinesFaith' ? <GuidelinesFaithScreen /> : null}
         {tab === 'visionValues' ? <VisionValuesScreen /> : null}

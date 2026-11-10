@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   CRISIS_FACTS,
   CRISIS_TITLE,
+  GUIDE_FACTS,
   GUIDE_VALUES,
   I58_MISSION,
   I58_VISION,
@@ -29,6 +30,13 @@ describe('crisis reminder copy', () => {
     assert.match(CRISIS_FACTS[0]!.detail, /117 million/);
     assert.match(CRISIS_FACTS[1]!.detail, /70%/);
     assert.match(CRISIS_FACTS[2]!.detail, /two-thirds/);
+  });
+});
+
+describe('short-term basic requirements', () => {
+  it('states travel costs by season', () => {
+    const travel = GUIDE_FACTS.find((fact) => fact.title === 'Travel Costs');
+    assert.equal(travel?.detail, 'About $1,000–$1,500, depending on season.');
   });
 });
 

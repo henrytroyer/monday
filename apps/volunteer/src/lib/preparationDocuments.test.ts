@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { JANE_MILLER } from '../mock/fixtures.ts';
 import { onboardingFillPercent, resolveOnboardingSteps } from './onboarding.ts';
-import { preparationDocumentPdf } from './preparationDocumentPdf.ts';
+import { preparationDocumentPdf, preparationDocumentPrintHtml } from './preparationDocumentPdf.ts';
 import { previewHomeStatus } from './previewHomeStepper.ts';
 import {
   DOCUMENT_STAGE_CYCLE,
@@ -15,8 +15,17 @@ import {
   documentStageFill,
   emptyPreparationDocument,
   stepDocumentStage,
+  CERTIFICATE_STAGE_CYCLE,
+  CERTIFICATE_STAGE_LABEL,
+  CERTIFICATE_WAITING_LINE,
+  certificateShowsWaiting,
+  certificateStageFill,
+  stepCertificateStage,
+  chatGroupLabel,
   staffUploadWaitingLine,
+  stepChatGroup,
   stepStaffUpload,
+  withChatGroupProgress,
   withStaffUploadProgress,
   receivePreparationDocument,
   savePreparationDocument,
@@ -227,6 +236,88 @@ describe('preparation documents', () => {
     assert.equal(onboardingFillPercent(bothFlights), 100);
     assert.equal(onboardingFillPercent(bothTraining), 100);
     assert.equal(onboardingFillPercent(bothChat), 100);
+  });
+
+  it('keeps an uploaded certificate waiting until i58 accepts it', () => {
+    const uploaded = savePreparationDocument(JANE_MILLER, 'background_check_sent', {
+      ...emptyPreparationDocument(),
+      name: 'background.pdf',
+      fileName: 'background.pdf',
+      submitted: true,
+    });
+    const step = resolveOnboardingSteps(uploaded).find((item) => item.id === 'background_check_sent');
+    assert.equal(step?.status, 'waiting');
+    assert.equal(onboardingFillPercent(step!), 75);
+    assert.equal(CERTIFICATE_STAGE_LABEL.sent, 'Form uploaded');
+    assert.equal(certificateShowsWaiting('sent'), true);
+    const accepted = acceptPreparationDocument(uploaded, 'background_check_sent');
+    assert.equal(
+      resolveOnboardingSteps(accepted).find((item) => item.id === 'background_check_sent')?.status,
+      'received',
+    );
+  });
+
+  it('walks background check and safeguarding through four steps', () => {
+    assert.deepEqual(
+      CERTIFICATE_STAGE_CYCLE.map((stage) => CERTIFICATE_STAGE_LABEL[stage]),
+      ['Fill-out form', 'Upload form', 'Form uploaded', 'Form accepted', 'Form not accepted'],
+    );
+    assert.deepEqual(
+      CERTIFICATE_STAGE_CYCLE.map((stage) => certificateStageFill(stage)),
+      [25, 50, 75, 100, 75],
+    );
+    assert.equal(CERTIFICATE_WAITING_LINE, '... waiting for i58 to accept it ...');
+    assert.equal(certificateShowsWaiting('sent'), true);
+    assert.equal(certificateShowsWaiting('accepted'), false);
+    assert.equal(stepCertificateStage('start', 1), 'continue');
+    assert.equal(stepCertificateStage('continue', 1), 'sent');
+    assert.equal(stepCertificateStage('sent', 1), 'accepted');
+    assert.equal(stepCertificateStage('accepted', 1), 'declined');
+    assert.equal(stepCertificateStage('declined', 1), 'start');
+    assert.equal(stepCertificateStage('received', 1), 'accepted');
+    for (const stage of CERTIFICATE_STAGE_CYCLE) {
+      assert.notEqual(certificateStageFill(stage), certificateStageFill(stepCertificateStage(stage, 1)));
+    }
+  });
+
+  it('shows chat as waiting to be added or added', () => {
+    const preparation = previewHomeStatus(JANE_MILLER, 3);
+    const waiting = withChatGroupProgress(preparation, 'waiting');
+    const added = withChatGroupProgress(preparation, 'added');
+    const waitingChat = waiting.onboardingSteps?.find((step) => step.id === 'chat_groups');
+    const addedChat = added.onboardingSteps?.find((step) => step.id === 'chat_groups');
+    assert.ok(waitingChat);
+    assert.ok(addedChat);
+    assert.equal(chatGroupLabel('waiting'), 'Waiting to be added');
+    assert.equal(chatGroupLabel('added'), 'Added');
+    assert.equal(stepChatGroup('waiting', 1), 'added');
+    assert.equal(onboardingFillPercent(waitingChat), 0);
+    assert.equal(onboardingFillPercent(addedChat), 100);
+  });
+
+  it('builds a printable copy of the background check and the safeguarding certificate', () => {
+    const background = preparationDocumentPrintHtml('background_check_sent', {
+      ...filled,
+      name: 'Jane <Miller>',
+      date: 'April 14, 1998',
+    });
+    assert.match(background, /Background check/);
+    assert.match(background, /Jane &lt;Miller&gt;/);
+    assert.match(background, /Date of birth/);
+    assert.match(background, /April 14, 1998/);
+    assert.match(background, /On file with i58/);
+    assert.doesNotMatch(background, /Jane <Miller>/);
+
+    const certificate = preparationDocumentPrintHtml('safeguarding_certificate', {
+      ...filled,
+      name: 'Jane Miller',
+      date: 'March 2, 2026',
+    });
+    assert.match(certificate, /Safeguarding certificate/);
+    assert.match(certificate, /Certificate holder/);
+    assert.match(certificate, /Completion date/);
+    assert.match(certificate, /March 2, 2026/);
+    assert.match(certificate, /@page/);
   });
 
   it('puts the submitted answers in a downloadable PDF', () => {

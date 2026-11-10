@@ -9,12 +9,16 @@ import {
   DOCUMENT_FIELDS,
   DOCUMENT_STAGE_LABEL,
   PREVIEW_DOCUMENT_STAGE_ARROWS,
+  CERTIFICATE_WAITING_LINE,
   acceptPreparationDocument,
+  certificateShowsWaiting,
+  certificateStageLabel,
   declinePreparationDocument,
   documentIsAccepted,
   documentStage,
+  isCertificateUpload,
   staffUploadWaitingLine,
-  stepDocumentStage,
+  stepCertificateStage,
   stepStaffUpload,
   type DocumentStage,
   type StaffUploadStage,
@@ -115,9 +119,18 @@ function DocumentCard({
   const stage = documentStage(draft, accepted);
   const shown = previewStage ?? stage;
   const title = DOCUMENT_FIELDS[id].title;
+  const certificate = isCertificateUpload(id);
   const formCard = id !== 'flights';
   const uploaded = !formCard && uploadStage === 'uploaded';
-  const accent: CardAccent = (formCard ? shown === 'accepted' : uploaded) ? 'green' : 'navy';
+  const accent: CardAccent = formCard
+    ? shown === 'accepted'
+      ? 'green'
+      : certificate && shown === 'declined'
+        ? 'gray'
+        : 'navy'
+    : uploaded
+      ? 'green'
+      : 'navy';
 
   return (
     <CardShell
@@ -126,16 +139,23 @@ function DocumentCard({
       mark={formCard ? <StageGlyph stage={shown} /> : <FlightsGlyph />}
     >
       <button type="button" onClick={onOpen} className={cardActionClass}>
-        {formCard ? DOCUMENT_STAGE_LABEL[shown] : 'View your itinerary'}
+        {formCard
+          ? certificate
+            ? certificateStageLabel(shown)
+            : DOCUMENT_STAGE_LABEL[shown]
+          : 'View your itinerary'}
       </button>
       {!formCard ? <StaffWaitingNote kind="flights" uploaded={uploaded} /> : null}
-      {formCard && shown === 'sent' ? (
+      {certificate && certificateShowsWaiting(shown) ? (
+        <p className="text-center text-xs text-crm-slate">{CERTIFICATE_WAITING_LINE}</p>
+      ) : null}
+      {formCard && !certificate && shown === 'sent' ? (
         <p className="text-center text-xs text-crm-slate">... waiting for i58 to receive it ...</p>
       ) : null}
-      {formCard && shown === 'received' ? (
+      {formCard && !certificate && shown === 'received' ? (
         <p className="text-center text-xs text-crm-slate">... waiting for i58 to accept it ...</p>
       ) : null}
-      {sent && draft ? (
+      {sent && draft && !certificate ? (
         <button
           type="button"
           onClick={() => downloadPreparationDocumentPdf(id, draft)}
@@ -148,7 +168,7 @@ function DocumentCard({
         <PreviewStageArrows
           previousLabel="Previous form stage"
           nextLabel="Next form stage"
-          onStep={(delta) => onPreviewStage(stepDocumentStage(shown, delta))}
+          onStep={(delta) => onPreviewStage(stepCertificateStage(shown, delta))}
         />
       ) : null}
       {PREVIEW_DOCUMENT_STAGE_ARROWS && onUploadStage ? (
@@ -244,7 +264,7 @@ function PreviewStageArrows({
   );
 }
 
-type CardAccent = 'navy' | 'terracotta' | 'green';
+type CardAccent = 'navy' | 'terracotta' | 'green' | 'gray';
 
 const cardActionClass =
   'inline-flex h-auto min-h-8 items-center self-center rounded-full bg-navy px-3 py-1.5 text-center text-xs font-semibold leading-tight text-white hover:brightness-110';
@@ -268,12 +288,14 @@ const CARD_BAR: Record<CardAccent, string> = {
   navy: 'bg-navy',
   terracotta: 'bg-crm-terracotta',
   green: 'bg-[#1f9d55]',
+  gray: 'bg-crm-slate',
 };
 
 const CARD_TILE: Record<CardAccent, string> = {
   navy: 'bg-navy/10 text-navy',
   terracotta: 'bg-crm-terracotta/15 text-crm-terracotta',
   green: 'bg-[#1f9d55]/15 text-[#1f9d55]',
+  gray: 'bg-crm-slate/15 text-crm-slate',
 };
 
 function CardShell({

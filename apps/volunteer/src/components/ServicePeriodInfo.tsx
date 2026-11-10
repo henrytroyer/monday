@@ -2,8 +2,8 @@ import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { GUIDE_FACTS } from '../lib/volunteerGuide';
 
-const CHIP_TITLE = 'Three Month Service Period Info';
-const PANEL_TITLE = 'Three Month Service Period';
+const CHIP_TITLE = 'Short-Term Requirements';
+const PANEL_TITLE = 'Short-Term Requirements';
 
 export function ServicePeriodInfo({ className = '' }: { className?: string }) {
   const [open, setOpen] = useState(false);

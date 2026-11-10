@@ -13,7 +13,7 @@ import { JourneyRoute } from '../components/JourneyRoute';
 import { OnboardingReminder, OnboardingRoute } from '../components/OnboardingRoute';
 import { NotificationsPanel } from '../components/NotificationsPanel';
 import { ProgressBubble } from '../components/ProgressBubble';
-import { WATER_COLORS } from '../lib/bubbleWater';
+import { CONNECTOR } from '../lib/stepConnector';
 import { ServicePeriodInfo } from '../components/ServicePeriodInfo';
 import { greetingBackdrop, journeyArrived, journeyDestination } from '../lib/journey';
 import { stepFillPercent } from '../lib/formProgress';
@@ -29,7 +29,9 @@ import {
 import { FIELD_HOME_BACKDROP, type PortalDestination } from '../lib/nav';
 import {
   PREVIEW_DOCUMENT_STAGE_ARROWS,
+  withChatGroupProgress,
   withStaffUploadProgress,
+  type ChatGroupStage,
   type StaffUploadStage,
 } from '../lib/preparationDocuments';
 import {
@@ -39,6 +41,7 @@ import {
   previewHomeStatus,
   type PreviewHomeIndex,
 } from '../lib/previewHomeStepper';
+import { saveVehicleReservation } from '../lib/fieldVehicleReservation';
 import { showWelcomeHome } from '../lib/portalSession';
 import { canOpenProcessStep } from '../process/previewAccess';
 
@@ -48,8 +51,10 @@ export function HomeScreen({
   onPreviewHomeChange,
   flightsUpload,
   trainingUpload,
+  chatGroup,
   onFlightsUpload,
   onTrainingUpload,
+  onChatGroup,
   notificationsOpen,
   onNotificationsOpenChange,
   onGoTo,
@@ -60,8 +65,10 @@ export function HomeScreen({
   onPreviewHomeChange?: (index: PreviewHomeIndex) => void;
   flightsUpload: StaffUploadStage;
   trainingUpload: StaffUploadStage;
+  chatGroup: ChatGroupStage;
   onFlightsUpload: (stage: StaffUploadStage) => void;
   onTrainingUpload: (stage: StaffUploadStage) => void;
+  onChatGroup: (stage: ChatGroupStage) => void;
   notificationsOpen: boolean;
   onNotificationsOpenChange: (open: boolean) => void;
   onGoTo: (destination: PortalDestination) => void;
@@ -69,7 +76,10 @@ export function HomeScreen({
 }) {
   const displayed = previewHome == null ? me : previewHomeStatus(me, previewHome);
   const view = PREVIEW_DOCUMENT_STAGE_ARROWS
-    ? withStaffUploadProgress(displayed, { flights: flightsUpload, training: trainingUpload })
+    ? withChatGroupProgress(
+        withStaffUploadProgress(displayed, { flights: flightsUpload, training: trainingUpload }),
+        chatGroup,
+      )
     : displayed;
   const showThanks = previewHome === PREVIEW_THANKS_HOME;
   const submitted = applicationIsSubmitted(view) && previewHome !== 1 && !showThanks;
@@ -105,8 +115,10 @@ export function HomeScreen({
           me={view}
           flightsUpload={flightsUpload}
           trainingUpload={trainingUpload}
+          chatGroup={chatGroup}
           onFlightsUpload={onFlightsUpload}
           onTrainingUpload={onTrainingUpload}
+          onChatGroup={onChatGroup}
           onUpdateMe={onUpdateMe}
           onOpenDocument={(id) => onGoTo({ tab: 'document', document: id })}
           onOpenTraining={() => onGoTo({ tab: 'training' })}
@@ -262,16 +274,18 @@ export function HomeScreen({
                     </div>
                   ) : (
                     <p className="text-xs text-crm-slate">
-                      {arrived
-                        ? 'Your short-term application is complete.'
-                        : 'Nothing for you to do right now on this application.'}
+                      {completion === 100
+                        ? "We're excited to welcome you to Europe!"
+                        : arrived
+                          ? 'Your short-term application is complete.'
+                          : 'Nothing for you to do right now on this application.'}
                     </p>
                   )}
                 </FooterCell>
                 <FooterCell divider={showServicePeriod}>
                   <div className="flex items-center justify-center gap-4">
                     <p className="text-center text-lg font-semibold leading-tight text-navy">
-                      Process completion
+                      Progress
                       <br />
                       until departure
                     </p>
@@ -293,12 +307,22 @@ export function HomeScreen({
         <>
           <section
             aria-label="Field schedules"
-            className="relative left-1/2 w-screen -translate-x-1/2 border-t-2 border-white bg-[#667b96] px-4 pt-8 pb-24"
+            className="relative left-1/2 w-screen -translate-x-1/2 bg-[#667b96] px-4 pt-4 pb-11"
           >
             <FieldScheduleBar />
-            <SectionWave className="pointer-events-none absolute inset-x-0 bottom-0 h-[4.25rem] w-full text-crm-white" />
+            <SectionWave className="pointer-events-none absolute inset-x-0 bottom-0 h-[4.25rem] w-full text-[#e5ecf2]" />
           </section>
-          <FieldServiceWays />
+          <FieldServiceWays
+            volunteerId={me.email}
+            volunteerName={me.name}
+            reservations={me.vehicleReservations ?? []}
+            onReserve={(reservation) =>
+              onUpdateMe((current) => ({
+                ...current,
+                vehicleReservations: saveVehicleReservation(current.vehicleReservations, reservation),
+              }))
+            }
+          />
         </>
       ) : null}
 
@@ -373,7 +397,6 @@ function FooterCell({
   );
 }
 
-const WATER_STOP_AT = [0, 0.16, 0.48, 1] as const;
 const RING_SLICE = 1;
 
 function CompletionRing({
@@ -414,9 +437,9 @@ function CompletionRing({
   );
 }
 
-/** Same wash as a filled bubble: pale at the start of a slice, deep at its leading edge. */
+/** A short shift, the same size as an arrow, from the start of a slice to its leading edge. */
 function fadedRingPieces(segment: ProcessRingSegment) {
-  const colors = WATER_COLORS[segment.tone];
+  const color = CONNECTOR[segment.tone];
   const pieces: { key: string; start: number; length: number; color: string }[] = [];
   let cursor = 0;
   let index = 0;
@@ -428,29 +451,12 @@ function fadedRingPieces(segment: ProcessRingSegment) {
       key: `${segment.tone}-${segment.start}-${index}`,
       start,
       length: end - start,
-      color: waterColor(colors, (cursor + span / 2) / segment.length),
+      color: mixHex(color.from, color.to, (cursor + span / 2) / segment.length),
     });
     cursor += span;
     index += 1;
   }
   return pieces;
-}
-
-function waterColor(
-  colors: readonly [string, string, string, string],
-  amount: number,
-): string {
-  const t = Math.min(1, Math.max(0, amount));
-  for (let index = 1; index < WATER_STOP_AT.length; index += 1) {
-    const stop = WATER_STOP_AT[index];
-    if (t <= stop) {
-      const previous = WATER_STOP_AT[index - 1];
-      const span = stop - previous;
-      const local = span === 0 ? 0 : (t - previous) / span;
-      return mixHex(colors[index - 1], colors[index], local);
-    }
-  }
-  return colors[colors.length - 1];
 }
 
 function mixHex(from: string, to: string, amount: number): string {
@@ -482,7 +488,7 @@ function ringTip(
   if (end >= 100) return null;
   const theta = (end / 100) * Math.PI * 2;
   return {
-    color: waterColor(WATER_COLORS[last.tone], 1),
+    color: CONNECTOR[last.tone].to,
     cx: 18 + 15.5 * Math.cos(theta),
     cy: 18 + 15.5 * Math.sin(theta),
   };
