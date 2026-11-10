@@ -1,3 +1,4 @@
+import type { SVGProps } from 'react';
 import { VISION_VALUES_TITLE } from '../lib/nav';
 import { I58_MISSION, I58_VISION } from '../lib/volunteerGuide';
 import {
@@ -8,7 +9,12 @@ import {
 } from '../lib/visionValues';
 import { SectionDivider } from '../components/SectionDivider';
 
-const MARK_CANVAS = '#dddad6';
+const VALUE_CARDS = [
+  { tab: 'bg-navy', title: 'text-navy', Icon: FaithIcon },
+  { tab: 'bg-crm-terracotta', title: 'text-crm-terracotta', Icon: PassionIcon },
+  { tab: 'bg-[#667b96]', title: 'text-[#667b96]', Icon: FocusIcon },
+  { tab: 'bg-crm-slate', title: 'text-crm-slate', Icon: IntegrityIcon },
+] as const;
 
 export function VisionValuesScreen() {
   const [lead, rest] = VISION_VALUES_TITLE.split(' & ');
@@ -29,48 +35,107 @@ export function VisionValuesScreen() {
               <span className="block">& {rest}</span>
             </h1>
           </div>
-          <SectionDivider className="absolute inset-x-0 bottom-0 text-crm-white" />
         </div>
       </section>
 
-      <section
-        className="relative left-1/2 mt-10 w-screen -translate-x-1/2"
-        style={{ background: MARK_CANVAS }}
-      >
-        <div className="mx-auto grid w-full max-w-5xl items-center gap-8 px-5 py-10 md:grid-cols-[17rem_1fr] md:gap-12">
-        <img
-          src={MISSION_VISION_MARK}
-          alt="Vision and mission"
-          className="mx-auto w-full max-w-[16.75rem]"
-        />
-        <div className="space-y-8">
-          <Statement title={I58_VISION.title} text={I58_VISION.statement} />
-          <Statement title={I58_MISSION.title} text={I58_MISSION.statement} />
-        </div>
+      <section className="relative left-1/2 w-screen -translate-x-1/2">
+        <div className="mx-auto mt-12 grid w-full max-w-5xl items-center gap-10 px-5 md:mt-14 md:grid-cols-[17rem_1fr] md:gap-14">
+          <img
+            src={MISSION_VISION_MARK}
+            alt="Vision and mission"
+            className="mx-auto w-full max-w-[16.75rem]"
+          />
+          <div className="space-y-10">
+            <Statement title={I58_VISION.title} text={I58_VISION.statement} />
+            <Statement title={I58_MISSION.title} text={I58_MISSION.statement} />
+          </div>
         </div>
       </section>
 
-      <section className="relative left-1/2 mt-16 w-screen -translate-x-1/2">
-        <SectionDivider className="text-[#dddad6]" />
-        <div className="pb-16" style={{ background: MARK_CANVAS }}>
-          <div className="mx-auto grid w-full max-w-5xl items-center gap-8 px-5 lg:grid-cols-[24rem_1fr] lg:gap-12">
+      <section className="relative left-1/2 mt-16 w-screen -translate-x-1/2 sm:mt-20">
+        <SectionDivider className="text-sand" />
+        <div className="bg-sand pt-4 pb-16 sm:pb-20">
+          <div className="mx-auto w-full max-w-6xl px-5">
             <img
               src={CORE_VALUES_MARK}
               alt="Our core values: Honesty, Integrity, Trust, Focus, Faith, and Passion."
-              className="mx-auto w-full max-w-sm"
+              className="mx-auto w-full max-w-[22rem]"
             />
-            <div className="space-y-8">
-              {CORE_VALUE_STATEMENTS.map((item) => (
-                <article key={item.title}>
-                  <h3 className="font-display text-2xl font-extrabold text-navy">{item.title}</h3>
-                  <p className="mt-2 text-base leading-7 text-navy">{item.body}</p>
-                </article>
-              ))}
+            <div className="mt-16 grid items-stretch gap-x-5 gap-y-14 sm:grid-cols-2 xl:grid-cols-4">
+              {CORE_VALUE_STATEMENTS.map((item, index) => {
+                const tone = VALUE_CARDS[index]!;
+                const Icon = tone.Icon;
+                return (
+                  <article
+                    key={item.title}
+                    className="relative flex h-full flex-col rounded-[1.35rem] bg-white px-5 pt-12 pb-6 shadow-[0_14px_32px_rgba(27,54,93,0.1)]"
+                  >
+                    <span
+                      className={`absolute top-0 left-1/2 flex h-16 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-t-2xl rounded-b-lg text-white ${tone.tab}`}
+                    >
+                      <Icon />
+                    </span>
+                    <h3 className="text-center font-display text-lg font-extrabold tracking-wide">
+                      <span className={tone.title}>{item.title}</span>
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-navy">{item.body}</p>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </div>
       </section>
     </div>
+  );
+}
+
+const tabIcon: SVGProps<SVGSVGElement> = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  className: 'h-7 w-7',
+  'aria-hidden': true,
+};
+
+function FaithIcon() {
+  return (
+    <svg {...tabIcon}>
+      <path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z" />
+      <path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z" />
+      <path d="M16 17h4" />
+      <path d="M4 13h4" />
+    </svg>
+  );
+}
+
+function PassionIcon() {
+  return (
+    <svg {...tabIcon}>
+      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+    </svg>
+  );
+}
+
+function FocusIcon() {
+  return (
+    <svg {...tabIcon}>
+      <circle cx="12" cy="12" r="7.5" />
+      <circle cx="12" cy="12" r="3.5" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function IntegrityIcon() {
+  return (
+    <svg {...tabIcon}>
+      <path d="M12 3l7 4v5c0 4.2-2.8 7.2-7 9-4.2-1.8-7-4.8-7-9V7l7-4z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
   );
 }
 

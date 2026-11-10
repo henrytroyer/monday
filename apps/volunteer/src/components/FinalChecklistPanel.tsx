@@ -1,6 +1,6 @@
 import { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { FINAL_CHECKLIST_ITEMS } from '../lib/finalChecklist';
+import { FINAL_CHECKLIST_ITEMS, FINAL_CHECKLIST_SEASON_NOTE } from '../lib/finalChecklist';
 
 export function FinalChecklistPanel({
   checked,
@@ -66,6 +66,7 @@ export function FinalChecklistPanel({
             </li>
           ))}
         </ul>
+        <p className="mt-4 text-center text-sm text-navy">{FINAL_CHECKLIST_SEASON_NOTE}</p>
       </div>
     </div>,
     document.body,

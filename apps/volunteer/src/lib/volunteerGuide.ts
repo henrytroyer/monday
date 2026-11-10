@@ -45,7 +45,7 @@ export const GUIDE_FACTS = [
   },
   {
     title: 'Travel Costs',
-    detail: '$700–$1,400, arranged after acceptance.',
+    detail: 'About $1,000–$1,500, depending on season.',
   },
   {
     title: 'Service Training',

@@ -29,9 +29,12 @@ describe('my info', () => {
     assert.equal(info.length, '3 months');
     assert.equal(info.airport, 'Charlotte (CLT)');
     assert.equal(info.flights?.recordLocator, 'I58-7K2M');
+    assert.equal(info.flights?.passenger, 'Jane Miller');
     assert.equal(info.flights?.arrivalFlight, 'Olympic Air OA 221');
     assert.match(info.flights?.arrival ?? '', /Mytilene/);
     assert.equal(info.flights?.returnFlight, 'Olympic Air OA 220');
+    assert.equal(info.flights?.legs[0]?.fromCode, 'CLT');
+    assert.equal(info.flights?.legs.at(-1)?.toCode, 'CLT');
     assert.deepEqual(
       info.documents.map((document) => document.statusLabel),
       ['On file', 'On file'],

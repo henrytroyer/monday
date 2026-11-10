@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { AppHeader } from './AppHeader';
 import { SiteFooter } from './SiteFooter';
-import type { PortalTab } from '../lib/nav';
+import type { GeneralInfoSectionId, PortalTab } from '../lib/nav';
 
 export function PortalShell({
   tab,
+  generalInfoSection = null,
   onTabChange,
+  onGeneralInfoSection,
   onSignOut,
   portalName,
   toast,
@@ -13,7 +15,9 @@ export function PortalShell({
   children,
 }: {
   tab: PortalTab;
-  onTabChange: (next: PortalTab) => void;
+  generalInfoSection?: GeneralInfoSectionId | null;
+  onTabChange: (next: Exclude<PortalTab, 'generalInfo'>) => void;
+  onGeneralInfoSection: (section: GeneralInfoSectionId) => void;
   onSignOut: () => void;
   portalName?: string | null;
   toast?: string | null;
@@ -24,7 +28,9 @@ export function PortalShell({
     <div className="relative flex min-h-dvh flex-col overflow-x-clip bg-crm-white">
       <AppHeader
         tab={tab}
+        generalInfoSection={generalInfoSection}
         onTabChange={onTabChange}
+        onGeneralInfoSection={onGeneralInfoSection}
         onSignOut={onSignOut}
         portalName={portalName}
       />
@@ -37,7 +43,11 @@ export function PortalShell({
       ) : null}
       <main
         className={`mx-auto w-full flex-1 px-5 ${
-          tab === 'volunteer' ? 'max-w-6xl pt-0 pb-8' : 'max-w-5xl py-8'
+          tab === 'volunteer'
+            ? 'max-w-6xl pt-0 pb-8'
+            : tab === 'visionValues'
+              ? 'max-w-5xl pt-8 pb-0'
+              : 'max-w-5xl py-8'
         }`}
       >
         {children}

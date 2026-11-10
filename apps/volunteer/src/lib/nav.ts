@@ -1,15 +1,39 @@
 import type { PreparationDocumentId, ShortTermStepId } from '../contract/volunteerApi';
 
-export const PORTAL_TABS = ['home', 'volunteer', 'guidelinesFaith', 'visionValues'] as const;
+export const PORTAL_TABS = [
+  'home',
+  'guidelinesFaith',
+  'visionValues',
+  'generalInfo',
+  'volunteer',
+] as const;
 
 export type PortalTab = (typeof PORTAL_TABS)[number];
 
+export const GENERAL_INFO_TITLE = 'General Info';
 export const GUIDELINES_FAITH_TITLE = 'Guidelines & Faith';
 export const VISION_VALUES_TITLE = 'Vision & Values';
+
+export const GENERAL_INFO_SECTIONS = [
+  ['orientation', 'Orientation Info'],
+  ['practical', 'Practical Info'],
+  ['galini', 'Galini Apartment Rules'],
+  ['orgChart', 'Org Chart'],
+] as const satisfies ReadonlyArray<readonly [string, string]>;
+
+export type GeneralInfoSectionId = (typeof GENERAL_INFO_SECTIONS)[number][0];
+
+export const GENERAL_INFO_SECTION_LABEL: Record<GeneralInfoSectionId, string> = {
+  orientation: 'Orientation Info',
+  practical: 'Practical Info',
+  galini: 'Galini Apartment Rules',
+  orgChart: 'Org Chart',
+};
 
 export const PORTAL_TAB_LABEL: Record<PortalTab, string> = {
   home: 'Home',
   volunteer: 'My Info',
+  generalInfo: GENERAL_INFO_TITLE,
   guidelinesFaith: GUIDELINES_FAITH_TITLE,
   visionValues: VISION_VALUES_TITLE,
 };
@@ -49,6 +73,7 @@ export type ShortTermView = (typeof SHORT_TERM_VIEWS)[number];
 export type PortalDestination =
   | { tab: 'home' }
   | { tab: 'volunteer' }
+  | { tab: 'generalInfo'; section: GeneralInfoSectionId }
   | { tab: 'guidelinesFaith' }
   | { tab: 'visionValues' }
   | { tab: 'application'; step: ShortTermStepId }

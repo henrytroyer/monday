@@ -103,12 +103,27 @@ export type MyInfoDocument = {
   draft: PreparationDocumentDraft | null;
 };
 
+export type MyInfoFlightLeg = {
+  direction: string;
+  airline: string;
+  flight: string;
+  date: string;
+  fromCity: string;
+  fromCode: string;
+  departs: string;
+  toCity: string;
+  toCode: string;
+  arrives: string;
+};
+
 export type MyInfoFlights = {
+  passenger: string;
   recordLocator: string;
   arrivalFlight: string;
   arrival: string;
   returnFlight: string;
   returning: string;
+  legs: MyInfoFlightLeg[];
 };
 
 export type MyInfo = {
@@ -254,6 +269,7 @@ function flightSummary(itinerary: FlightItinerary): MyInfoFlights {
   const inbound = itinerary.directions.find((direction) => direction.id === 'to-field')?.legs.at(-1);
   const outbound = itinerary.directions.find((direction) => direction.id === 'home')?.legs[0];
   return {
+    passenger: itinerary.passenger,
     recordLocator: itinerary.recordLocator,
     arrivalFlight: inbound ? `${inbound.airline} ${inbound.flight}` : NOT_ON_FILE,
     arrival: inbound ? `${inbound.toCity} · ${inbound.date} · ${inbound.arrives}` : NOT_ON_FILE,
@@ -261,6 +277,20 @@ function flightSummary(itinerary: FlightItinerary): MyInfoFlights {
     returning: outbound
       ? `${outbound.fromCity} · ${outbound.date} · ${outbound.departs}`
       : NOT_ON_FILE,
+    legs: itinerary.directions.flatMap((direction) =>
+      direction.legs.map((leg) => ({
+        direction: direction.title,
+        airline: leg.airline,
+        flight: leg.flight,
+        date: leg.date,
+        fromCity: leg.fromCity,
+        fromCode: leg.fromCode,
+        departs: leg.departs,
+        toCity: leg.toCity,
+        toCode: leg.toCode,
+        arrives: leg.arrives,
+      })),
+    ),
   };
 }
 

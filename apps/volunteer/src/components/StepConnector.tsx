@@ -1,11 +1,4 @@
-const CONNECTOR = {
-  blue: { from: '#2a6e9c', to: '#3482b0' },
-  green: { from: '#1c8f4e', to: '#249d5c' },
-  orange: { from: '#c15f30', to: '#ce6d3e' },
-  muted: { from: '#cbbdad', to: '#d6cbb8' },
-} as const;
-
-export type StepConnectorTone = keyof typeof CONNECTOR;
+import { CONNECTOR, type StepConnectorTone } from '../lib/stepConnector';
 
 /** A thin line ending in an arrow toward the next progress bubble. */
 export function StepConnector({

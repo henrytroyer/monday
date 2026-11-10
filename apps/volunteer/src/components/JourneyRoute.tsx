@@ -3,6 +3,7 @@ import { SHORT_TERM_STEP_DEFAULTS } from '../contract/volunteerApi';
 import { stepFillPercent } from '../lib/formProgress';
 import { canOpenProcessStep } from '../process/previewAccess';
 import { ProgressBubble } from './ProgressBubble';
+import { progressConnectorTone } from '../lib/stepConnector';
 import { StepConnector } from './StepConnector';
 
 const STEPS_PER_ROW = 5;
@@ -53,7 +54,7 @@ export function JourneyRoute({
                     {index > 0 ? (
                       <StepConnector
                         compact={compact}
-                        tone={row[index - 1].fill > 0 && step.fill > 0 ? 'blue' : 'muted'}
+                        tone={progressConnectorTone(steps, row[index - 1], step, 'blue')}
                       />
                     ) : null}
                     <StepBubble

@@ -101,13 +101,13 @@ describe('preview home stepper', () => {
     const half = previewHomeStatus(
       {
         ...JANE_MILLER,
-        finalChecklistChecked: FINAL_CHECKLIST_ITEMS.slice(0, 5).map((item) => item.id),
+        finalChecklistChecked: FINAL_CHECKLIST_ITEMS.slice(0, 1).map((item) => item.id),
       },
       3,
     );
     const partial = half.onboardingSteps?.find((step) => step.id === 'final_checklist');
     assert.equal(partial?.status, 'not_started');
-    assert.equal(partial?.progress, 50);
+    assert.equal(partial?.progress, 33);
     assert.equal(half.onboardingSteps?.find((step) => step.id === 'flights')?.progress, undefined);
 
     const done = previewHomeStatus(

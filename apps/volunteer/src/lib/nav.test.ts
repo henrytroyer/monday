@@ -6,6 +6,7 @@ import {
   FORMS_AND_REFERENCES_TITLE,
   HOPE_IN_ACTION,
   HOPE_IN_ACTION_TAGLINE,
+  GENERAL_INFO_SECTIONS,
   PORTAL_TAB_LABEL,
   PORTAL_TABS,
   SHORT_TERM_VIEWS,
@@ -32,11 +33,24 @@ describe('short-term hub labels', () => {
 
 describe('portal destinations', () => {
   it('keeps the signed-in top nav order', () => {
-    assert.deepEqual([...PORTAL_TABS], ['home', 'volunteer', 'guidelinesFaith', 'visionValues']);
+    assert.deepEqual(
+      [...PORTAL_TABS],
+      ['home', 'guidelinesFaith', 'visionValues', 'generalInfo', 'volunteer'],
+    );
     assert.equal(PORTAL_TAB_LABEL.home, 'Home');
     assert.equal(PORTAL_TAB_LABEL.volunteer, 'My Info');
+    assert.equal(PORTAL_TAB_LABEL.generalInfo, 'General Info');
     assert.equal(PORTAL_TAB_LABEL.guidelinesFaith, 'Guidelines & Faith');
     assert.equal(PORTAL_TAB_LABEL.visionValues, 'Vision & Values');
+    assert.deepEqual(
+      GENERAL_INFO_SECTIONS.map(([id, label]) => [id, label]),
+      [
+        ['orientation', 'Orientation Info'],
+        ['practical', 'Practical Info'],
+        ['galini', 'Galini Apartment Rules'],
+        ['orgChart', 'Org Chart'],
+      ],
+    );
     assert.deepEqual([...SHORT_TERM_VIEWS], ['progress', 'documents']);
     assert.equal(APPLICATION_PROCESS_TITLE, 'Application Process');
     assert.equal(SHORT_TERM_APPLICATION_TITLE, 'Short-term application');

@@ -42,13 +42,88 @@ export const DOCUMENT_FIELDS: Record<
   },
 };
 
+/** Stand-in addresses until the real provider links are confirmed. */
+export const PROVIDER_LINKS = {
+  background_check_sent: {
+    href: 'https://www.sterlingvolunteers.com/',
+    label: 'Open Sterling Volunteers (placeholder)',
+    note: 'Placeholder link. This opens a new tab and does not submit your background check.',
+  },
+  safeguarding_certificate: {
+    href: 'https://www.i58global.org/',
+    label: 'Open the safeguarding course (placeholder)',
+    note: 'Placeholder link. This opens a new tab and does not record your course.',
+  },
+} as const;
+
+export const CERTIFICATE_WAITING_LINE = '... waiting for i58 to accept it ...';
+
+export function isCertificateUpload(
+  id: PreparationDocumentId,
+): id is 'background_check_sent' | 'safeguarding_certificate' {
+  return id === 'background_check_sent' || id === 'safeguarding_certificate';
+}
+
+/**
+ * Background check and safeguarding move through four steps.
+ * The last step is accepted or not accepted.
+ */
+export const CERTIFICATE_STAGE_CYCLE: DocumentStage[] = [
+  'start',
+  'continue',
+  'sent',
+  'accepted',
+  'declined',
+];
+
+export const CERTIFICATE_STAGE_LABEL: Record<DocumentStage, string> = {
+  start: 'Fill-out form',
+  continue: 'Upload form',
+  sent: 'Form uploaded',
+  received: 'Form uploaded',
+  accepted: 'Form accepted',
+  declined: 'Form not accepted',
+};
+
+/** Equal quarters. The bubble is full only when the form is accepted. */
+export const CERTIFICATE_STAGE_FILL: Record<DocumentStage, number> = {
+  start: 25,
+  continue: 50,
+  sent: 75,
+  received: 75,
+  accepted: 100,
+  declined: 75,
+};
+
+export function certificateStageLabel(stage: DocumentStage): string {
+  return CERTIFICATE_STAGE_LABEL[stage];
+}
+
+export function certificateStageFill(stage: DocumentStage): number {
+  return CERTIFICATE_STAGE_FILL[stage];
+}
+
+export function certificateShowsWaiting(stage: DocumentStage): boolean {
+  return stage === 'sent' || stage === 'received';
+}
+
+export function stepCertificateStage(stage: DocumentStage, delta: -1 | 1): DocumentStage {
+  const current = stage === 'received' ? 'sent' : stage;
+  const index = CERTIFICATE_STAGE_CYCLE.indexOf(current);
+  const start = index < 0 ? 0 : index;
+  const next = (start + delta + CERTIFICATE_STAGE_CYCLE.length) % CERTIFICATE_STAGE_CYCLE.length;
+  return CERTIFICATE_STAGE_CYCLE[next] ?? 'start';
+}
+
 export function emptyPreparationDocument(): PreparationDocumentDraft {
   return { name: '', date: '', confirmed: '', submitted: false };
 }
 
 export function documentIsEdited(draft: PreparationDocumentDraft | undefined): boolean {
   if (!draft) return false;
-  return Boolean(draft.submitted || draft.name.trim() || draft.date.trim() || draft.confirmed);
+  return Boolean(
+    draft.submitted || draft.fileName || draft.name.trim() || draft.date.trim() || draft.confirmed,
+  );
 }
 
 export function documentFieldCount(draft: PreparationDocumentDraft): number {
@@ -61,6 +136,11 @@ export function documentFieldCount(draft: PreparationDocumentDraft): number {
 
 /** Share of the bubble used while the form is open or sent, never a full fill. */
 export function documentProgress(draft: PreparationDocumentDraft): number {
+  if (draft.fileName) {
+    if (draft.review === 'declined') return CERTIFICATE_STAGE_FILL.declined;
+    if (draft.review === 'accepted') return CERTIFICATE_STAGE_FILL.accepted;
+    return draft.submitted ? CERTIFICATE_STAGE_FILL.sent : CERTIFICATE_STAGE_FILL.continue;
+  }
   return Math.round((documentFieldCount(draft) / DOCUMENT_FIELD_TOTAL) * DOCUMENT_FILL_CAP);
 }
 
@@ -158,6 +238,35 @@ export function stepStaffUpload(stage: StaffUploadStage, delta: -1 | 1): StaffUp
   const index = STAFF_UPLOAD_CYCLE.indexOf(stage);
   const next = (index + delta + STAFF_UPLOAD_CYCLE.length) % STAFF_UPLOAD_CYCLE.length;
   return STAFF_UPLOAD_CYCLE[next] ?? 'waiting';
+}
+
+export const CHAT_GROUP_CYCLE = ['waiting', 'added'] as const;
+
+export type ChatGroupStage = (typeof CHAT_GROUP_CYCLE)[number];
+
+export function chatGroupLabel(stage: ChatGroupStage): string {
+  return stage === 'added' ? 'Added' : 'Waiting to be added';
+}
+
+export function stepChatGroup(stage: ChatGroupStage, delta: -1 | 1): ChatGroupStage {
+  const index = CHAT_GROUP_CYCLE.indexOf(stage);
+  const next = (index + delta + CHAT_GROUP_CYCLE.length) % CHAT_GROUP_CYCLE.length;
+  return CHAT_GROUP_CYCLE[next] ?? 'waiting';
+}
+
+/** Chat stays a status. Added fills the bubble. Waiting leaves it empty. */
+export function withChatGroupProgress(
+  me: VolunteerApplicationStatus,
+  stage: ChatGroupStage,
+): VolunteerApplicationStatus {
+  return {
+    ...me,
+    onboardingSteps: resolveOnboardingSteps(me).map((step) => {
+      if (step.id !== 'chat_groups') return step;
+      if (stage === 'added') return { ...step, status: 'complete', progress: 100 };
+      return { ...step, status: 'not_started', progress: 0 };
+    }),
+  };
 }
 
 /** Preview-only. Steps the card label and icon without writing the account. */

@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { VolunteerApplicationStatus } from '../contract/volunteerApi';
+import { DocumentCopy } from '../components/DocumentCopy';
 import { ServicePeriodTimeline } from '../components/ServicePeriodTimeline';
+import { ItineraryImage, PassportImage } from '../components/TravelCopies';
 import { NOT_ON_FILE, myInfoFor, type MyInfoDocument } from '../lib/myInfo';
 import { GERMANY_GREETING_BACKDROP, HOME_GREETING_BACKDROP } from '../lib/nav';
+import { DOCUMENT_FIELDS } from '../lib/preparationDocuments';
 import { downloadPreparationDocumentPdf } from '../lib/preparationDocumentPdf';
 import { servicePeriodFor } from '../lib/servicePeriod';
 import { COORDINATOR_EMAIL } from '../lib/volunteerGuide';
@@ -13,7 +16,6 @@ const SECTIONS = [
   { id: 'passport', label: 'Passport' },
   { id: 'flights', label: 'Flights' },
   { id: 'documents', label: 'Documents' },
-  { id: 'health', label: 'Health' },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'];
@@ -24,6 +26,7 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
   const info = myInfoFor(me);
   const servicePeriod = servicePeriodFor(me);
   const [copied, setCopied] = useState<string | null>(null);
+  const [openDocument, setOpenDocument] = useState<string | null>(null);
   const [active, setActive] = useState<SectionId>('profile');
   const ignoreScroll = useRef(0);
   const cover = /germany/i.test(info.location)
@@ -107,7 +110,10 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
           </nav>
         </aside>
 
-          <section className="min-w-0 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-sand/70">
+          <section
+            id="profile"
+            className="min-w-0 scroll-mt-28 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-sand/70"
+          >
             <img src={cover} alt="" className="h-36 w-full object-cover object-center sm:h-44" />
             <div className="px-5 pb-5 sm:px-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -131,13 +137,26 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                   Message us
                 </a>
               </div>
-              <dl className="mt-5 grid grid-cols-3 border-t border-sand/80 pt-4 text-center">
+              <dl className="mt-5 grid grid-cols-3 gap-4 border-t border-sand/80 pt-5">
                 <Stat label="Length" value={info.length} />
                 <Stat label="Term" value={info.term} />
                 <Stat
                   label="Documents"
                   value={onFile === 0 ? NOT_ON_FILE : onFile === 1 ? '1 on file' : `${onFile} on file`}
                 />
+              </dl>
+              <dl className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-sand/80 pt-5 sm:grid-cols-3">
+                <IntroRow label="Phone">
+                  <PhoneLink phone={info.phone} />
+                </IntroRow>
+                <IntroRow label="Email">
+                  <MailLink email={info.email} />
+                </IntroRow>
+                <IntroRow label="Birthday">{info.birthday}</IntroRow>
+                <IntroRow label="Gender">{info.gender}</IntroRow>
+                <IntroRow label="Home address" className="sm:col-span-2">
+                  {info.address.join(', ')}
+                </IntroRow>
               </dl>
             </div>
           </section>
@@ -148,107 +167,93 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
         <div>
             <InfoCard id="service" title="Service">
               <ServicePeriodTimeline period={servicePeriod} labelled={false} />
-              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Detail label="Location" value={info.location} />
-                <Detail label="Length" value={info.length} />
-                <Detail label="Term" value={info.term} />
-                <Detail label="Home airport" value={info.airport} />
-              </dl>
             </InfoCard>
           </div>
 
-          <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
-            <InfoCard id="profile" title="Introduction">
-              <dl className="grid gap-3">
-                <IntroRow label="Phone">
-                  <PhoneLink phone={info.phone} />
-                </IntroRow>
-                <IntroRow label="Email">
-                  <MailLink email={info.email} />
-                </IntroRow>
-                <IntroRow label="Birthday">{info.birthday}</IntroRow>
-                <IntroRow label="Gender">{info.gender}</IntroRow>
-                <IntroRow label="Home address">
-                  {info.address.map((line) => (
-                    <span key={line} className="block">
-                      {line}
-                    </span>
-                  ))}
-                </IntroRow>
-              </dl>
-            </InfoCard>
+          <InfoCard id="documents" title="Documents" className="mt-4">
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {info.documents.map((document) => (
+                <DocumentSnapshot
+                  key={document.id}
+                  document={document}
+                  open={openDocument === document.id}
+                  onToggle={() =>
+                    setOpenDocument((current) => (current === document.id ? null : document.id))
+                  }
+                />
+              ))}
+            </ul>
+          </InfoCard>
 
-            <div className="grid gap-4">
-              <div className="grid gap-4 md:grid-cols-2">
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <InfoCard id="passport" title="Passport">
-                  {info.passportPhoto ? (
-                    <img
-                      src={info.passportPhoto}
-                      alt="Passport"
-                      className="mb-4 w-full rounded-xl border border-sand object-contain"
-                    />
-                  ) : (
-                    <p className="mb-3 text-sm text-navy/60">Passport photo is not on file.</p>
-                  )}
-                  <dl className="grid gap-3">
-                    <Detail label="Passport number">
+                  <RecordSnapshot
+                    thumb={
+                      info.passportPhoto ? (
+                        <PassportImage
+                          src={info.passportPhoto}
+                          number={info.passportNumber}
+                          expiration={info.passportExpiration}
+                        />
+                      ) : null
+                    }
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy/45">
+                      Passport
+                    </p>
+                    <div className="mt-2 h-px w-10 bg-crm-terracotta" />
+                    <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-navy/45">
+                      Passport number
+                    </p>
+                    <div className="font-display text-base font-extrabold leading-tight text-navy">
                       <CopyValue
                         id="passport"
                         value={info.passportNumber}
                         copied={copied}
                         onCopy={copy}
                       />
-                    </Detail>
-                    <Detail label="Expiration" value={info.passportExpiration} />
-                  </dl>
+                    </div>
+                    {info.passportPhoto ? null : (
+                      <p className="mt-3 text-sm text-navy/60">Passport photo is not on file.</p>
+                    )}
+                  </RecordSnapshot>
                 </InfoCard>
 
                 <InfoCard id="flights" title="Flights">
                   {info.flights ? (
-                    <dl className="grid gap-3">
-                      <Detail label="Record locator">
+                    <RecordSnapshot thumb={<ItineraryImage flights={info.flights} />}>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy/45">
+                        Flights
+                      </p>
+                      <div className="mt-2 h-px w-10 bg-crm-terracotta" />
+                      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-navy/45">
+                        Record locator
+                      </p>
+                      <div className="font-display text-base font-extrabold leading-tight text-navy">
                         <CopyValue
                           id="locator"
                           value={info.flights.recordLocator}
                           copied={copied}
                           onCopy={copy}
                         />
-                      </Detail>
-                      <Detail label="Arrive on the field">
-                        <span className="block">{info.flights.arrivalFlight}</span>
-                        <span className="block text-navy/75">{info.flights.arrival}</span>
-                      </Detail>
-                      <Detail label="Return home">
-                        <span className="block">{info.flights.returnFlight}</span>
-                        <span className="block text-navy/75">{info.flights.returning}</span>
-                      </Detail>
-                    </dl>
+                      </div>
+                    </RecordSnapshot>
                   ) : (
                     <p className="text-sm text-navy/60">Flight details are not on file yet.</p>
                   )}
                 </InfoCard>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <InfoCard id="documents" title="Documents">
-                  <ul className="grid gap-3">
-                    {info.documents.map((document) => (
-                      <DocumentRow key={document.id} document={document} />
-                    ))}
-                  </ul>
-                </InfoCard>
-
-                <InfoCard id="health" title="Health and team">
-                  <dl className="grid gap-3">
-                    <Detail label="Medical" value={info.medical} />
-                    <Detail label="Languages" value={info.languages} />
-                    <Detail label="Skills" value={info.skills} />
-                    <Detail label="Family with you" value={info.family} />
-                  </dl>
-                </InfoCard>
-              </div>
-            </div>
           </div>
+          </div>
+    </div>
+  );
+}
+
+function RecordSnapshot({ children, thumb }: { children: ReactNode; thumb?: ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-crm-surface p-3">
+      <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-sand/80">
+        <div className="min-w-0 flex-1">{children}</div>
+        {thumb}
       </div>
     </div>
   );
@@ -258,13 +263,18 @@ function InfoCard({
   id,
   title,
   children,
+  className = '',
 }: {
   id: SectionId;
   title: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section id={id} className="scroll-mt-28 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-sand/70">
+    <section
+      id={id}
+      className={`scroll-mt-28 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-sand/70 ${className}`}
+    >
       <h2 className="font-display text-lg font-extrabold text-navy">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
@@ -273,8 +283,8 @@ function InfoCard({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="px-2">
-      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-navy/45">{label}</dt>
+    <div className="min-w-0">
+      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-crm-terracotta">{label}</dt>
       <dd className={`mt-1 text-sm font-semibold ${value === NOT_ON_FILE ? 'text-navy/45' : 'text-navy'}`}>
         {value}
       </dd>
@@ -282,10 +292,18 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function IntroRow({ label, children }: { label: string; children: ReactNode }) {
+function IntroRow({
+  label,
+  children,
+  className = '',
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="min-w-0">
-      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-navy/45">{label}</dt>
+    <div className={`min-w-0 ${className}`}>
+      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-navy">{label}</dt>
       <dd className="mt-0.5 text-sm text-navy">{children}</dd>
     </div>
   );
@@ -310,23 +328,73 @@ function Detail({
   );
 }
 
-function DocumentRow({ document }: { document: MyInfoDocument }) {
+function DocumentSnapshot({
+  document,
+  open,
+  onToggle,
+}: {
+  document: MyInfoDocument;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const fields = DOCUMENT_FIELDS[document.id];
+  const draft = document.draft;
   return (
-    <li className="rounded-xl bg-crm-surface px-3 py-3">
-      <p className="font-semibold text-navy">{document.title}</p>
-      <p className={`mt-0.5 text-sm ${document.onFile ? 'text-[#1f9d55]' : 'text-navy/60'}`}>
-        {document.statusLabel}
-      </p>
-      {document.draft ? (
+    <li className="flex flex-col rounded-2xl bg-crm-surface p-3">
+      <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-sand/80">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy/45">
+            {fields.title}
+          </p>
+          <div className="mt-2 h-px w-10 bg-crm-terracotta" />
+          {draft ? (
+            <>
+              <p className="mt-3 font-display text-base font-extrabold leading-tight text-navy">
+                {draft.name || document.title}
+              </p>
+              <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-navy/45">
+                {fields.dateLabel}
+              </p>
+              <p className="text-sm text-navy">{draft.date || NOT_ON_FILE}</p>
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-navy/60">Nothing has been uploaded yet.</p>
+          )}
+          <p className={`mt-3 text-xs font-semibold ${document.onFile ? 'text-[#1f9d55]' : 'text-navy/60'}`}>
+            {document.statusLabel}
+          </p>
+        </div>
+        <DocumentCopy document={document} />
+      </div>
+      {draft ? (
         <button
           type="button"
-          onClick={() => {
-            if (document.draft) downloadPreparationDocumentPdf(document.id, document.draft);
-          }}
-          className="mt-2 text-sm font-semibold text-navy underline decoration-sand underline-offset-2"
+          aria-expanded={open}
+          onClick={onToggle}
+          className="mt-3 self-start rounded-full bg-navy px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
         >
-          Download
+          {open ? 'Close' : 'Open'}
         </button>
+      ) : null}
+      {open && draft ? (
+        <dl className="mt-3 grid gap-2 px-1">
+          <Detail label={fields.nameLabel} value={draft.name || NOT_ON_FILE} />
+          <Detail label={fields.dateLabel} value={draft.date || NOT_ON_FILE} />
+          <Detail
+            label={fields.confirmLabel}
+            value={draft.confirmed === 'yes' ? 'Yes' : NOT_ON_FILE}
+          />
+          {draft.fileName ? <Detail label="File" value={draft.fileName} /> : null}
+          <div>
+            <button
+              type="button"
+              onClick={() => downloadPreparationDocumentPdf(document.id, draft)}
+              className="text-sm font-semibold text-navy underline decoration-sand underline-offset-2"
+            >
+              Download
+            </button>
+          </div>
+        </dl>
       ) : null}
     </li>
   );
@@ -364,7 +432,7 @@ function CopyValue({
   if (value === NOT_ON_FILE) return value;
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <span className="font-medium tracking-wide">{value}</span>
+      <span className="font-display text-base font-extrabold leading-tight tracking-wide">{value}</span>
       <button
         type="button"
         onClick={() => onCopy(id, value)}
@@ -383,7 +451,6 @@ function RecordIcon({ id }: { id: SectionId }) {
     passport: 'M6 3h9a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6zm4 4a2.5 2.5 0 1 0 2.5 2.5A2.5 2.5 0 0 0 10 7zm-3 9c.4-2 2-3 3.5-3s3.1 1 3.5 3z',
     flights: 'M3 13l18-6-4 8-5 1-2 4-2-5-5-2z',
     documents: 'M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V7h3.5z',
-    health: 'M11 4h2v5h5v2h-5v5h-2v-5H6V9h5z',
   }[id];
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden>

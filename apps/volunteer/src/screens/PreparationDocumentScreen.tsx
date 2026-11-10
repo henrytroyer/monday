@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import type {
   PreparationDocumentId,
   VolunteerApplicationStatus,
@@ -11,10 +11,15 @@ import { useSaveOnExit } from '../lib/useSaveOnExit';
 import {
   DOCUMENT_FIELDS,
   DOCUMENT_STAGE_LABEL,
+  PROVIDER_LINKS,
   documentCanSubmit,
   documentIsAccepted,
   documentStage,
   emptyPreparationDocument,
+  CERTIFICATE_WAITING_LINE,
+  certificateShowsWaiting,
+  certificateStageLabel,
+  isCertificateUpload,
   savePreparationDocument,
 } from '../lib/preparationDocuments';
 
@@ -30,6 +35,41 @@ export function PreparationDocumentScreen({
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
 }) {
   const saved = me.preparationDocuments?.[documentId] ?? emptyPreparationDocument();
+  if (isCertificateUpload(documentId)) {
+    return (
+      <CertificateUpload
+        me={me}
+        documentId={documentId}
+        saved={saved}
+        onBack={onBack}
+        onUpdateMe={onUpdateMe}
+      />
+    );
+  }
+  return (
+    <AnswerForm
+      me={me}
+      documentId={documentId}
+      saved={saved}
+      onBack={onBack}
+      onUpdateMe={onUpdateMe}
+    />
+  );
+}
+
+function AnswerForm({
+  me,
+  documentId,
+  saved,
+  onBack,
+  onUpdateMe,
+}: {
+  me: VolunteerApplicationStatus;
+  documentId: PreparationDocumentId;
+  saved: ReturnType<typeof emptyPreparationDocument>;
+  onBack: () => void;
+  onUpdateMe: (next: VolunteerApplicationUpdate) => void;
+}) {
   const fields = DOCUMENT_FIELDS[documentId];
   const [name, setName] = useState(saved.name);
   const [date, setDate] = useState(saved.date);
@@ -124,6 +164,108 @@ export function PreparationDocumentScreen({
           {saved.submitted ? 'Submitted' : 'Submit'}
         </button>
       </div>
+    </FormCard>
+  );
+}
+
+function CertificateUpload({
+  me,
+  documentId,
+  saved,
+  onBack,
+  onUpdateMe,
+}: {
+  me: VolunteerApplicationStatus;
+  documentId: 'background_check_sent' | 'safeguarding_certificate';
+  saved: ReturnType<typeof emptyPreparationDocument>;
+  onBack: () => void;
+  onUpdateMe: (next: VolunteerApplicationUpdate) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const link = PROVIDER_LINKS[documentId];
+  const stage = documentStage(saved, documentIsAccepted(me, documentId));
+
+  function storeFile(file: File) {
+    onUpdateMe((current) =>
+      savePreparationDocument(current, documentId, {
+        name: file.name,
+        date: '',
+        confirmed: '',
+        fileName: file.name,
+        submitted: true,
+        review: current.preparationDocuments?.[documentId]?.review,
+      }),
+    );
+  }
+
+  return (
+    <FormCard>
+      <BackButton onClick={onBack} label="Home" />
+      <div className="mt-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-navy">
+            {DOCUMENT_FIELDS[documentId].title}
+          </h1>
+          <p className="mt-2 text-sm font-semibold text-navy">{certificateStageLabel(stage)}</p>
+          {certificateShowsWaiting(stage) ? (
+            <p className="mt-1 text-sm text-crm-slate">{CERTIFICATE_WAITING_LINE}</p>
+          ) : null}
+        </div>
+        <DocumentStageMark stage={stage} />
+      </div>
+
+      <div className="mt-8 grid items-stretch gap-4 sm:grid-cols-2">
+        <section className="flex flex-col rounded-2xl bg-[#f7f4ef] px-4 py-5 ring-1 ring-navy/10">
+          <h2 className="text-sm font-semibold text-navy">1. Fill out the form</h2>
+          <p className="mt-1 text-sm leading-6 text-crm-slate">
+            Complete it with the provider. They email you the certificate.
+          </p>
+          <a
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex min-h-11 w-fit items-center rounded-full bg-navy px-5 text-sm font-semibold text-white hover:brightness-110"
+          >
+            {link.label}
+          </a>
+          <p className="mt-2 text-sm text-crm-slate">{link.note}</p>
+        </section>
+
+        <section className="flex flex-col rounded-2xl bg-[#f7f4ef] px-4 py-5 ring-1 ring-navy/10">
+          <h2 className="text-sm font-semibold text-navy">2. Upload the certificate as a PDF</h2>
+          <input
+            ref={fileInputRef}
+            id={`${documentId}-certificate`}
+            type="file"
+            accept="application/pdf"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) storeFile(file);
+            }}
+          />
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95"
+            >
+              {saved.fileName ? 'Replace file' : 'Choose file'}
+            </button>
+            <p className="text-sm text-navy">{saved.fileName ?? 'No file chosen'}</p>
+          </div>
+        </section>
+      </div>
+
+      {documentId === 'background_check_sent' ? (
+        <div className="mt-8 rounded-2xl bg-[#fff7f4] px-5 py-4 ring-1 ring-[#ff4700]/25">
+          <img
+            src="/brand/sterling-volunteers.svg"
+            alt="Sterling Volunteers"
+            className="h-14 w-auto"
+          />
+        </div>
+      ) : null}
     </FormCard>
   );
 }
