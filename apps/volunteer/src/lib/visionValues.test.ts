@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   CORE_VALUE_NAMES,
+  CORE_VALUES_BACKDROP,
+  CORE_VALUES_CHILDREN,
+  CORE_VALUES_LIBRARY,
   CORE_VALUES_MARK,
   CORE_VALUE_STATEMENTS,
   MISSION_VISION_MARK,
@@ -13,6 +16,9 @@ describe('vision and values copy', () => {
     assert.equal(VISION_VALUES_PHOTO, '/brand/volunteer.jpg');
     assert.equal(MISSION_VISION_MARK, '/brand/mission-vision.png');
     assert.equal(CORE_VALUES_MARK, '/brand/core-values.png');
+    assert.equal(CORE_VALUES_LIBRARY, '/brand/core-values-library.png');
+    assert.equal(CORE_VALUES_CHILDREN, '/brand/core-values-children.png');
+    assert.equal(CORE_VALUES_BACKDROP, '/brand/core-values-backdrop.png');
   });
 
   it('names the six core values in wheel order and keeps the four written statements', () => {

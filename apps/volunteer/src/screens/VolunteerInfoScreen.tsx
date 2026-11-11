@@ -1,18 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { VolunteerApplicationStatus } from '../contract/volunteerApi';
 import { DocumentCopy } from '../components/DocumentCopy';
-import { ServicePeriodTimeline } from '../components/ServicePeriodTimeline';
 import { ItineraryImage, PassportImage } from '../components/TravelCopies';
 import { NOT_ON_FILE, myInfoFor, type MyInfoDocument } from '../lib/myInfo';
 import { GERMANY_GREETING_BACKDROP, HOME_GREETING_BACKDROP } from '../lib/nav';
 import { DOCUMENT_FIELDS } from '../lib/preparationDocuments';
 import { downloadPreparationDocumentPdf } from '../lib/preparationDocumentPdf';
-import { servicePeriodFor } from '../lib/servicePeriod';
 import { COORDINATOR_EMAIL } from '../lib/volunteerGuide';
 
 const SECTIONS = [
   { id: 'profile', label: 'Profile' },
-  { id: 'service', label: 'Service' },
   { id: 'passport', label: 'Passport' },
   { id: 'flights', label: 'Flights' },
   { id: 'documents', label: 'Documents' },
@@ -24,7 +21,6 @@ const FOOTER_BLUE = '#667b96';
 
 export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) {
   const info = myInfoFor(me);
-  const servicePeriod = servicePeriodFor(me);
   const [copied, setCopied] = useState<string | null>(null);
   const [openDocument, setOpenDocument] = useState<string | null>(null);
   const [active, setActive] = useState<SectionId>('profile');
@@ -76,18 +72,14 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
   }
 
   return (
-    <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-x-4">
-      <div
-        className="relative left-1/2 w-screen -translate-x-1/2 pt-4 pb-[calc((100vw-min(100vw,72rem))/2+1.25rem)] lg:col-span-2"
-        style={{ backgroundColor: FOOTER_BLUE }}
-      >
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-start gap-4 px-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-x-4">
-        <aside className="lg:sticky lg:top-24">
-          <nav aria-label="Your records" className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-sand/70">
+    <div>
+      <div className="relative left-1/2 w-screen -translate-x-1/2">
+        <nav aria-label="Your records" className="bg-white">
+          <div className="mx-auto w-full max-w-6xl px-5 py-3">
             <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-navy/45">
               Your records
             </p>
-            <ul className="flex gap-1 overflow-x-auto lg:flex-col">
+            <ul className="flex gap-1 overflow-x-auto">
               {SECTIONS.map((section) => {
                 const current = active === section.id;
                 return (
@@ -107,15 +99,12 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                 );
               })}
             </ul>
-          </nav>
-        </aside>
+          </div>
+        </nav>
 
-          <section
-            id="profile"
-            className="min-w-0 scroll-mt-28 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-sand/70"
-          >
-            <img src={cover} alt="" className="h-36 w-full object-cover object-center sm:h-44" />
-            <div className="px-5 pb-5 sm:px-6">
+        <section id="profile" className="min-w-0 scroll-mt-28 bg-white">
+          <img src={cover} alt="" className="h-36 w-full object-cover object-center sm:h-44" />
+          <div className="mx-auto w-full max-w-6xl px-5 pb-5 sm:px-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="flex items-end gap-4">
                   <img
@@ -159,18 +148,15 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                 </IntroRow>
               </dl>
             </div>
-          </section>
-        </div>
+        </section>
       </div>
 
-      <div className="mt-4 min-w-0 lg:col-start-2">
-        <div>
-            <InfoCard id="service" title="Service">
-              <ServicePeriodTimeline period={servicePeriod} labelled={false} />
-            </InfoCard>
-          </div>
-
-          <InfoCard id="documents" title="Documents" className="mt-4">
+      <div
+        className="relative left-1/2 w-screen -translate-x-1/2"
+        style={{ backgroundColor: FOOTER_BLUE }}
+      >
+        <div className="mx-auto w-full max-w-6xl px-5 pb-10 pt-8">
+          <InfoCard id="documents" title="Documents">
             <ul className="grid gap-4 sm:grid-cols-2">
               {info.documents.map((document) => (
                 <DocumentSnapshot
@@ -243,7 +229,8 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                   )}
                 </InfoCard>
           </div>
-          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -348,34 +335,28 @@ function DocumentSnapshot({
           </p>
           <div className="mt-2 h-px w-10 bg-crm-terracotta" />
           {draft ? (
-            <>
-              <p className="mt-3 font-display text-base font-extrabold leading-tight text-navy">
-                {draft.name || document.title}
-              </p>
-              <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-navy/45">
-                {fields.dateLabel}
-              </p>
-              <p className="text-sm text-navy">{draft.date || NOT_ON_FILE}</p>
-            </>
+            <p className="mt-3 font-display text-base font-extrabold leading-tight text-navy">
+              {draft.name || document.title}
+            </p>
           ) : (
             <p className="mt-3 text-sm text-navy/60">Nothing has been uploaded yet.</p>
           )}
           <p className={`mt-3 text-xs font-semibold ${document.onFile ? 'text-[#1f9d55]' : 'text-navy/60'}`}>
             {document.statusLabel}
           </p>
+          {draft ? (
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={onToggle}
+              className="mt-3 inline-flex rounded-full bg-navy px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+            >
+              {open ? 'Close' : 'Open'}
+            </button>
+          ) : null}
         </div>
         <DocumentCopy document={document} />
       </div>
-      {draft ? (
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={onToggle}
-          className="mt-3 self-start rounded-full bg-navy px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
-        >
-          {open ? 'Close' : 'Open'}
-        </button>
-      ) : null}
       {open && draft ? (
         <dl className="mt-3 grid gap-2 px-1">
           <Detail label={fields.nameLabel} value={draft.name || NOT_ON_FILE} />
@@ -447,7 +428,6 @@ function CopyValue({
 function RecordIcon({ id }: { id: SectionId }) {
   const path = {
     profile: 'M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z',
-    service: 'M4 7h16v2H4zm0 4h10v2H4zm0 4h16v2H4z',
     passport: 'M6 3h9a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6zm4 4a2.5 2.5 0 1 0 2.5 2.5A2.5 2.5 0 0 0 10 7zm-3 9c.4-2 2-3 3.5-3s3.1 1 3.5 3z',
     flights: 'M3 13l18-6-4 8-5 1-2 4-2-5-5-2z',
     documents: 'M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V7h3.5z',

@@ -20,14 +20,14 @@ export function FieldScheduleBar() {
 
   return (
     <>
-      <div className="relative z-10 grid grid-cols-3 rounded-2xl bg-white/95 text-center shadow-lg ring-1 ring-white/60 backdrop-blur">
+      <div className="relative z-10 grid w-full grid-cols-3 text-center">
         {SCHEDULES.map((schedule, index) => (
           <div
             key={schedule.id}
             className="relative flex flex-col items-center justify-center gap-0.5 px-3 py-1.5"
           >
             <div className="flex items-center justify-center gap-4">
-              <p className="text-center text-lg font-semibold leading-tight text-navy">
+              <p className="text-center text-lg font-semibold leading-tight text-white">
                 {schedule.label}
               </p>
               <button
@@ -42,7 +42,7 @@ export function FieldScheduleBar() {
             </div>
             {index < SCHEDULES.length - 1 ? (
               <span
-                className="absolute top-1/2 right-0 h-8 w-0.5 -translate-y-1/2 bg-navy/60"
+                className="absolute top-1/2 right-0 h-8 w-0.5 -translate-y-1/2 bg-white/70"
                 aria-hidden
               />
             ) : null}

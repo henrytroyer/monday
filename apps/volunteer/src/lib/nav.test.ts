@@ -9,6 +9,7 @@ import {
   GENERAL_INFO_SECTIONS,
   PORTAL_TAB_LABEL,
   PORTAL_TABS,
+  portalNavTabs,
   SHORT_TERM_VIEWS,
   I58_MARK,
   GREECE_MAP,
@@ -37,6 +38,8 @@ describe('portal destinations', () => {
       [...PORTAL_TABS],
       ['home', 'guidelinesFaith', 'visionValues', 'generalInfo', 'volunteer'],
     );
+    assert.deepEqual([...portalNavTabs(false)], ['home']);
+    assert.deepEqual([...portalNavTabs(true)], [...PORTAL_TABS]);
     assert.equal(PORTAL_TAB_LABEL.home, 'Home');
     assert.equal(PORTAL_TAB_LABEL.volunteer, 'My Info');
     assert.equal(PORTAL_TAB_LABEL.generalInfo, 'General Info');
@@ -70,7 +73,7 @@ describe('portal destinations', () => {
     assert.equal(WORLD_MAP, '/brand/world-map.png');
     assert.equal(HOME_GREETING_BACKDROP, '/brand/greece-backdrop.jpg');
     assert.equal(GERMANY_GREETING_BACKDROP, '/brand/germany-greeting.jpg?v=4');
-    assert.equal(FIELD_HOME_BACKDROP, '/brand/field-home.png?v=sky');
+    assert.equal(FIELD_HOME_BACKDROP, '/brand/field-home-coast.jpg');
     assert.equal(JOURNEY_PLANE, '/brand/journey-plane.png?v=4');
   });
 });

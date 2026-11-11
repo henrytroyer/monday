@@ -52,7 +52,7 @@ export function LandingScreen({
                   type="button"
                   onClick={onContinueWithGoogle}
                   disabled={pending}
-                  className="min-h-12 rounded-full bg-navy px-10 text-[15px] font-semibold text-white hover:bg-navy-dark disabled:opacity-60"
+                  className="min-h-12 shrink-0 whitespace-nowrap rounded-full bg-navy px-10 text-[15px] font-semibold text-white hover:bg-navy-dark disabled:opacity-60"
                 >
                   {pending ? 'Opening Google…' : 'Continue with Google'}
                 </button>
@@ -60,18 +60,18 @@ export function LandingScreen({
             </>
           ) : (
             <>
-              <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
                 <button
                   type="button"
                   onClick={onMockSignIn}
-                  className="min-h-12 rounded-full bg-navy px-10 text-[15px] font-semibold text-white hover:bg-navy-dark"
+                  className="min-h-12 shrink-0 whitespace-nowrap rounded-full bg-navy px-10 text-[15px] font-semibold text-white hover:bg-navy-dark"
                 >
                   Sign in
                 </button>
                 <button
                   type="button"
                   onClick={onMockCreateAccount}
-                  className="min-h-12 rounded-full border border-navy bg-white px-10 text-[15px] font-semibold text-navy hover:bg-crm-indigo-50"
+                  className="min-h-12 shrink-0 whitespace-nowrap rounded-full border border-navy bg-white px-10 text-[15px] font-semibold text-navy hover:bg-crm-indigo-50"
                 >
                   Create account
                 </button>

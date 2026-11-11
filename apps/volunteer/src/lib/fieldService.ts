@@ -38,13 +38,13 @@ export const FIELD_SERVICE_WAYS: readonly FieldServiceWay[] = [
   },
   {
     id: 'photos',
-    title: 'Team Photos',
-    body: '',
+    title: FIELD_TEAM_PHOTOS.title,
+    body: FIELD_TEAM_PHOTOS.range,
   },
   {
     id: 'feedback',
     title: 'i58 Feedback',
-    body: '',
+    body: `-${FIELD_FEEDBACK_FORM.intro[0]}`,
   },
 ];
 

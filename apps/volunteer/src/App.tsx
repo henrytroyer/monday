@@ -284,16 +284,18 @@ export default function App() {
         onGeneralInfoSection={(section) => handleGoTo({ tab: 'generalInfo', section })}
         onSignOut={() => void handleSignOut()}
         portalName={
-          tab === 'home' &&
           (PREVIEW_HOME_STEPPER ? previewHomeStatus(me, previewHome) : me).arrivedInEurope
             ? me.firstName?.trim() || me.name
             : null
         }
+        homeOnly={PREVIEW_HOME_STEPPER && previewHome < 4}
         toast={toast}
         footerTone={
-          tab === 'home' && (PREVIEW_HOME_STEPPER ? previewHome === 0 : showWelcomeHome(me))
-            ? 'white'
-            : 'soft'
+          tab === 'volunteer'
+            ? 'sand'
+            : tab === 'home' && (PREVIEW_HOME_STEPPER ? previewHome === 0 : showWelcomeHome(me))
+              ? 'white'
+              : 'soft'
         }
       >
         {tab === 'home' ? (

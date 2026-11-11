@@ -10,6 +10,7 @@ export function PortalShell({
   onGeneralInfoSection,
   onSignOut,
   portalName,
+  homeOnly = false,
   toast,
   footerTone = 'soft',
   children,
@@ -20,8 +21,9 @@ export function PortalShell({
   onGeneralInfoSection: (section: GeneralInfoSectionId) => void;
   onSignOut: () => void;
   portalName?: string | null;
+  homeOnly?: boolean;
   toast?: string | null;
-  footerTone?: 'soft' | 'white';
+  footerTone?: 'soft' | 'white' | 'sand';
   children: ReactNode;
 }) {
   return (
@@ -33,6 +35,7 @@ export function PortalShell({
         onGeneralInfoSection={onGeneralInfoSection}
         onSignOut={onSignOut}
         portalName={portalName}
+        homeOnly={homeOnly}
       />
       {toast ? (
         <p role="status" className="mx-auto mt-4 w-full max-w-5xl px-5">
@@ -44,7 +47,7 @@ export function PortalShell({
       <main
         className={`mx-auto w-full flex-1 px-5 ${
           tab === 'volunteer'
-            ? 'max-w-6xl pt-0 pb-8'
+            ? 'max-w-6xl pt-0 pb-0'
             : tab === 'visionValues'
               ? 'max-w-5xl pt-8 pb-0'
               : 'max-w-5xl py-8'

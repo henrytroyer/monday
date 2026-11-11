@@ -1,6 +1,9 @@
 export const VISION_VALUES_PHOTO = '/brand/volunteer.jpg';
 export const MISSION_VISION_MARK = '/brand/mission-vision.png';
 export const CORE_VALUES_MARK = '/brand/core-values.png';
+export const CORE_VALUES_LIBRARY = '/brand/core-values-library.png';
+export const CORE_VALUES_CHILDREN = '/brand/core-values-children.png';
+export const CORE_VALUES_BACKDROP = '/brand/core-values-backdrop.png';
 
 /** Clockwise from the top of the values mark. */
 export const CORE_VALUE_NAMES = [

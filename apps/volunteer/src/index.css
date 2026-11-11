@@ -134,15 +134,24 @@ h2.font-display.text-crm-terracotta {
   font-family: var(--font-display);
 }
 
+/* Desktop nav starts at 768px, but the full label row needs about 880px. */
+@media (min-width: 768px) and (max-width: 879px) {
+  .portal-header-bar {
+    flex-direction: column;
+  }
+}
+
 .site-nav-link {
   position: relative;
+  flex-shrink: 0;
   min-height: 2.5rem;
-  padding: 0.4rem 1.05rem;
+  padding: 0.4rem 0.7rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
   color: #1b365d;
   font-size: 0.95rem;
   font-weight: 500;
+  white-space: nowrap;
   box-shadow: 0 1px 2px rgba(27, 54, 93, 0.08);
 }
 

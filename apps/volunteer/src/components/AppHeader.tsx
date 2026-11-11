@@ -3,7 +3,7 @@ import { BrandMark } from './BrandMark';
 import {
   GENERAL_INFO_SECTIONS,
   PORTAL_TAB_LABEL,
-  PORTAL_TABS,
+  portalNavTabs,
   type GeneralInfoSectionId,
   type PortalTab,
 } from '../lib/nav';
@@ -17,6 +17,7 @@ export function AppHeader({
   onGeneralInfoSection,
   onSignOut,
   portalName,
+  homeOnly = false,
   overlay = false,
 }: {
   tab?: PortalTab;
@@ -25,6 +26,7 @@ export function AppHeader({
   onGeneralInfoSection?: (section: GeneralInfoSectionId) => void;
   onSignOut?: () => void;
   portalName?: string | null;
+  homeOnly?: boolean;
   overlay?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -32,6 +34,7 @@ export function AppHeader({
   const generalRef = useRef<HTMLDivElement>(null);
   const showNav = Boolean(onTabChange && tab);
   const generalCurrent = tab === 'generalInfo';
+  const tabs = portalNavTabs(!homeOnly);
 
   useEffect(() => {
     if (!generalOpen) return;
@@ -85,10 +88,10 @@ export function AppHeader({
           : 'sticky top-0 z-30 border-b border-sand/70 bg-white/95 backdrop-blur'
       }
     >
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4">
+      <div className="portal-header-bar mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-4">
         <button
           type="button"
-          className="inline-flex min-w-0 items-center text-left"
+          className="inline-flex shrink-0 items-center text-left"
           onClick={() => (onTabChange ? goTo('home') : undefined)}
           aria-label="Home"
         >
@@ -96,8 +99,11 @@ export function AppHeader({
         </button>
         {showNav ? (
           <>
-            <nav aria-label="Portal" className="hidden items-center gap-2 md:flex">
-              {PORTAL_TABS.map((id) =>
+            <nav
+              aria-label="Portal"
+              className={`${homeOnly ? 'flex' : 'hidden md:flex'} shrink-0 items-center gap-1.5`}
+            >
+              {tabs.map((id) =>
                 id === 'generalInfo' ? (
                   <div key={id} ref={generalRef} className="relative">
                     <button
@@ -146,15 +152,17 @@ export function AppHeader({
                 </button>
               ) : null}
             </nav>
-            <button
-              type="button"
-              className="site-nav-link md:hidden"
-              aria-expanded={menuOpen}
-              aria-controls="portal-mobile-menu"
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              Menu
-            </button>
+            {homeOnly ? null : (
+              <button
+                type="button"
+                className="site-nav-link md:hidden"
+                aria-expanded={menuOpen}
+                aria-controls="portal-mobile-menu"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                Menu
+              </button>
+            )}
           </>
         ) : onSignOut ? (
           <button type="button" onClick={onSignOut} className="site-nav-link">
@@ -162,14 +170,14 @@ export function AppHeader({
           </button>
         ) : null}
       </div>
-      {showNav && menuOpen ? (
+      {showNav && menuOpen && !homeOnly ? (
         <nav
           id="portal-mobile-menu"
           aria-label="Portal"
           className="border-t border-sand/70 bg-white/95 px-5 py-3 backdrop-blur md:hidden"
         >
           <div className="mx-auto flex max-w-5xl flex-col gap-2">
-            {PORTAL_TABS.map((id) =>
+            {tabs.map((id) =>
               id === 'generalInfo' ? (
                 <div key={id} className="flex flex-col gap-2">
                   <p className="px-4 pt-1 text-sm font-semibold text-navy">

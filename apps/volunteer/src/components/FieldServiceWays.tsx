@@ -50,9 +50,9 @@ export function FieldServiceWays({
   return (
     <section
       aria-label="Field tools"
-      className="relative left-1/2 w-screen -translate-x-1/2 bg-[#e5ecf2] px-4 pt-2 pb-16"
+      className="relative left-1/2 flex w-screen -translate-x-1/2 justify-center bg-[#e5ecf2] px-4 py-8"
     >
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 md:gap-5">
+      <div className="flex w-full max-w-5xl flex-col items-center gap-4 md:gap-5">
         {vehicle ? (
           <VehicleBookingCard
             title={vehicle.title}
@@ -62,7 +62,7 @@ export function FieldServiceWays({
             onReserve={onReserve}
           />
         ) : null}
-        <ul className="grid gap-4 sm:grid-cols-2 md:gap-5">
+        <ul className="grid w-full items-stretch gap-4 sm:grid-cols-2 md:gap-5">
           {others.map((way) => {
             if (way.id !== 'photos' && way.id !== 'feedback') return null;
             const toolId = way.id;
@@ -121,20 +121,12 @@ function VehicleBookingCard({
   }
 
   return (
-    <article className="rounded-2xl bg-white px-5 py-5 shadow-[0_10px_28px_rgba(27,54,93,0.06)] md:px-6 md:py-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3.5">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-crm-terracotta text-white">
-            <VehicleIcon />
-          </span>
-          <div>
-            <h2 className="font-display text-xl font-bold leading-tight text-navy">{title}</h2>
-            <p className="mt-1 text-sm leading-5 text-navy/75">{booking.place}. 1 hour or 4 hours.</p>
-          </div>
-        </div>
+    <article className="w-full rounded-2xl bg-white px-5 py-5 shadow-[0_10px_28px_rgba(27,54,93,0.06)] md:px-6 md:py-6">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="min-w-0 font-display text-xl font-bold leading-tight text-navy">{title}</h2>
         <a
           href={booking.phoneHref}
-          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95 sm:w-auto"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95"
         >
           <PhoneIcon />
           {booking.phoneDisplay}
@@ -146,7 +138,6 @@ function VehicleBookingCard({
           <li key={vehicle.id} className="rounded-2xl bg-[#f7f4ef] p-4 ring-1 ring-navy/10">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-semibold tracking-wide text-navy/55">{vehicle.code}</p>
                 <h3 className="font-display text-lg font-bold leading-tight text-navy">{vehicle.name}</h3>
                 <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-navy">
                   <span className="inline-flex items-center gap-1.5">
@@ -507,23 +498,68 @@ function ServiceWayCard({
   onOpen: () => void;
 }) {
   return (
-    <li>
+    <li className="h-full">
       <button
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={onOpen}
-        className="flex w-full items-center gap-3.5 rounded-2xl bg-white px-5 py-5 text-left shadow-[0_10px_28px_rgba(27,54,93,0.06)] ring-navy/10 hover:ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+        className="flex h-full w-full items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-[0_10px_28px_rgba(27,54,93,0.06)] ring-navy/10 hover:ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
       >
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-crm-terracotta text-white">
-          <ServiceWayIcon id={way.id} />
-        </span>
         <span className="min-w-0">
           <span className="block font-display text-xl font-bold leading-tight text-navy">{way.title}</span>
-          {way.body ? <span className="mt-1.5 block text-[0.95rem] leading-6 text-navy">{way.body}</span> : null}
+          {way.body ? (
+            <span className="mt-1.5 block text-sm font-medium leading-5 text-navy/75">{way.body}</span>
+          ) : null}
         </span>
+        {way.id === 'photos' ? <PhotoCollage /> : <FeedbackFileMiniature />}
       </button>
     </li>
+  );
+}
+
+const TEAM_PHOTO_COLLAGE = [
+  { src: '/brand/volunteer.jpg', className: 'left-0 top-4 -rotate-6' },
+  { src: '/brand/field-home-coast.jpg', className: 'left-8 top-0 rotate-3' },
+  { src: '/brand/greece.jpg', className: 'bottom-0 left-4 rotate-2' },
+] as const;
+
+function PhotoCollage() {
+  return (
+    <span aria-hidden className="relative h-24 w-28 shrink-0">
+      {TEAM_PHOTO_COLLAGE.map((photo) => (
+        <img
+          key={photo.src}
+          src={photo.src}
+          alt=""
+          className={`absolute h-14 w-[4.25rem] rounded-sm object-cover shadow-md ring-2 ring-white ${photo.className}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+function FeedbackFileMiniature() {
+  return (
+    <span aria-hidden className="flex w-[6.75rem] shrink-0 flex-col gap-1 rounded-md bg-[#f8e4df] p-1.5">
+      <span className="overflow-hidden rounded bg-white shadow-sm">
+        <span className="block h-1 bg-crm-terracotta" />
+        <span className="block px-1.5 pb-1 pt-1 font-display text-[8px] font-bold leading-none text-[#202124]">
+          i58 Feedback Form
+        </span>
+        <span className="mx-1.5 mb-1 block h-px bg-[#202124]/25" />
+        <span className="mx-1.5 mb-1 block h-px w-8 bg-[#202124]/20" />
+      </span>
+      <span className="rounded bg-white px-1.5 py-1 shadow-sm">
+        <span className="block h-px bg-[#202124]/30" />
+        <span className="mt-1 block h-px w-8 bg-[#202124]/20" />
+      </span>
+      <span className="rounded bg-white px-1.5 py-1 shadow-sm">
+        <span className="block h-px bg-[#202124]/30" />
+        <span className="mt-1 block h-px w-6 bg-[#202124]/20" />
+      </span>
+      <span className="mt-0.5 block h-2.5 w-8 rounded-sm bg-crm-terracotta" />
+    </span>
   );
 }
 
@@ -684,58 +720,6 @@ function FeedbackDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ServiceWayIcon({ id }: { id: FieldServiceWayId }) {
-  if (id === 'vehicle') return <VehicleIcon />;
-  if (id === 'photos') return <CameraIcon />;
-  return <FeedbackIcon />;
-}
-
-function IconFrame({ children }: { children: ReactNode }) {
-  return (
-    <svg viewBox="0 0 32 32" className="h-7 w-7" aria-hidden="true">
-      {children}
-    </svg>
-  );
-}
-
-function VehicleIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-7 w-7"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-      <circle cx="7" cy="17" r="2" />
-      <path d="M9 17h6" />
-      <circle cx="17" cy="17" r="2" />
-    </svg>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-7 w-7"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />
-      <circle cx="12" cy="13" r="3" />
-    </svg>
-  );
-}
-
 function PhoneIcon() {
   return (
     <svg
@@ -753,13 +737,3 @@ function PhoneIcon() {
   );
 }
 
-function FeedbackIcon() {
-  return (
-    <IconFrame>
-      <path
-        fill="currentColor"
-        d="M6.2 6.4h17.6A2.2 2.2 0 0 1 26 8.6v9.6a2.2 2.2 0 0 1-2.2 2.2h-8.2l-4.6 3.4c-.6.4-1.4 0-1.4-.7v-2.7H6.2A2.2 2.2 0 0 1 4 18.2V8.6a2.2 2.2 0 0 1 2.2-2.2z"
-      />
-    </IconFrame>
-  );
-}

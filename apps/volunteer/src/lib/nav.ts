@@ -10,6 +10,11 @@ export const PORTAL_TABS = [
 
 export type PortalTab = (typeof PORTAL_TABS)[number];
 
+/** Earlier preview homes only offer Home. The arrived home keeps the full menu. */
+export function portalNavTabs(fieldNav: boolean): readonly PortalTab[] {
+  return fieldNav ? PORTAL_TABS : ['home'];
+}
+
 export const GENERAL_INFO_TITLE = 'General Info';
 export const GUIDELINES_FAITH_TITLE = 'Guidelines & Faith';
 export const VISION_VALUES_TITLE = 'Vision & Values';
@@ -48,7 +53,7 @@ export const HOPE_IN_ACTION = 'Hope in Action';
 export const HOPE_IN_ACTION_TAGLINE = 'Serving Refugees across Europe';
 export const VOLUNTEER_PORTAL_TITLE = 'Volunteer Portal';
 
-/** “Your Volunteer Portal” on the arrived home. Other homes keep the plain title. */
+/** “Your Volunteer Portal” once the volunteer has arrived. Earlier homes keep the plain title. */
 export function volunteerPortalLabel(name?: string | null): string {
   if (!name?.trim()) return VOLUNTEER_PORTAL_TITLE;
   return `Your ${VOLUNTEER_PORTAL_TITLE}`;
@@ -63,7 +68,7 @@ export const LOOKING_FOR_PHOTO = '/brand/who-were-looking-for.png?v=3';
 export const WORLD_MAP = '/brand/world-map.png';
 export const HOME_GREETING_BACKDROP = '/brand/greece-backdrop.jpg';
 export const GERMANY_GREETING_BACKDROP = '/brand/germany-greeting.jpg?v=4';
-export const FIELD_HOME_BACKDROP = '/brand/field-home.png?v=sky';
+export const FIELD_HOME_BACKDROP = '/brand/field-home-coast.jpg';
 export const JOURNEY_PLANE = '/brand/journey-plane.png?v=4';
 export const ISAIAH_FOOTER =
   '…to loose the bands of wickedness, to undo the heavy burdens, and let the oppressed go free… to deal bread for the hungry… Isaiah 58:6-7';

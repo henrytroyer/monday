@@ -11,7 +11,15 @@ describe('field service ways', () => {
   it('names the three cards under the schedule bar', () => {
     assert.deepEqual(
       FIELD_SERVICE_WAYS.map((way) => way.title),
-      ['Book a Vehicle', 'Team Photos', 'i58 Feedback'],
+      ['Book a Vehicle', 'Camp and Team Photos', 'i58 Feedback'],
+    );
+    assert.equal(
+      FIELD_SERVICE_WAYS.find((way) => way.id === 'photos')?.body,
+      'Dec 5, 2013 – Dec 31, 2025',
+    );
+    assert.equal(
+      FIELD_SERVICE_WAYS.find((way) => way.id === 'feedback')?.body,
+      '-A place where you can submit new ideas, and give feedback for improvement within i58. Your perspective and insights are helpful!!',
     );
   });
 

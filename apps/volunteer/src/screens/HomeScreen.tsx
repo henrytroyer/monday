@@ -8,13 +8,13 @@ import { FieldPurpose } from '../components/FieldPurpose';
 import { SubmissionThanksOverlay } from '../components/SubmissionThanksOverlay';
 import { FieldScheduleBar } from '../components/FieldScheduleBar';
 import { FieldServiceWays } from '../components/FieldServiceWays';
-import { SectionWave } from '../components/SectionWave';
 import { JourneyRoute } from '../components/JourneyRoute';
 import { OnboardingReminder, OnboardingRoute } from '../components/OnboardingRoute';
 import { NotificationsPanel } from '../components/NotificationsPanel';
 import { ProgressBubble } from '../components/ProgressBubble';
 import { CONNECTOR } from '../lib/stepConnector';
 import { ServicePeriodInfo } from '../components/ServicePeriodInfo';
+import { ServicePeriodTimeline } from '../components/ServicePeriodTimeline';
 import { greetingBackdrop, journeyArrived, journeyDestination } from '../lib/journey';
 import { stepFillPercent } from '../lib/formProgress';
 import { nextVolunteerAction } from '../lib/nextAction';
@@ -42,6 +42,7 @@ import {
   type PreviewHomeIndex,
 } from '../lib/previewHomeStepper';
 import { saveVehicleReservation } from '../lib/fieldVehicleReservation';
+import { servicePeriodFor } from '../lib/servicePeriod';
 import { showWelcomeHome } from '../lib/portalSession';
 import { canOpenProcessStep } from '../process/previewAccess';
 
@@ -171,11 +172,13 @@ export function HomeScreen({
         }`}
       >
         {onField ? (
-          <div className="relative overflow-hidden">
+          <div className="relative">
             <img
               src={backdrop}
               alt=""
-              className="block h-[36rem] w-full object-cover object-[center_28%] -mb-16 md:h-auto md:object-center"
+              width={2046}
+              height={1358}
+              className="block h-[28rem] w-full object-cover object-center md:h-[34rem]"
             />
             <div className="absolute inset-0 z-10 flex flex-col gap-3 px-4 py-4 md:flex-row md:items-start md:justify-between md:gap-6">
               <div className="min-w-0 max-w-xl shrink-0 md:flex-1">
@@ -307,10 +310,20 @@ export function HomeScreen({
         <>
           <section
             aria-label="Field schedules"
-            className="relative left-1/2 w-screen -translate-x-1/2 bg-[#667b96] px-4 pt-4 pb-11"
+            className="relative left-1/2 w-screen -translate-x-1/2 border-b-2 border-white bg-[#667b96] px-4 py-4"
           >
             <FieldScheduleBar />
-            <SectionWave className="pointer-events-none absolute inset-x-0 bottom-0 h-[4.25rem] w-full text-[#e5ecf2]" />
+          </section>
+          <section
+            aria-label="Service"
+            className="relative left-1/2 w-screen -translate-x-1/2 bg-white"
+          >
+            <div className="mx-auto w-full max-w-5xl px-5 py-5">
+              <h2 className="font-display text-lg font-extrabold text-navy">Service</h2>
+              <div className="mt-4">
+                <ServicePeriodTimeline period={servicePeriodFor(view)} labelled={false} />
+              </div>
+            </div>
           </section>
           <FieldServiceWays
             volunteerId={me.email}
