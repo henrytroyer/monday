@@ -23,7 +23,7 @@ export function PortalShell({
   portalName?: string | null;
   homeOnly?: boolean;
   toast?: string | null;
-  footerTone?: 'soft' | 'white' | 'sand';
+  footerTone?: 'soft' | 'white' | 'sand' | 'deep';
   children: ReactNode;
 }) {
   return (

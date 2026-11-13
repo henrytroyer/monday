@@ -1,5 +1,3 @@
-export const GALINI_INTRO = 'House rules for everyone staying at Galini.';
-
 export type GaliniRule = {
   id: string;
   title: string;

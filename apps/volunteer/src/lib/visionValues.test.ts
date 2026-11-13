@@ -7,7 +7,11 @@ import {
   CORE_VALUES_LIBRARY,
   CORE_VALUES_MARK,
   CORE_VALUE_STATEMENTS,
+  MISSION_MARK,
   MISSION_VISION_MARK,
+  CORE_VALUES_WASH,
+  VALUES_MARK,
+  VISION_MARK,
   VISION_VALUES_PHOTO,
 } from './visionValues.ts';
 
@@ -19,6 +23,10 @@ describe('vision and values copy', () => {
     assert.equal(CORE_VALUES_LIBRARY, '/brand/core-values-library.png');
     assert.equal(CORE_VALUES_CHILDREN, '/brand/core-values-children.png');
     assert.equal(CORE_VALUES_BACKDROP, '/brand/core-values-backdrop.png');
+    assert.equal(VISION_MARK, '/brand/vision-mark.png');
+    assert.equal(MISSION_MARK, '/brand/mission-mark.png');
+    assert.equal(VALUES_MARK, '/brand/values-mark.png');
+    assert.equal(CORE_VALUES_WASH, '/brand/core-values-wash.jpg');
   });
 
   it('names the six core values in wheel order and keeps the four written statements', () => {

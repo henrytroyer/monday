@@ -26,8 +26,8 @@ export function FieldScheduleBar() {
             key={schedule.id}
             className="relative flex flex-col items-center justify-center gap-0.5 px-3 py-1.5"
           >
-            <div className="flex items-center justify-center gap-4">
-              <p className="text-center text-lg font-semibold leading-tight text-white">
+            <div className="flex items-center justify-center gap-3 sm:gap-4">
+              <p className="text-center text-base font-semibold leading-tight text-navy sm:text-lg">
                 {schedule.label}
               </p>
               <button
@@ -35,14 +35,14 @@ export function FieldScheduleBar() {
                 aria-label={schedule.label}
                 aria-expanded={open === schedule.id}
                 onClick={() => toggle(schedule.id)}
-                className="shrink-0 rounded-full"
+                className="shrink-0 rounded-full transition hover:brightness-95"
               >
                 <ScheduleMark id={schedule.id} />
               </button>
             </div>
             {index < SCHEDULES.length - 1 ? (
               <span
-                className="absolute top-1/2 right-0 h-8 w-0.5 -translate-y-1/2 bg-white/70"
+                className="absolute top-1/2 right-0 h-10 w-px -translate-y-1/2 bg-navy/15"
                 aria-hidden
               />
             ) : null}
@@ -182,7 +182,7 @@ function ScheduleMark({ id }: { id: ScheduleId }) {
     <img
       src={SCHEDULE_MARKS[id]}
       alt=""
-      className="h-16 w-16 rounded-full object-cover shadow-[0_6px_16px_rgba(15,30,55,0.35)]"
+      className="h-16 w-16 rounded-full object-cover shadow-[0_8px_18px_rgba(27,54,93,0.16)] ring-1 ring-navy/10"
     />
   );
 }

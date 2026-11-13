@@ -50,16 +50,16 @@ export function PreparationDocumentsBand({
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
 }) {
   return (
-    <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[#d4dbe3] py-6">
+    <section className="relative left-1/2 w-screen -translate-x-1/2 bg-gradient-to-b from-[#667b96] via-[#647fa8] to-[#224a6d] py-8">
       <div className="mx-auto max-w-4xl px-5">
         <div className="mb-4 hidden grid-cols-4 gap-3 md:grid">
-          <h2 className="col-span-2 font-display text-2xl font-semibold text-navy">Documents</h2>
-          <h2 className="col-span-2 font-display text-2xl font-semibold text-navy">
+          <h2 className="col-span-2 font-display text-2xl font-semibold text-white!">Documents</h2>
+          <h2 className="col-span-2 font-display text-2xl font-semibold text-white!">
             Flights & Training
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <h2 className="font-display text-2xl font-semibold text-navy md:hidden">Documents</h2>
+          <h2 className="font-display text-2xl font-semibold text-white! md:hidden">Documents</h2>
           {FORM_DOCUMENT_IDS.map((id) => (
             <DocumentCard
               key={id}
@@ -71,7 +71,7 @@ export function PreparationDocumentsBand({
               onUpdateMe={onUpdateMe}
             />
           ))}
-          <h2 className="mt-6 font-display text-2xl font-semibold text-navy md:hidden">
+          <h2 className="mt-6 font-display text-2xl font-semibold text-white! md:hidden">
             Flights & Training
           </h2>
           <DocumentCard
@@ -245,7 +245,7 @@ function PreviewStageArrows({
         type="button"
         aria-label={previousLabel}
         onClick={() => onStep(-1)}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs text-white hover:brightness-110"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs text-white! hover:brightness-110"
       >
         ←
       </button>
@@ -256,7 +256,7 @@ function PreviewStageArrows({
         type="button"
         aria-label={nextLabel}
         onClick={() => onStep(1)}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs text-white hover:brightness-110"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs text-white! hover:brightness-110"
       >
         →
       </button>
@@ -267,7 +267,7 @@ function PreviewStageArrows({
 type CardAccent = 'navy' | 'terracotta' | 'green' | 'gray';
 
 const cardActionClass =
-  'inline-flex h-auto min-h-8 items-center self-center rounded-full bg-navy px-3 py-1.5 text-center text-xs font-semibold leading-tight text-white hover:brightness-110';
+  'inline-flex h-auto min-h-8 items-center self-center rounded-full bg-navy px-3 py-1.5 text-center text-xs font-semibold leading-tight text-white! hover:brightness-110';
 
 function StaffWaitingNote({
   kind,
@@ -310,7 +310,7 @@ function CardShell({
   children: ReactNode;
 }) {
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-navy/10">
+    <article className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_14px_32px_rgba(15,32,56,0.28)] ring-1 ring-white/70">
       <div className={`h-1 ${CARD_BAR[accent]}`} />
       <div className="flex items-center gap-3 px-3.5 pt-3">
         <span
@@ -380,7 +380,7 @@ function StageBubble({ stage }: { stage: DocumentStage }) {
   return (
     <span
       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-        accepted ? 'bg-[#1f9d55] text-white' : 'bg-crm-taupe text-navy'
+        accepted ? 'bg-[#1f9d55] text-white!' : 'bg-crm-taupe text-navy'
       }`}
     >
       <svg

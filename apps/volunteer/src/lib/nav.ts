@@ -22,7 +22,7 @@ export const VISION_VALUES_TITLE = 'Vision & Values';
 export const GENERAL_INFO_SECTIONS = [
   ['orientation', 'Orientation Info'],
   ['practical', 'Practical Info'],
-  ['galini', 'Galini Apartment Rules'],
+  ['galini', 'Galini Rules'],
   ['orgChart', 'Org Chart'],
 ] as const satisfies ReadonlyArray<readonly [string, string]>;
 
@@ -31,7 +31,7 @@ export type GeneralInfoSectionId = (typeof GENERAL_INFO_SECTIONS)[number][0];
 export const GENERAL_INFO_SECTION_LABEL: Record<GeneralInfoSectionId, string> = {
   orientation: 'Orientation Info',
   practical: 'Practical Info',
-  galini: 'Galini Apartment Rules',
+  galini: 'Galini Rules',
   orgChart: 'Org Chart',
 };
 
@@ -59,7 +59,7 @@ export function volunteerPortalLabel(name?: string | null): string {
   return `Your ${VOLUNTEER_PORTAL_TITLE}`;
 }
 export const I58_MARK = '/brand/i58-mark.png';
-export const HOME_HERO_PHOTO = '/brand/home-page-main-photo.jpg';
+export const HOME_HERO_PHOTO = '/brand/home-page-main-photo.jpg?v=2';
 export const GREECE_MAP = '/brand/greece-map.png';
 export const GERMANY_MAP = '/brand/germany-map.png';
 export const APPLICATION_PROCESS_PHOTO = '/brand/application-process.png';
@@ -68,7 +68,7 @@ export const LOOKING_FOR_PHOTO = '/brand/who-were-looking-for.png?v=3';
 export const WORLD_MAP = '/brand/world-map.png';
 export const HOME_GREETING_BACKDROP = '/brand/greece-backdrop.jpg';
 export const GERMANY_GREETING_BACKDROP = '/brand/germany-greeting.jpg?v=4';
-export const FIELD_HOME_BACKDROP = '/brand/field-home-coast.jpg';
+export const FIELD_HOME_BACKDROP = '/brand/field-home-team.jpg?v=2';
 export const JOURNEY_PLANE = '/brand/journey-plane.png?v=4';
 export const ISAIAH_FOOTER =
   '…to loose the bands of wickedness, to undo the heavy burdens, and let the oppressed go free… to deal bread for the hungry… Isaiah 58:6-7';

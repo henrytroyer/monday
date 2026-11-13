@@ -21,7 +21,7 @@ export function GuestAuthLayout({ children }: { children: ReactNode }) {
           <div className="w-full max-w-md">{children}</div>
         </div>
       </section>
-      <SiteFooter />
+      <SiteFooter tone="deep" />
     </div>
   );
 }

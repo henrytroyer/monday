@@ -4,6 +4,7 @@ import type { VehicleReservation } from '../contract/volunteerApi';
 import { calendarTodayIso, shiftCalendarMonth } from '../lib/fieldCalendar';
 import {
   FIELD_FEEDBACK_FORM,
+  FIELD_INCIDENT_FORM,
   FIELD_SERVICE_WAYS,
   FIELD_TEAM_PHOTOS,
   FIELD_VEHICLE_BOOKING,
@@ -42,43 +43,36 @@ export function FieldServiceWays({
   reservations: readonly VehicleReservation[];
   onReserve: (reservation: VehicleReservation) => void;
 }) {
-  const vehicle = FIELD_SERVICE_WAYS.find((way) => way.id === 'vehicle');
-  const others = FIELD_SERVICE_WAYS.filter((way) => way.id !== 'vehicle');
-  const [openTool, setOpenTool] = useState<Exclude<FieldServiceWayId, 'vehicle'> | null>(null);
+  const [openTool, setOpenTool] = useState<FieldServiceWayId | null>(null);
   const closeTool = useCallback(() => setOpenTool(null), []);
 
   return (
     <section
       aria-label="Field tools"
-      className="relative left-1/2 flex w-screen -translate-x-1/2 justify-center bg-[#e5ecf2] px-4 py-8"
+      className="relative left-1/2 flex w-screen -translate-x-1/2 justify-center bg-gradient-to-b from-[#667b96] via-[#5d7ea8] to-[#224a6d] px-8 py-12 md:px-12 md:py-16"
     >
-      <div className="flex w-full max-w-5xl flex-col items-center gap-4 md:gap-5">
-        {vehicle ? (
-          <VehicleBookingCard
-            title={vehicle.title}
-            volunteerId={volunteerId}
-            volunteerName={volunteerName}
-            reservations={reservations}
-            onReserve={onReserve}
+      <ul className="grid w-full max-w-4xl grid-cols-1 items-stretch gap-4 sm:grid-cols-2 md:gap-5">
+        {FIELD_SERVICE_WAYS.map((way) => (
+          <ServiceWayCard
+            key={way.id}
+            way={way}
+            open={openTool === way.id}
+            onOpen={() => setOpenTool(way.id)}
           />
-        ) : null}
-        <ul className="grid w-full items-stretch gap-4 sm:grid-cols-2 md:gap-5">
-          {others.map((way) => {
-            if (way.id !== 'photos' && way.id !== 'feedback') return null;
-            const toolId = way.id;
-            return (
-              <ServiceWayCard
-                key={toolId}
-                way={way}
-                open={openTool === toolId}
-                onOpen={() => setOpenTool(toolId)}
-              />
-            );
-          })}
-        </ul>
-      </div>
+        ))}
+      </ul>
+      {openTool === 'vehicle' ? (
+        <VehiclePickerDialog
+          volunteerId={volunteerId}
+          volunteerName={volunteerName}
+          reservations={reservations}
+          onReserve={onReserve}
+          onClose={closeTool}
+        />
+      ) : null}
       {openTool === 'photos' ? <TeamPhotosDialog onClose={closeTool} /> : null}
       {openTool === 'feedback' ? <FeedbackDialog onClose={closeTool} /> : null}
+      {openTool === 'incident' ? <IncidentDialog onClose={closeTool} /> : null}
     </section>
   );
 }
@@ -92,20 +86,21 @@ function bookingKey(vehicleId: string, lengthId: string) {
   return `${vehicleId}:${lengthId}`;
 }
 
-function VehicleBookingCard({
-  title,
+function VehiclePickerDialog({
   volunteerId,
   volunteerName,
   reservations,
   onReserve,
+  onClose,
 }: {
-  title: string;
   volunteerId: string;
   volunteerName: string;
   reservations: readonly VehicleReservation[];
   onReserve: (reservation: VehicleReservation) => void;
+  onClose: () => void;
 }) {
   const booking = FIELD_VEHICLE_BOOKING;
+  const titleId = useId();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [picks, setPicks] = useState<Record<string, VehicleTimePick>>({});
   const openVehicleId = openKey?.split(':')[0];
@@ -113,103 +108,135 @@ function VehicleBookingCard({
   const chosenVehicle = booking.vehicles.find((vehicle) => vehicle.id === openVehicleId);
   const chosenLength = booking.lengths.find((length) => length.id === openLengthId);
 
-  const closeDialog = useCallback(() => setOpenKey(null), []);
+  const closeCalendar = useCallback(() => setOpenKey(null), []);
+
+  useEffect(() => {
+    if (openKey) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose, openKey]);
 
   function selectLength(vehicleId: string, lengthId: string) {
     const key = bookingKey(vehicleId, lengthId);
     setOpenKey((current) => (current === key ? null : key));
   }
 
-  return (
-    <article className="w-full rounded-2xl bg-white px-5 py-5 shadow-[0_10px_28px_rgba(27,54,93,0.06)] md:px-6 md:py-6">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="min-w-0 font-display text-xl font-bold leading-tight text-navy">{title}</h2>
-        <a
-          href={booking.phoneHref}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95"
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-navy/45 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative max-h-full w-full max-w-3xl overflow-y-auto rounded-3xl bg-[#e8eef3] px-5 py-5 shadow-lg sm:px-8"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id={titleId} className="pr-16 text-center font-display text-2xl font-semibold text-navy">
+          Book a Vehicle
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full px-2 py-1 text-sm font-semibold text-navy hover:bg-white"
         >
-          <PhoneIcon />
-          {booking.phoneDisplay}
-        </a>
-      </div>
+          Close
+        </button>
+        <p className="mt-3 flex justify-center">
+          <a
+            href={booking.phoneHref}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95"
+          >
+            <PhoneIcon />
+            {booking.phoneDisplay}
+          </a>
+        </p>
 
-      <ul className="mt-5 grid gap-4 md:grid-cols-2">
-        {booking.vehicles.map((vehicle) => (
-          <li key={vehicle.id} className="rounded-2xl bg-[#f7f4ef] p-4 ring-1 ring-navy/10">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="font-display text-lg font-bold leading-tight text-navy">{vehicle.name}</h3>
-                <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-navy">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${VEHICLE_SWATCH[vehicle.id]}`}
-                      aria-hidden
-                    />
-                    {vehicle.color}
-                  </span>
-                  <span className="text-navy/35" aria-hidden>
-                    ·
-                  </span>
-                  <span className="font-semibold tracking-wide">{vehicle.plate}</span>
+        <ul className="mt-5 grid gap-3 md:grid-cols-2">
+          {booking.vehicles.map((vehicle) => (
+            <li key={vehicle.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-navy/10">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-display text-lg font-bold leading-tight text-navy">{vehicle.name}</h3>
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-navy">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${VEHICLE_SWATCH[vehicle.id]}`}
+                        aria-hidden
+                      />
+                      {vehicle.color}
+                    </span>
+                    <span className="text-navy/35" aria-hidden>
+                      ·
+                    </span>
+                    <span className="font-semibold tracking-wide">{vehicle.plate}</span>
+                  </p>
+                </div>
+                <p className="shrink-0 rounded-full bg-[#f7f4ef] px-3 py-1 text-sm font-semibold text-navy ring-1 ring-navy/10">
+                  {vehicleSeatLabel(vehicle.people)}
                 </p>
               </div>
-              <p className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-semibold text-navy ring-1 ring-navy/10">
-                {vehicleSeatLabel(vehicle.people)}
-              </p>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2" role="group" aria-label={`${vehicle.name} length`}>
-              {booking.lengths.map((length) => {
-                const key = bookingKey(vehicle.id, length.id);
-                const selected = openKey === key;
-                const pick = picks[key];
-                const slot = pick
-                  ? vehicleDaySlots(vehicle.id, length.id, pick.date).find(
-                      (item) => item.id === pick.slotId,
-                    )
-                  : null;
-                return (
-                  <button
-                    key={length.id}
-                    type="button"
-                    aria-expanded={selected}
-                    aria-haspopup="dialog"
-                    onClick={() => selectLength(vehicle.id, length.id)}
-                    className={`flex h-full min-h-11 flex-col items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold ${
-                      selected
-                        ? 'bg-navy text-white'
-                        : 'bg-white text-navy ring-1 ring-navy/10 hover:ring-navy/30'
-                    }`}
-                  >
-                    <span className="block">{length.label}</span>
-                    {slot && pick ? (
-                      <span className={`mt-0.5 block text-[11px] font-medium ${selected ? 'text-white/85' : 'text-navy/70'}`}>
-                        {vehicleChoiceLabel(pick.date, slot.startLabel)}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </li>
-        ))}
-      </ul>
+              <div className="mt-4 grid grid-cols-2 gap-2" role="group" aria-label={`${vehicle.name} length`}>
+                {booking.lengths.map((length) => {
+                  const key = bookingKey(vehicle.id, length.id);
+                  const selected = openKey === key;
+                  const pick = picks[key];
+                  const slot = pick
+                    ? vehicleDaySlots(vehicle.id, length.id, pick.date).find(
+                        (item) => item.id === pick.slotId,
+                      )
+                    : null;
+                  return (
+                    <button
+                      key={length.id}
+                      type="button"
+                      aria-expanded={selected}
+                      aria-haspopup="dialog"
+                      onClick={() => selectLength(vehicle.id, length.id)}
+                      className={`flex h-full min-h-11 flex-col items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold ${
+                        selected
+                          ? 'bg-navy text-white'
+                          : 'bg-[#f7f4ef] text-navy ring-1 ring-navy/10 hover:ring-navy/30'
+                      }`}
+                    >
+                      <span className="block">{length.label}</span>
+                      {slot && pick ? (
+                        <span className={`mt-0.5 block text-[11px] font-medium ${selected ? 'text-white/85' : 'text-navy/70'}`}>
+                          {vehicleChoiceLabel(pick.date, slot.startLabel)}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </li>
+          ))}
+        </ul>
 
-      {openKey && chosenVehicle && chosenLength ? (
-        <VehicleBookingDialog
-          vehicleId={chosenVehicle.id}
-          vehicleName={chosenVehicle.name}
-          lengthId={chosenLength.id}
-          lengthLabel={chosenLength.label}
-          pick={picks[openKey] ?? null}
-          volunteerId={volunteerId}
-          volunteerName={volunteerName}
-          reservations={reservations}
-          onChoose={(pick) => setPicks((current) => ({ ...current, [openKey]: pick }))}
-          onReserve={onReserve}
-          onClose={closeDialog}
-        />
-      ) : null}
-    </article>
+        {openKey && chosenVehicle && chosenLength ? (
+          <VehicleBookingDialog
+            vehicleId={chosenVehicle.id}
+            vehicleName={chosenVehicle.name}
+            lengthId={chosenLength.id}
+            lengthLabel={chosenLength.label}
+            pick={picks[openKey] ?? null}
+            volunteerId={volunteerId}
+            volunteerName={volunteerName}
+            reservations={reservations}
+            onChoose={(pick) => setPicks((current) => ({ ...current, [openKey]: pick }))}
+            onReserve={onReserve}
+            onClose={closeCalendar}
+          />
+        ) : null}
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -504,7 +531,7 @@ function ServiceWayCard({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={onOpen}
-        className="flex h-full w-full items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-[0_10px_28px_rgba(27,54,93,0.06)] ring-navy/10 hover:ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+        className="flex h-full w-full items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-[0_12px_28px_rgba(15,32,56,0.16)] ring-white/40 hover:ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
         <span className="min-w-0">
           <span className="block font-display text-xl font-bold leading-tight text-navy">{way.title}</span>
@@ -512,9 +539,31 @@ function ServiceWayCard({
             <span className="mt-1.5 block text-sm font-medium leading-5 text-navy/75">{way.body}</span>
           ) : null}
         </span>
-        {way.id === 'photos' ? <PhotoCollage /> : <FeedbackFileMiniature />}
+        <WayMiniature id={way.id} />
       </button>
     </li>
+  );
+}
+
+function WayMiniature({ id }: { id: FieldServiceWayId }) {
+  if (id === 'vehicle') return <VehicleMiniature />;
+  if (id === 'photos') return <PhotoCollage />;
+  if (id === 'feedback') return <FeedbackFileMiniature />;
+  return <IncidentFormMiniature />;
+}
+
+function VehicleMiniature() {
+  return (
+    <span aria-hidden className="flex w-[7.5rem] shrink-0 flex-col gap-1.5">
+      <span className="flex items-center gap-1.5 rounded-md bg-[#f7f4ef] px-2 py-1.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-[#2f6fad]" />
+        <span className="text-[9px] font-bold leading-none text-navy">Nissan Micra</span>
+      </span>
+      <span className="flex items-center gap-1.5 rounded-md bg-[#f7f4ef] px-2 py-1.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-[#7eb6d9]" />
+        <span className="text-[9px] font-bold leading-none text-navy">VW Van</span>
+      </span>
+    </span>
   );
 }
 
@@ -526,13 +575,13 @@ const TEAM_PHOTO_COLLAGE = [
 
 function PhotoCollage() {
   return (
-    <span aria-hidden className="relative h-24 w-28 shrink-0">
+    <span aria-hidden className="relative h-28 w-32 shrink-0">
       {TEAM_PHOTO_COLLAGE.map((photo) => (
         <img
           key={photo.src}
           src={photo.src}
           alt=""
-          className={`absolute h-14 w-[4.25rem] rounded-sm object-cover shadow-md ring-2 ring-white ${photo.className}`}
+          className={`absolute h-16 w-[4.75rem] rounded-sm object-cover shadow-md ring-2 ring-white ${photo.className}`}
         />
       ))}
     </span>
@@ -541,7 +590,7 @@ function PhotoCollage() {
 
 function FeedbackFileMiniature() {
   return (
-    <span aria-hidden className="flex w-[6.75rem] shrink-0 flex-col gap-1 rounded-md bg-[#f8e4df] p-1.5">
+    <span aria-hidden className="flex w-[7.5rem] shrink-0 flex-col gap-1 rounded-md bg-[#f8e4df] p-1.5">
       <span className="overflow-hidden rounded bg-white shadow-sm">
         <span className="block h-1 bg-crm-terracotta" />
         <span className="block px-1.5 pb-1 pt-1 font-display text-[8px] font-bold leading-none text-[#202124]">
@@ -559,6 +608,33 @@ function FeedbackFileMiniature() {
         <span className="mt-1 block h-px w-6 bg-[#202124]/20" />
       </span>
       <span className="mt-0.5 block h-2.5 w-8 rounded-sm bg-crm-terracotta" />
+    </span>
+  );
+}
+
+function IncidentFormMiniature() {
+  return (
+    <span aria-hidden className="flex w-[7.5rem] shrink-0 flex-col gap-1 rounded-md bg-[#f3f6d4] p-1.5">
+      <span className="overflow-hidden rounded bg-white shadow-sm">
+        <span className="block h-1 bg-[#c6d400]" />
+        <span className="block px-1.5 pb-1 pt-1 font-display text-[8px] font-bold leading-none text-[#202124]">
+          Incident Form
+        </span>
+        <span className="mx-1.5 mb-1 block h-px bg-[#202124]/20" />
+        <span className="mx-1.5 mb-1 block h-px w-10 bg-[#202124]/15" />
+      </span>
+      <span className="rounded bg-white px-1.5 py-1 shadow-sm">
+        <span className="block text-[7px] font-semibold leading-none text-[#202124]">
+          Email <span className="text-[#d93025]">*</span>
+        </span>
+        <span className="mt-1 block h-px bg-[#202124]/25" />
+      </span>
+      <span className="rounded bg-white px-1.5 py-1 shadow-sm">
+        <span className="block text-[7px] font-semibold leading-none text-[#202124]">
+          Full name <span className="text-[#d93025]">*</span>
+        </span>
+        <span className="mt-1 block h-px bg-[#202124]/25" />
+      </span>
     </span>
   );
 }
@@ -714,6 +790,76 @@ function FeedbackDialog({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <p className="text-xs text-navy/60">Preview only. A reload clears it.</p>
+        </form>
+      )}
+    </ToolDialog>
+  );
+}
+
+function IncidentDialog({ onClose }: { onClose: () => void }) {
+  const form = FIELD_INCIDENT_FORM;
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [sent, setSent] = useState(false);
+
+  return (
+    <ToolDialog title={form.title} onClose={onClose}>
+      <div className="mt-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+        <div className="h-2 bg-[#c6d400]" />
+        <div className="space-y-4 px-5 py-5 text-sm leading-6 text-navy">
+          {form.intro.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+          <p className="font-semibold text-[#d93025]">* Indicates required question</p>
+        </div>
+      </div>
+      {sent ? (
+        <p className="mt-4 rounded-2xl bg-white px-5 py-5 text-sm leading-6 text-navy shadow-sm">
+          Thanks. This preview kept your report on this page. A reload clears it.
+        </p>
+      ) : (
+        <form
+          className="mt-4 space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSent(true);
+          }}
+        >
+          {form.fields.map((field) => (
+            <label key={field.id} className="block rounded-2xl bg-white px-5 py-5 shadow-sm">
+              <span className="text-sm font-medium leading-6 text-navy">
+                {field.label}{' '}
+                {field.required ? <span className="text-[#d93025]">*</span> : null}
+              </span>
+              <input
+                required={field.required}
+                type={field.id === 'email' ? 'email' : 'text'}
+                value={answers[field.id] ?? ''}
+                onChange={(event) =>
+                  setAnswers((current) => ({ ...current, [field.id]: event.target.value }))
+                }
+                placeholder={field.placeholder}
+                className="mt-4 w-full border-0 border-b border-navy/25 bg-transparent px-0 py-1 text-sm text-navy outline-none placeholder:text-navy/40 focus:border-navy"
+              />
+            </label>
+          ))}
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="submit"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#c6d400] px-5 text-sm font-semibold text-navy hover:brightness-95"
+            >
+              Submit
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnswers({})}
+              className="text-sm font-semibold text-navy/70 hover:underline"
+            >
+              Clear form
+            </button>
+          </div>
+          <p className="text-xs text-navy/60">
+            Preview of the first section. A reload clears it.
+          </p>
         </form>
       )}
     </ToolDialog>

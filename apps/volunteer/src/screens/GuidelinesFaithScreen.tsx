@@ -38,7 +38,7 @@ export function GuidelinesFaithScreen() {
         </div>
       </section>
 
-      <section className="relative left-1/2 w-screen -translate-x-1/2 border-t-2 border-white bg-[#667b96]">
+      <section className="relative left-1/2 w-screen -translate-x-1/2 border-t-2 border-white bg-gradient-to-b from-[#647c96] from-50% to-[#1f4a6d]">
         <blockquote className="mx-auto max-w-3xl px-5 pt-12 pb-20 text-center text-xl font-semibold leading-9 text-white sm:pt-16 sm:pb-24 sm:text-2xl sm:leading-10">
           “{GUIDELINES_FAITH_PURPOSE}”
         </blockquote>

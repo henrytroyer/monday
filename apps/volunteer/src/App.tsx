@@ -27,6 +27,7 @@ import {
   PREVIEW_HOME_STEPPER,
   homeIndexFor,
   previewHomeStatus,
+  showsApplicationProgress,
   type PreviewHomeIndex,
 } from './lib/previewHomeStepper';
 import type { ChatGroupStage, StaffUploadStage } from './lib/preparationDocuments';
@@ -34,7 +35,6 @@ import {
   mockCreateAccount,
   mockSignIn,
   portalStatusForIdentity,
-  showWelcomeHome,
   type MockPreviews,
 } from './lib/portalSession';
 import { GoogleSignInScreen } from './screens/GoogleSignInScreen.tsx';
@@ -291,11 +291,14 @@ export default function App() {
         homeOnly={PREVIEW_HOME_STEPPER && previewHome < 4}
         toast={toast}
         footerTone={
-          tab === 'volunteer'
-            ? 'sand'
-            : tab === 'home' && (PREVIEW_HOME_STEPPER ? previewHome === 0 : showWelcomeHome(me))
-              ? 'white'
-              : 'soft'
+          tab === 'volunteer' ||
+          (tab === 'home' &&
+            !showsApplicationProgress(
+              PREVIEW_HOME_STEPPER ? previewHomeStatus(me, previewHome) : me,
+              PREVIEW_HOME_STEPPER ? previewHome : null,
+            ))
+            ? 'white'
+            : 'deep'
         }
       >
         {tab === 'home' ? (

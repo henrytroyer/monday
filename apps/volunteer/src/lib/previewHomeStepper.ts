@@ -16,6 +16,7 @@ import {
   isPreparationDocument,
 } from './preparationDocuments';
 import { finalChecklistProgress } from './finalChecklist';
+import { applicationIsSubmitted } from './onboarding';
 import { showWelcomeHome } from './portalSession';
 
 /** Turn this off and delete the arrow control before production. */
@@ -110,6 +111,18 @@ function documentPreviewStep(
     status: draft?.submitted ? 'waiting' : 'not_started',
     progress: draft ? documentProgress(draft) : 0,
   };
+}
+
+/** The application-progress homepage, including the preview copy that still shows that screen. */
+export function showsApplicationProgress(
+  view: VolunteerApplicationStatus,
+  previewHome: PreviewHomeIndex | null,
+): boolean {
+  if (showWelcomeHome(view) || previewHome === PREVIEW_THANKS_HOME || view.arrivedInEurope) {
+    return false;
+  }
+  const submitted = applicationIsSubmitted(view) && previewHome !== 1;
+  return !submitted;
 }
 
 /** Which homepage this account is actually on. */

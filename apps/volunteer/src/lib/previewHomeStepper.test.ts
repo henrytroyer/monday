@@ -6,6 +6,7 @@ import {
   PREVIEW_HOME_LABELS,
   homeIndexFor,
   previewHomeStatus,
+  showsApplicationProgress,
   type PreviewHomeIndex,
 } from './previewHomeStepper.ts';
 
@@ -95,6 +96,15 @@ describe('preview home stepper', () => {
     assert.equal(arrived.arrivedInEurope, true);
     assert.equal(arrived.steps.find((step) => step.id === 'guidelines')?.status, 'not_started');
     assert.equal(JANE_MILLER.arrivedInEurope, undefined);
+  });
+
+  it('keeps the deep verse footer on the application progress home', () => {
+    assert.equal(showsApplicationProgress(previewHomeStatus(JANE_MILLER, 0), 0), false);
+    assert.equal(showsApplicationProgress(previewHomeStatus(JANE_MILLER, 1), 1), true);
+    assert.equal(showsApplicationProgress(previewHomeStatus(JANE_MILLER, 2), 2), false);
+    assert.equal(showsApplicationProgress(previewHomeStatus(JANE_MILLER, 3), 3), false);
+    assert.equal(showsApplicationProgress(previewHomeStatus(JANE_MILLER, 4), 4), false);
+    assert.equal(showsApplicationProgress(JANE_MILLER, null), true);
   });
 
   it('fills the final check-list bubble from the items that are checked', () => {

@@ -50,7 +50,7 @@ describe('portal destinations', () => {
       [
         ['orientation', 'Orientation Info'],
         ['practical', 'Practical Info'],
-        ['galini', 'Galini Apartment Rules'],
+        ['galini', 'Galini Rules'],
         ['orgChart', 'Org Chart'],
       ],
     );
@@ -73,7 +73,7 @@ describe('portal destinations', () => {
     assert.equal(WORLD_MAP, '/brand/world-map.png');
     assert.equal(HOME_GREETING_BACKDROP, '/brand/greece-backdrop.jpg');
     assert.equal(GERMANY_GREETING_BACKDROP, '/brand/germany-greeting.jpg?v=4');
-    assert.equal(FIELD_HOME_BACKDROP, '/brand/field-home-coast.jpg');
+    assert.equal(FIELD_HOME_BACKDROP, '/brand/field-home-team.jpg?v=2');
     assert.equal(JOURNEY_PLANE, '/brand/journey-plane.png?v=4');
   });
 });

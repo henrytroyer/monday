@@ -1,6 +1,3 @@
-export const PRACTICAL_INFO_INTRO =
-  'Day-to-day notes for Panagiouda, Mytilini, and Galini Apartments.';
-
 export type PracticalSpot = {
   name: string;
   detail: string;

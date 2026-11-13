@@ -1,13 +1,15 @@
 import { HOPE_IN_ACTION, ISAIAH_FOOTER } from '../lib/nav';
 
-export function SiteFooter({ tone = 'soft' }: { tone?: 'soft' | 'white' | 'sand' }) {
+export function SiteFooter({ tone = 'soft' }: { tone?: 'soft' | 'white' | 'sand' | 'deep' }) {
   const surface =
     tone === 'white'
       ? 'border-t border-sand/80 bg-white text-navy'
       : tone === 'sand'
         ? 'bg-sand text-navy'
-        : 'bg-[#667b96] text-white';
-  const verse = tone === 'soft' ? 'text-white/80' : 'text-crm-slate';
+        : tone === 'deep'
+          ? 'bg-[#365a7e] text-white'
+          : 'bg-[#667b96] text-white';
+  const verse = tone === 'white' || tone === 'sand' ? 'text-crm-slate' : 'text-white/80';
 
   return (
     <footer className={`mt-auto px-5 py-6 ${surface}`}>

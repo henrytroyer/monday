@@ -4,10 +4,10 @@ import {
   BIKE_LOCK_CODE,
   BRICK_DOOR_CODE,
   BUNKER_DOOR_CODE,
-  ORIENTATION_CLOSING,
   ORIENTATION_CODES,
   ORIENTATION_SECTIONS,
   VEHICLE_DAMAGE_COSTS,
+  stepOrientation,
   type OrientationSection,
 } from './orientationInfo.ts';
 
@@ -88,9 +88,13 @@ describe('orientation info', () => {
     );
     assert.match(copy, /100 euros/);
     assert.match(copy, /150 euros/);
-    assert.equal(
-      ORIENTATION_CLOSING,
-      'For any additional questions or needs, please reach out to us.',
-    );
+  });
+
+  it('cycles the topic carousel from either end', () => {
+    const count = ORIENTATION_SECTIONS.length;
+    assert.equal(stepOrientation(0, -1, count), count - 1);
+    assert.equal(stepOrientation(count - 1, 1, count), 0);
+    assert.equal(stepOrientation(2, 1, count), 3);
+    assert.equal(stepOrientation(0, 0, 0), 0);
   });
 });

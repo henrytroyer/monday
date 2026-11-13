@@ -1,20 +1,20 @@
 import type { SVGProps } from 'react';
+import { tornWashClassName, tornWashStyle } from '../components/TornWash';
 import { VISION_VALUES_TITLE } from '../lib/nav';
 import { I58_MISSION, I58_VISION } from '../lib/volunteerGuide';
 import {
-  CORE_VALUES_BACKDROP,
-  CORE_VALUES_MARK,
   CORE_VALUE_STATEMENTS,
-  MISSION_VISION_MARK,
+  MISSION_MARK,
+  VALUES_MARK,
+  VISION_MARK,
   VISION_VALUES_PHOTO,
 } from '../lib/visionValues';
-import { SectionDivider } from '../components/SectionDivider';
 
 const VALUE_CARDS = [
-  { tab: 'bg-navy', title: 'text-navy', Icon: FaithIcon, place: 'sm:absolute sm:top-[16%] sm:left-[2%] sm:w-[34%] sm:max-w-[24rem]' },
-  { tab: 'bg-crm-terracotta', title: 'text-crm-terracotta', Icon: PassionIcon, place: 'sm:absolute sm:top-[16%] sm:right-[2%] sm:w-[34%] sm:max-w-[24rem]' },
-  { tab: 'bg-[#667b96]', title: 'text-[#667b96]', Icon: FocusIcon, place: 'sm:absolute sm:bottom-[4%] sm:left-[2%] sm:w-[34%] sm:max-w-[24rem]' },
-  { tab: 'bg-crm-slate', title: 'text-crm-slate', Icon: IntegrityIcon, place: 'sm:absolute sm:bottom-[4%] sm:right-[2%] sm:w-[34%] sm:max-w-[24rem]' },
+  { tab: 'bg-navy', title: 'text-navy', Icon: FaithIcon },
+  { tab: 'bg-crm-terracotta', title: 'text-crm-terracotta', Icon: PassionIcon },
+  { tab: 'bg-[#667b96]', title: 'text-[#667b96]', Icon: FocusIcon },
+  { tab: 'bg-crm-slate', title: 'text-crm-slate', Icon: IntegrityIcon },
 ] as const;
 
 export function VisionValuesScreen() {
@@ -39,58 +39,44 @@ export function VisionValuesScreen() {
         </div>
       </section>
 
-      <section className="relative left-1/2 w-screen -translate-x-1/2">
-        <div className="mx-auto mt-12 grid w-full max-w-5xl items-center gap-10 px-5 md:mt-14 md:grid-cols-[17rem_1fr] md:gap-14">
-          <img
-            src={MISSION_VISION_MARK}
-            alt="Vision and mission"
-            className="mx-auto w-full max-w-[16.75rem]"
-          />
-          <div className="space-y-10">
-            <Statement title={I58_VISION.title} text={I58_VISION.statement} />
-            <Statement title={I58_MISSION.title} text={I58_MISSION.statement} />
-          </div>
+      <section className="relative left-1/2 w-screen -translate-x-1/2 border-t-2 border-white bg-gradient-to-b from-[#647c96] from-50% to-[#1f4a6d]">
+        <div className="mx-auto max-w-3xl space-y-10 px-5 pt-12 pb-20 text-center sm:pt-16 sm:pb-24">
+          <Statement title={I58_VISION.title} text={I58_VISION.statement} mark={VISION_MARK} />
+          <Statement title={I58_MISSION.title} text={I58_MISSION.statement} mark={MISSION_MARK} />
         </div>
       </section>
 
-      <section className="relative left-1/2 mt-16 w-screen -translate-x-1/2 sm:mt-20">
-        <SectionDivider className="text-crm-white" />
-        <div className="relative">
-          <img
-            src={CORE_VALUES_BACKDROP}
-            alt=""
-            className="block h-auto w-full"
-          />
-          <div className="grid grid-cols-1 gap-8 px-5 py-10 sm:absolute sm:inset-0 sm:block sm:p-0">
-            <h2 className="text-center font-display text-4xl font-extrabold tracking-wide text-navy sm:absolute sm:top-[3.5%] sm:right-0 sm:left-0 sm:text-5xl">
-              Our Core Values
-            </h2>
-            <img
-              src={CORE_VALUES_MARK}
-              alt="Our core values: Honesty, Integrity, Trust, Focus, Faith, and Passion."
-              className="mx-auto w-full max-w-[16rem] sm:absolute sm:top-[56%] sm:left-1/2 sm:h-[42%] sm:w-auto sm:max-w-none sm:-translate-x-1/2 sm:-translate-y-1/2"
-            />
-            {CORE_VALUE_STATEMENTS.map((item, index) => {
-              const tone = VALUE_CARDS[index]!;
-              const Icon = tone.Icon;
-              return (
-                <article
-                  key={item.title}
-                  className={`relative rounded-[1.25rem] border border-navy/10 bg-white px-4 pt-8 pb-4 shadow-[0_14px_32px_rgba(27,54,93,0.12)] ${tone.place}`}
+      <section
+        className={`relative left-1/2 z-10 -mt-[4.25rem] w-screen -translate-x-1/2 px-5 pt-[calc(4.25rem+3.5rem)] pb-16 ${tornWashClassName}`}
+        style={tornWashStyle}
+      >
+        <div className="mx-auto max-w-5xl">
+        <h2 className="flex items-center justify-center gap-3 font-display text-[1.85rem] font-extrabold leading-tight tracking-wide">
+          <img src={VALUES_MARK} alt="" className="h-14 w-14 shrink-0 object-contain" />
+          <span className="text-crm-terracotta">Our Core Values</span>
+        </h2>
+        <div className="mt-12 grid grid-cols-1 gap-x-8 gap-y-14 sm:grid-cols-2 sm:gap-x-10 sm:gap-y-16">
+          {CORE_VALUE_STATEMENTS.map((item, index) => {
+            const tone = VALUE_CARDS[index]!;
+            const Icon = tone.Icon;
+            return (
+              <article
+                key={item.title}
+                className="relative rounded-[1.25rem] border border-navy/10 bg-white px-5 pt-9 pb-5 shadow-[0_14px_32px_rgba(27,54,93,0.12)]"
+              >
+                <span
+                  className={`absolute top-0 left-1/2 flex h-12 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-t-2xl rounded-b-lg text-white ${tone.tab}`}
                 >
-                  <span
-                    className={`absolute top-0 left-1/2 flex h-12 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-t-2xl rounded-b-lg text-white ${tone.tab}`}
-                  >
-                    <Icon />
-                  </span>
-                  <h3 className="text-center font-display text-base font-extrabold tracking-wide sm:text-[clamp(1rem,1.7vw,1.35rem)]">
-                    <span className={tone.title}>{item.title}</span>
-                  </h3>
-                  <p className="mt-2 text-sm leading-5 text-navy sm:text-[clamp(0.8rem,1.25vw,1rem)] sm:leading-snug">{item.body}</p>
-                </article>
-              );
-            })}
-          </div>
+                  <Icon />
+                </span>
+                <h3 className="text-center font-display text-base font-extrabold tracking-wide sm:text-[clamp(1rem,1.7vw,1.35rem)]">
+                  <span className={tone.title}>{item.title}</span>
+                </h3>
+                <p className="mt-2 text-sm leading-5 text-navy sm:text-[clamp(0.8rem,1.25vw,1rem)] sm:leading-snug">{item.body}</p>
+              </article>
+            );
+          })}
+        </div>
         </div>
       </section>
     </div>
@@ -146,11 +132,14 @@ function IntegrityIcon() {
   );
 }
 
-function Statement({ title, text }: { title: string; text: string }) {
+function Statement({ title, text, mark }: { title: string; text: string; mark: string }) {
   return (
     <div>
-      <h2 className="font-display text-[1.85rem] font-extrabold leading-tight text-navy">{title}</h2>
-      <p className="mt-3 font-story text-lg font-light leading-8 text-navy">{text}</p>
+      <h2 className="flex items-center justify-center gap-3 font-display text-[1.85rem] font-extrabold leading-tight">
+        <img src={mark} alt="" className="h-14 w-14 shrink-0 object-contain" />
+        <span className="text-white">{title}</span>
+      </h2>
+      <p className="mt-3 font-story text-lg font-light leading-8 text-white">{text}</p>
     </div>
   );
 }

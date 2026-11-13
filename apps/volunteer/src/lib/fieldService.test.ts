@@ -2,16 +2,17 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   FIELD_FEEDBACK_FORM,
+  FIELD_INCIDENT_FORM,
   FIELD_SERVICE_WAYS,
   FIELD_TEAM_PHOTOS,
   FIELD_VEHICLE_BOOKING,
 } from './fieldService.ts';
 
 describe('field service ways', () => {
-  it('names the three cards under the schedule bar', () => {
+  it('names the cards under the schedule bar', () => {
     assert.deepEqual(
       FIELD_SERVICE_WAYS.map((way) => way.title),
-      ['Book a Vehicle', 'Camp and Team Photos', 'i58 Feedback'],
+      ['Book a Vehicle', 'Camp and Team Photos', 'i58 Feedback', 'Incident Report'],
     );
     assert.equal(
       FIELD_SERVICE_WAYS.find((way) => way.id === 'photos')?.body,
@@ -20,6 +21,14 @@ describe('field service ways', () => {
     assert.equal(
       FIELD_SERVICE_WAYS.find((way) => way.id === 'feedback')?.body,
       '-A place where you can submit new ideas, and give feedback for improvement within i58. Your perspective and insights are helpful!!',
+    );
+    assert.equal(
+      FIELD_SERVICE_WAYS.find((way) => way.id === 'vehicle')?.body,
+      'Nissan Micra or VW Van',
+    );
+    assert.match(
+      FIELD_SERVICE_WAYS.find((way) => way.id === 'incident')?.body ?? '',
+      /verbal or physical aggression/,
     );
   });
 
@@ -30,6 +39,19 @@ describe('field service ways', () => {
       'Anything in particular that we could improve concerning the organisation of i58?',
       'Anything you think we should change regarding team schedule? More or less planned activities...etc.',
     ]);
+  });
+
+  it('keeps the opening of the incident form', () => {
+    assert.equal(FIELD_INCIDENT_FORM.title, 'Incident Form');
+    assert.match(FIELD_INCIDENT_FORM.intro[0] ?? '', /security officer of EuroRelief/);
+    assert.match(FIELD_INCIDENT_FORM.intro[1] ?? '', /mandatory in case of a severe incident/);
+    assert.deepEqual(
+      FIELD_INCIDENT_FORM.fields.map((field) => [field.id, field.label, field.required]),
+      [
+        ['email', 'Email', true],
+        ['name', 'Please fill out your full name:', true],
+      ],
+    );
   });
 
   it('names the camp and team photo album', () => {

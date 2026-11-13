@@ -85,7 +85,9 @@ export function AppHeader({
       className={
         overlay
           ? 'absolute inset-x-0 top-0 z-30 bg-transparent'
-          : 'sticky top-0 z-30 border-b border-sand/70 bg-white/95 backdrop-blur'
+          : `sticky top-0 z-30 bg-white/95 backdrop-blur ${
+              tab === 'volunteer' ? '' : 'border-b border-sand/70'
+            }`
       }
     >
       <div className="portal-header-bar mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-4">

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { VolunteerApplicationStatus } from '../contract/volunteerApi';
 import { DocumentCopy } from '../components/DocumentCopy';
 import { ItineraryImage, PassportImage } from '../components/TravelCopies';
@@ -8,49 +8,17 @@ import { DOCUMENT_FIELDS } from '../lib/preparationDocuments';
 import { downloadPreparationDocumentPdf } from '../lib/preparationDocumentPdf';
 import { COORDINATOR_EMAIL } from '../lib/volunteerGuide';
 
-const SECTIONS = [
-  { id: 'profile', label: 'Profile' },
-  { id: 'passport', label: 'Passport' },
-  { id: 'flights', label: 'Flights' },
-  { id: 'documents', label: 'Documents' },
-] as const;
-
-type SectionId = (typeof SECTIONS)[number]['id'];
-
-const FOOTER_BLUE = '#667b96';
+type SectionId = 'profile' | 'passport' | 'flights' | 'documents';
 
 export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) {
   const info = myInfoFor(me);
   const [copied, setCopied] = useState<string | null>(null);
   const [openDocument, setOpenDocument] = useState<string | null>(null);
-  const [active, setActive] = useState<SectionId>('profile');
-  const ignoreScroll = useRef(0);
   const cover = /germany/i.test(info.location)
     ? GERMANY_GREETING_BACKDROP
     : HOME_GREETING_BACKDROP;
   const onFile = info.documents.filter((document) => document.onFile).length;
   const role = [info.location, info.term].filter((part) => part !== NOT_ON_FILE).join(' · ');
-
-  useEffect(() => {
-    const nodes = SECTIONS.map((section) => document.getElementById(section.id)).filter(
-      (node): node is HTMLElement => node instanceof HTMLElement,
-    );
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-        if (Date.now() < ignoreScroll.current) return;
-        const id = visible?.target.id;
-        if (id && SECTIONS.some((section) => section.id === id)) {
-          setActive(id as SectionId);
-        }
-      },
-      { rootMargin: '-20% 0px -55% 0px', threshold: [0.15, 0.4] },
-    );
-    nodes.forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
-  }, []);
 
   function copy(id: string, value: string) {
     if (!value || value === NOT_ON_FILE) return;
@@ -65,44 +33,10 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
     );
   }
 
-  function jump(id: SectionId) {
-    ignoreScroll.current = Date.now() + 800;
-    setActive(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   return (
     <div>
       <div className="relative left-1/2 w-screen -translate-x-1/2">
-        <nav aria-label="Your records" className="bg-white">
-          <div className="mx-auto w-full max-w-6xl px-5 py-3">
-            <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-navy/45">
-              Your records
-            </p>
-            <ul className="flex gap-1 overflow-x-auto">
-              {SECTIONS.map((section) => {
-                const current = active === section.id;
-                return (
-                  <li key={section.id} className="shrink-0">
-                    <button
-                      type="button"
-                      aria-current={current ? 'true' : undefined}
-                      onClick={() => jump(section.id)}
-                      className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold ${
-                        current ? 'bg-navy text-white' : 'text-navy hover:bg-crm-indigo-50'
-                      }`}
-                    >
-                      <RecordIcon id={section.id} />
-                      {section.label}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </nav>
-
-        <section id="profile" className="min-w-0 scroll-mt-28 bg-white">
+        <section id="profile" className="min-w-0 bg-white">
           <img src={cover} alt="" className="h-36 w-full object-cover object-center sm:h-44" />
           <div className="mx-auto w-full max-w-6xl px-5 pb-5 sm:px-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -151,13 +85,10 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
         </section>
       </div>
 
-      <div
-        className="relative left-1/2 w-screen -translate-x-1/2"
-        style={{ backgroundColor: FOOTER_BLUE }}
-      >
-        <div className="mx-auto w-full max-w-6xl px-5 pb-10 pt-8">
+      <div className="relative left-1/2 w-screen -translate-x-1/2 bg-gradient-to-b from-[#667b96] via-[#647fa8] to-[#224a6d] px-8 py-12 md:px-12 md:py-16">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 md:gap-4">
           <InfoCard id="documents" title="Documents">
-            <ul className="grid gap-4 sm:grid-cols-2">
+            <ul className="grid gap-3 sm:grid-cols-2">
               {info.documents.map((document) => (
                 <DocumentSnapshot
                   key={document.id}
@@ -171,7 +102,7 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
             </ul>
           </InfoCard>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 md:gap-4">
                 <InfoCard id="passport" title="Passport">
                   <RecordSnapshot
                     thumb={
@@ -260,9 +191,9 @@ function InfoCard({
   return (
     <section
       id={id}
-      className={`scroll-mt-28 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-sand/70 ${className}`}
+      className={`scroll-mt-28 rounded-2xl bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,32,56,0.16)] md:px-5 md:py-5 ${className}`}
     >
-      <h2 className="font-display text-lg font-extrabold text-navy">{title}</h2>
+      <h2 className="font-display text-xl font-bold leading-tight text-navy">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -422,19 +353,5 @@ function CopyValue({
         {copied === id ? 'Copied' : 'Copy'}
       </button>
     </span>
-  );
-}
-
-function RecordIcon({ id }: { id: SectionId }) {
-  const path = {
-    profile: 'M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z',
-    passport: 'M6 3h9a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6zm4 4a2.5 2.5 0 1 0 2.5 2.5A2.5 2.5 0 0 0 10 7zm-3 9c.4-2 2-3 3.5-3s3.1 1 3.5 3z',
-    flights: 'M3 13l18-6-4 8-5 1-2 4-2-5-5-2z',
-    documents: 'M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V7h3.5z',
-  }[id];
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden>
-      <path fill="currentColor" d={path} />
-    </svg>
   );
 }

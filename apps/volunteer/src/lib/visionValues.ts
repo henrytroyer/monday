@@ -4,6 +4,10 @@ export const CORE_VALUES_MARK = '/brand/core-values.png';
 export const CORE_VALUES_LIBRARY = '/brand/core-values-library.png';
 export const CORE_VALUES_CHILDREN = '/brand/core-values-children.png';
 export const CORE_VALUES_BACKDROP = '/brand/core-values-backdrop.png';
+export const VISION_MARK = '/brand/vision-mark.png';
+export const MISSION_MARK = '/brand/mission-mark.png';
+export const VALUES_MARK = '/brand/values-mark.png';
+export const CORE_VALUES_WASH = '/brand/core-values-wash.jpg';
 
 /** Clockwise from the top of the values mark. */
 export const CORE_VALUE_NAMES = [

@@ -5,6 +5,7 @@ import type {
   VolunteerApplicationUpdate,
 } from '../contract/volunteerApi';
 import { FieldPurpose } from '../components/FieldPurpose';
+import { washStyle } from '../components/TornWash';
 import { SubmissionThanksOverlay } from '../components/SubmissionThanksOverlay';
 import { FieldScheduleBar } from '../components/FieldScheduleBar';
 import { FieldServiceWays } from '../components/FieldServiceWays';
@@ -176,19 +177,20 @@ export function HomeScreen({
             <img
               src={backdrop}
               alt=""
-              width={2046}
-              height={1358}
-              className="block h-[28rem] w-full object-cover object-center md:h-[34rem]"
+              width={3072}
+              height={1494}
+              className="block h-auto w-full"
             />
-            <div className="absolute inset-0 z-10 flex flex-col gap-3 px-4 py-4 md:flex-row md:items-start md:justify-between md:gap-6">
-              <div className="min-w-0 max-w-xl shrink-0 md:flex-1">
+            <div className="absolute inset-x-0 top-0 bottom-8 z-10 flex flex-col gap-3 px-4 pt-4 md:flex-row md:items-start md:justify-between md:gap-6">
+              <div className="mt-2 flex min-w-0 flex-1 justify-center md:mt-1">
                 <FieldPurpose />
               </div>
-              <div className="flex min-h-0 w-full flex-1 flex-col md:h-full md:w-[28rem] md:flex-none">
+              <div className="flex h-full max-h-full min-h-0 w-full flex-col md:w-[28rem] md:flex-none">
                 <NotificationsPanel
                   me={view}
                   open={notificationsOpen}
                   onOpenChange={onNotificationsOpenChange}
+                  fillAvailable
                   className="max-h-full min-h-0 w-full"
                 />
               </div>
@@ -310,16 +312,19 @@ export function HomeScreen({
         <>
           <section
             aria-label="Field schedules"
-            className="relative left-1/2 w-screen -translate-x-1/2 border-b-2 border-white bg-[#667b96] px-4 py-4"
-          >
-            <FieldScheduleBar />
-          </section>
-          <section
-            aria-label="Service"
             className="relative left-1/2 w-screen -translate-x-1/2 bg-white"
           >
-            <div className="mx-auto w-full max-w-5xl px-5 py-5">
-              <h2 className="font-display text-lg font-extrabold text-navy">Service</h2>
+            <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">
+              <FieldScheduleBar />
+            </div>
+          </section>
+          <section
+            aria-label="Your Service Period"
+            className="relative left-1/2 w-screen -translate-x-1/2 border-t border-navy/15 bg-[#f7f7f7] bg-cover bg-center bg-no-repeat px-5 py-8"
+            style={washStyle}
+          >
+            <div className="mx-auto w-full max-w-5xl">
+              <h2 className="font-display text-lg font-extrabold text-navy">Your Service Period</h2>
               <div className="mt-4">
                 <ServicePeriodTimeline period={servicePeriodFor(view)} labelled={false} />
               </div>

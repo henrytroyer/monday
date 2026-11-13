@@ -3,7 +3,7 @@
  * Titles, icons, and text are expected to change.
  */
 
-export type FieldServiceWayId = 'vehicle' | 'photos' | 'feedback';
+export type FieldServiceWayId = 'vehicle' | 'photos' | 'feedback' | 'incident';
 
 export type FieldServiceWay = {
   id: FieldServiceWayId;
@@ -24,6 +24,19 @@ export const FIELD_FEEDBACK_FORM = {
   ],
 } as const;
 
+/** Opening of the EuroRelief incident form. Later sections arrive with the rest of the form. */
+export const FIELD_INCIDENT_FORM = {
+  title: 'Incident Form',
+  intro: [
+    'The purpose of this form is to report incidents that include severe verbal aggression or any physical aggression directed at you or a coworker, another POC or at oneself. The form will be used to document these incidents and possibly follow up with any involved. The security officer of EuroRelief will receive the description of the incident without any names mentioned. The possible follow-up for you will be done by the designated Member-Care Officer of EuroRelief or the organization you came with and information will be handled with the utmost care and in regard of personal privacy.',
+    'No information will be shared with third-parties without your permission, unless it involves risk of future harm to yourself and/or others or involves the breaking of laws. Filling out this form is mandatory in case of a severe incident. In this first section, please fill out general details:',
+  ],
+  fields: [
+    { id: 'email', label: 'Email', placeholder: 'Your email', required: true },
+    { id: 'name', label: 'Please fill out your full name:', placeholder: 'Your answer', required: true },
+  ],
+} as const;
+
 /** Shared camp album. The pictures on the page are placeholders. */
 export const FIELD_TEAM_PHOTOS = {
   title: 'Camp and Team Photos',
@@ -34,7 +47,7 @@ export const FIELD_SERVICE_WAYS: readonly FieldServiceWay[] = [
   {
     id: 'vehicle',
     title: 'Book a Vehicle',
-    body: '',
+    body: 'Nissan Micra or VW Van',
   },
   {
     id: 'photos',
@@ -45,6 +58,11 @@ export const FIELD_SERVICE_WAYS: readonly FieldServiceWay[] = [
     id: 'feedback',
     title: 'i58 Feedback',
     body: `-${FIELD_FEEDBACK_FORM.intro[0]}`,
+  },
+  {
+    id: 'incident',
+    title: 'Incident Report',
+    body: 'Report severe verbal or physical aggression directed at you, a coworker, another POC, or yourself.',
   },
 ];
 

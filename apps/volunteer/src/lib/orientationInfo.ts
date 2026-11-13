@@ -1,6 +1,3 @@
-export const ORIENTATION_LEAD =
-  'House rules, the team week, and how to get around with the i58 team on Lesvos.';
-
 export const BRICK_DOOR_CODE = '2424#';
 export const BIKE_LOCK_CODE = '4321';
 export const BUNKER_DOOR_CODE = '2424';
@@ -31,8 +28,11 @@ export const VEHICLE_DAMAGE_COSTS = [
   { label: 'Dents', amount: '150 euros' },
 ] as const;
 
-export const ORIENTATION_CLOSING =
-  'For any additional questions or needs, please reach out to us.';
+/** Move through the topic carousel, wrapping at both ends. */
+export function stepOrientation(index: number, delta: number, count: number): number {
+  if (count <= 0) return 0;
+  return ((index + delta) % count + count) % count;
+}
 
 type OrientationSpan = 'full' | 'half';
 

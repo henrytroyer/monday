@@ -91,7 +91,7 @@ export function LandingScreen({
           ) : null}
         </div>
       </section>
-      <SiteFooter />
+      <SiteFooter tone="deep" />
     </div>
   );
 }
