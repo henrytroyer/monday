@@ -92,30 +92,30 @@ export function InfoTopicCarousel({
           <p className="sr-only" aria-live="polite">
             {topic.label}, {index + 1} of {count}
           </p>
-          <div id={topic.id}>{render(index)}</div>
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-5">
             <button
               type="button"
               aria-label="Previous topic"
               onClick={() => show(index - 1)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-4 text-sm font-semibold text-white hover:bg-navy-dark"
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-navy text-white hover:bg-navy-dark"
             >
               <Chevron direction="previous" />
-              Previous
             </button>
-            <p className="text-sm font-semibold text-navy">
-              {index + 1} / {count}
-            </p>
+            <div id={topic.id} className="min-w-0 flex-1">
+              {render(index)}
+            </div>
             <button
               type="button"
               aria-label="Next topic"
               onClick={() => show(index + 1)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-4 text-sm font-semibold text-white hover:bg-navy-dark"
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-navy text-white hover:bg-navy-dark"
             >
-              Next
               <Chevron direction="next" />
             </button>
           </div>
+          <p className="mt-4 text-center text-sm font-semibold text-navy">
+            {index + 1} / {count}
+          </p>
         </section>
         {footer ? <div className="mt-8">{footer}</div> : null}
       </div>
@@ -128,10 +128,10 @@ function Chevron({ direction }: { direction: 'previous' | 'next' }) {
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className="h-4 w-4"
+      className="h-6 w-6"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="2.25"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
