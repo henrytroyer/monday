@@ -22,6 +22,7 @@ import {
   isCertificateUpload,
   savePreparationDocument,
 } from '../lib/preparationDocuments';
+import { backgroundCheckAvailability } from '../lib/teamDates';
 
 export function PreparationDocumentScreen({
   me,
@@ -184,6 +185,9 @@ function CertificateUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const link = PROVIDER_LINKS[documentId];
   const stage = documentStage(saved, documentIsAccepted(me, documentId));
+  const background =
+    documentId === 'background_check_sent' ? backgroundCheckAvailability(me) : null;
+  const providerOpen = background == null || background.open;
 
   function storeFile(file: File) {
     onUpdateMe((current) =>
@@ -218,17 +222,21 @@ function CertificateUpload({
         <section className="flex flex-col rounded-2xl bg-[#f7f4ef] px-4 py-5 ring-1 ring-navy/10">
           <h2 className="text-sm font-semibold text-navy">1. Fill out the form</h2>
           <p className="mt-1 text-sm leading-6 text-crm-slate">
-            Complete it with the provider. They email you the certificate.
+            {providerOpen
+              ? 'Complete it with the provider. They email you the certificate.'
+              : background?.note}
           </p>
-          <a
-            href={link.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex min-h-11 w-fit items-center rounded-full bg-navy px-5 text-sm font-semibold text-white hover:brightness-110"
-          >
-            {link.label}
-          </a>
-          <p className="mt-2 text-sm text-crm-slate">{link.note}</p>
+          {providerOpen ? (
+            <a
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex min-h-11 w-fit items-center rounded-full bg-navy px-5 text-sm font-semibold text-white hover:brightness-110"
+            >
+              {link.label}
+            </a>
+          ) : null}
+          {providerOpen ? <p className="mt-2 text-sm text-crm-slate">{link.note}</p> : null}
         </section>
 
         <section className="flex flex-col rounded-2xl bg-[#f7f4ef] px-4 py-5 ring-1 ring-navy/10">
@@ -247,8 +255,9 @@ function CertificateUpload({
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
+              disabled={!providerOpen}
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95"
+              className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-crm-terracotta px-5 text-sm font-semibold text-white shadow-sm hover:brightness-95 disabled:cursor-not-allowed disabled:bg-crm-slate"
             >
               {saved.fileName ? 'Replace file' : 'Choose file'}
             </button>

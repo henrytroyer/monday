@@ -1,7 +1,7 @@
 import type { VolunteerApplicationStatus } from '../contract/volunteerApi';
 import { BackButton } from '../components/BackButton';
 import { FormCard, PageHeader } from '../components/FormCard';
-import { flightItineraryFor, type FlightLeg } from '../lib/flightItinerary';
+import { flightItinerariesFor, type FlightLeg } from '../lib/flightItinerary';
 import { staffUploadWaitingLine } from '../lib/preparationDocuments';
 
 export function FlightItineraryScreen({
@@ -26,7 +26,8 @@ export function FlightItineraryScreen({
     );
   }
 
-  const itinerary = flightItineraryFor(me.name);
+  const itineraries = flightItinerariesFor(me.name);
+  const first = itineraries[0];
 
   return (
     <div>
@@ -34,36 +35,46 @@ export function FlightItineraryScreen({
       <PageHeader
         eyebrow="Flights"
         title="Your itinerary"
-        description={`${itinerary.term} · ${itinerary.field}`}
+        description={first ? `${first.term} · ${first.field}` : undefined}
       />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-        <FormCard>
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-navy/70">
-                Passenger
-              </dt>
-              <dd className="mt-1 text-lg font-semibold text-navy">{itinerary.passenger}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-navy/70">
-                Record locator
-              </dt>
-              <dd className="mt-1 text-lg font-semibold tracking-wide text-navy">
-                {itinerary.recordLocator}
-              </dd>
-            </div>
-          </dl>
-        </FormCard>
-        {itinerary.directions.map((direction) => (
-          <FormCard key={direction.id}>
-            <h2 className="font-display text-xl font-semibold text-navy">{direction.title}</h2>
-            <ol className="mt-5 flex flex-col gap-5">
-              {direction.legs.map((leg) => (
-                <FlightLegRow key={`${direction.id}-${leg.flight}`} leg={leg} />
-              ))}
-            </ol>
-          </FormCard>
+        {itineraries.map((itinerary) => (
+          <div key={itinerary.recordLocator} className="flex flex-col gap-4">
+            <FormCard>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-navy/70">
+                    Passenger
+                  </dt>
+                  <dd className="mt-1 text-lg font-semibold text-navy">{itinerary.passenger}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-navy/70">
+                    Airline
+                  </dt>
+                  <dd className="mt-1 text-lg font-semibold text-navy">{itinerary.airlineLabel}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-navy/70">
+                    Record locator
+                  </dt>
+                  <dd className="mt-1 text-lg font-semibold tracking-wide text-navy">
+                    {itinerary.recordLocator}
+                  </dd>
+                </div>
+              </dl>
+            </FormCard>
+            {itinerary.directions.map((direction) => (
+              <FormCard key={`${itinerary.recordLocator}-${direction.id}`}>
+                <h2 className="font-display text-xl font-semibold text-navy">{direction.title}</h2>
+                <ol className="mt-5 flex flex-col gap-5">
+                  {direction.legs.map((leg) => (
+                    <FlightLegRow key={`${itinerary.recordLocator}-${direction.id}-${leg.flight}`} leg={leg} />
+                  ))}
+                </ol>
+              </FormCard>
+            ))}
+          </div>
         ))}
       </div>
     </div>

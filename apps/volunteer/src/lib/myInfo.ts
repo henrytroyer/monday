@@ -10,11 +10,12 @@ import type {
 } from '../contract/volunteerApi';
 import { JANE_MILLER_EMAIL } from '../mock/fixtures';
 import { MARITAL_STATUS_OPTIONS } from '../process/familyStatus';
+import { emptyGeneralInformation } from '../process/generalInformation';
 import { PASSPORT_EXAMPLE_SRC } from '../process/passportDetails';
 import { COORDINATOR_EMAIL } from './volunteerGuide';
-import { flightItineraryFor, type FlightItinerary } from './flightItinerary';
+import { flightItinerariesFor, flightItineraryFor, type FlightItinerary } from './flightItinerary';
 import { documentIsEdited, documentStage, DOCUMENT_FIELDS, type DocumentStage } from './preparationDocuments';
-import { serviceMonths } from './servicePeriod';
+import { serviceLengthLabel, serviceMonths, servicePeriodFor, servicePeriodLabel } from './servicePeriod';
 
 /** Example ID portrait used until a volunteer photo is stored. */
 export const MOCK_PROFILE_PHOTO = '/examples/id-photo-example.png';
@@ -119,6 +120,7 @@ export type MyInfoFlightLeg = {
 export type MyInfoFlights = {
   passenger: string;
   recordLocator: string;
+  airlineLabel: string;
   arrivalFlight: string;
   arrival: string;
   returnFlight: string;
@@ -142,6 +144,7 @@ export type MyInfo = {
   length: string;
   airport: string;
   flights: MyInfoFlights | null;
+  itineraries: MyInfoFlights[];
   documents: MyInfoDocument[];
   contacts: MyInfoContact[];
   medical: string;
@@ -156,7 +159,7 @@ export type MyInfo = {
  * forms are saved. A saved group replaces that example.
  */
 export function myInfoFor(me: VolunteerApplicationStatus): MyInfo {
-  const example = me.email.trim().toLowerCase() === JANE_MILLER_EMAIL;
+  const example = isPreviewExample(me);
   const general = taken(me.generalInformation, generalStarted(me.generalInformation), example, EXAMPLE_GENERAL);
   const passport = taken(me.passportDetails, passportStarted(me.passportDetails), example, EXAMPLE_PASSPORT);
   const contacts = taken(me.otherContacts, contactsStarted(me.otherContacts), example, EXAMPLE_CONTACTS);
@@ -167,13 +170,16 @@ export function myInfoFor(me: VolunteerApplicationStatus): MyInfo {
     EXAMPLE_HISTORY,
   );
   const family = taken(me.familyStatus, familyStarted(me.familyStatus), example, EXAMPLE_FAMILY);
-  const flights = bookedFlights(me);
+  const flights = bookedItineraries(me);
+  const period = servicePeriodFor(me);
+  const span = servicePeriodLabel(period);
+  const days = serviceLengthLabel(period);
 
   return {
     name: me.name.trim() || NOT_ON_FILE,
     email: me.email.trim() || NOT_ON_FILE,
     phone: general ? formatPhone(general.phone) || NOT_ON_FILE : NOT_ON_FILE,
-    photo: MOCK_PROFILE_PHOTO,
+    photo: me.profilePhoto?.photoDataUrl?.trim() || MOCK_PROFILE_PHOTO,
     birthday: general ? formatStoredDate(general.birthdate) : NOT_ON_FILE,
     gender: general ? genderLabel(general.gender) : NOT_ON_FILE,
     address: general ? addressLines(general) : [NOT_ON_FILE],
@@ -181,10 +187,11 @@ export function myInfoFor(me: VolunteerApplicationStatus): MyInfo {
     passportNumber: passport?.passportNumber.trim() || NOT_ON_FILE,
     passportExpiration: passport ? formatStoredDate(passport.expirationDate) : NOT_ON_FILE,
     location: assignmentLocation(me),
-    term: listed(me.term, ['Term not listed']),
-    length: lengthLabel(me, example),
-    airport: airportLabel(me, flights),
-    flights: flights ? flightSummary(flights) : null,
+    term: span ?? listed(me.term, ['Term not listed']),
+    length: days ?? lengthLabel(me, example),
+    airport: airportLabel(me, flightItineraryFor(me.name)),
+    flights: flights[0] ? flightSummary(flights[0]) : null,
+    itineraries: flights.map(flightSummary),
     documents: ON_FILE_DOCUMENTS.map((id) => documentInfo(me, id, example)),
     contacts: contactList(me, contacts),
     medical: history?.medical.trim() || NOT_ON_FILE,
@@ -192,6 +199,91 @@ export function myInfoFor(me: VolunteerApplicationStatus): MyInfo {
     skills: history ? joinList(history.skills, history.otherSkills) : NOT_ON_FILE,
     family: family ? familySummary(family) : NOT_ON_FILE,
   };
+}
+
+export type MyInfoContactDraft = {
+  email: string;
+  phone: string;
+  birthdate: string;
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  photoFileName: string;
+  photoDataUrl: string;
+};
+
+/** Values for the My Info editor, including the preview record Jane sees before she saves. */
+export function contactDraftFor(me: VolunteerApplicationStatus): MyInfoContactDraft {
+  const example = isPreviewExample(me);
+  const general = taken(
+    me.generalInformation,
+    generalStarted(me.generalInformation),
+    example,
+    EXAMPLE_GENERAL,
+  );
+  return {
+    email: me.email.trim(),
+    phone: general ? formatPhone(general.phone) : '',
+    birthdate: isoBirthdate(general?.birthdate ?? ''),
+    street: general?.street ?? '',
+    city: general?.city ?? '',
+    state: general?.state ?? '',
+    postalCode: general?.postalCode ?? '',
+    country: general?.country ?? '',
+    photoFileName: me.profilePhoto?.photoFileName ?? '',
+    photoDataUrl: me.profilePhoto?.photoDataUrl ?? '',
+  };
+}
+
+/** Writes My Info corrections onto the application so a later term can read them. */
+export function withMyInfoContact(
+  me: VolunteerApplicationStatus,
+  edits: MyInfoContactDraft,
+): VolunteerApplicationStatus {
+  const example = isPreviewExample(me);
+  const base =
+    me.generalInformation && generalStarted(me.generalInformation)
+      ? me.generalInformation
+      : example
+        ? { ...EXAMPLE_GENERAL }
+        : emptyGeneralInformation();
+  const phoneDigits = edits.phone.replace(/\D/g, '');
+  return {
+    ...me,
+    email: edits.email.trim(),
+    generalInformation: {
+      ...base,
+      birthdate: edits.birthdate.trim(),
+      phone: phoneDigits || edits.phone.trim(),
+      street: edits.street.trim(),
+      city: edits.city.trim(),
+      state: edits.state.trim(),
+      postalCode: edits.postalCode.trim(),
+      country: edits.country.trim(),
+    },
+    profilePhoto: edits.photoDataUrl.trim()
+      ? {
+          photoFileName: edits.photoFileName.trim() || 'profile-photo',
+          photoDataUrl: edits.photoDataUrl,
+        }
+      : me.profilePhoto,
+    keepsPreviewRecord: example || me.keepsPreviewRecord,
+  };
+}
+
+function isoBirthdate(value: string): string {
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  return '';
+}
+
+function isPreviewExample(me: VolunteerApplicationStatus): boolean {
+  return (
+    me.keepsPreviewRecord === true ||
+    me.email.trim().toLowerCase() === JANE_MILLER_EMAIL
+  );
 }
 
 function taken<T>(value: T | undefined, started: boolean, example: boolean, sample: T): T | null {
@@ -255,14 +347,16 @@ function lengthLabel(me: VolunteerApplicationStatus, example: boolean): string {
 function airportLabel(me: VolunteerApplicationStatus, flights: FlightItinerary | null): string {
   const saved = me.termOfService?.nearbyAirport.trim() ?? '';
   if (saved) return saved;
-  const departure = flights?.directions.find((direction) => direction.id === 'to-field')?.legs[0];
+  if (!flights || flights.term !== me.term.trim()) return NOT_ON_FILE;
+  const departure = flights.directions.find((direction) => direction.id === 'to-field')?.legs[0];
   if (!departure) return NOT_ON_FILE;
   return `${departure.fromCity} (${departure.fromCode})`;
 }
 
-function bookedFlights(me: VolunteerApplicationStatus): FlightItinerary | null {
-  const itinerary = flightItineraryFor(me.name);
-  return itinerary.term === me.term.trim() ? itinerary : null;
+function bookedItineraries(me: VolunteerApplicationStatus): FlightItinerary[] {
+  const term = me.term.trim();
+  if (!term) return [];
+  return flightItinerariesFor(me.name).filter((itinerary) => itinerary.term === term);
 }
 
 function flightSummary(itinerary: FlightItinerary): MyInfoFlights {
@@ -271,6 +365,7 @@ function flightSummary(itinerary: FlightItinerary): MyInfoFlights {
   return {
     passenger: itinerary.passenger,
     recordLocator: itinerary.recordLocator,
+    airlineLabel: itinerary.airlineLabel,
     arrivalFlight: inbound ? `${inbound.airline} ${inbound.flight}` : NOT_ON_FILE,
     arrival: inbound ? `${inbound.toCity} · ${inbound.date} · ${inbound.arrives}` : NOT_ON_FILE,
     returnFlight: outbound ? `${outbound.airline} ${outbound.flight}` : NOT_ON_FILE,

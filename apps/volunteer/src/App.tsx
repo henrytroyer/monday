@@ -21,7 +21,8 @@ import {
 import type { VolunteerProfile } from './identity/profile.ts';
 import { PortalShell } from './components/PortalShell';
 import { arriveInEurope } from './lib/finalChecklist';
-import { arrivalWaitMs, fieldLandingAt } from './lib/fieldArrival';
+import { arrivalWaitMs, fieldPortalOpensAt } from './lib/fieldArrival';
+import { showsLesvosGuidance } from './lib/journey';
 import type { GeneralInfoSectionId, PortalDestination, PortalTab } from './lib/nav';
 import {
   PREVIEW_HOME_STEPPER,
@@ -157,23 +158,23 @@ export default function App() {
 
   useEffect(() => {
     if (!me || me.arrivedInEurope) return;
-    const landing = fieldLandingAt(me);
-    if (!landing) return;
+    const opens = fieldPortalOpensAt(me);
+    if (!opens) return;
 
     let timer = 0;
     const arriveIfDue = () => {
-      if (Date.now() < landing.getTime()) return;
+      if (Date.now() < opens.getTime()) return;
       updateMeRef.current(arriveInEurope);
       if (PREVIEW_HOME_STEPPER) setPreviewHome(4);
     };
     const schedule = () => {
-      const wait = arrivalWaitMs(landing);
+      const wait = arrivalWaitMs(opens);
       if (wait === 0) {
         arriveIfDue();
         return;
       }
       timer = window.setTimeout(() => {
-        if (Date.now() >= landing.getTime()) arriveIfDue();
+        if (Date.now() >= opens.getTime()) arriveIfDue();
         else schedule();
       }, wait);
     };
@@ -319,10 +320,13 @@ export default function App() {
           />
         ) : null}
         {tab === 'volunteer' ? (
-          <VolunteerInfoScreen me={me} />
+          <VolunteerInfoScreen me={me} onUpdateMe={handleUpdateMe} />
         ) : null}
         {tab === 'generalInfo' && generalInfoSection ? (
-          <GeneralInfoScreen section={generalInfoSection} />
+          <GeneralInfoScreen
+            section={generalInfoSection}
+            showLocalPages={showsLesvosGuidance(me)}
+          />
         ) : null}
         {tab === 'guidelinesFaith' ? <GuidelinesFaithScreen /> : null}
         {tab === 'visionValues' ? <VisionValuesScreen /> : null}

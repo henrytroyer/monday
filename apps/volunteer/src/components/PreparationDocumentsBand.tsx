@@ -158,7 +158,7 @@ function DocumentCard({
       {sent && draft && !certificate ? (
         <button
           type="button"
-          onClick={() => downloadPreparationDocumentPdf(id, draft)}
+          onClick={() => downloadPreparationDocumentPdf(id, draft, me.name)}
           className={cardQuietClass}
         >
           Download PDF

@@ -8,6 +8,7 @@ import {
   journeyDestination,
   journeyPlaneIndex,
   journeyProgress,
+  showsLesvosGuidance,
   warmerStatusLabel,
 } from './journey.ts';
 import { GERMANY_GREETING_BACKDROP, HOME_GREETING_BACKDROP } from './nav.ts';
@@ -237,6 +238,27 @@ describe('warmer status labels', () => {
     assert.equal(
       warmerStatusLabel('received', 'volunteer'),
       'Waiting on your reference',
+    );
+  });
+});
+
+describe('Lesvos guidance', () => {
+  it('keeps local pages for a Lesvos assignment', () => {
+    assert.equal(showsLesvosGuidance(JANE_MILLER), true);
+    assert.equal(showsLesvosGuidance({ ...JANE_MILLER, location: 'Germany' }), false);
+    assert.equal(
+      showsLesvosGuidance({
+        ...JANE_MILLER,
+        location: 'Preference not listed',
+        termOfService: {
+          locationPreferences: ['Lesvos'],
+          lengthOfTerm: '3-months',
+          otherTerm: '',
+          preferredDates: '',
+          nearbyAirport: '',
+        },
+      }),
+      true,
     );
   });
 });

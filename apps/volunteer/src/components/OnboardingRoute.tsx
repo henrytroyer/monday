@@ -96,7 +96,7 @@ export function OnboardingRoute({
               <span className="block">
                 The <span className="font-semibold text-crm-terracotta">On-Field Volunteer Page</span> will
               </span>
-              <span className="block">appear when you've landed in Europe.</span>
+              <span className="block">appear the day after you depart.</span>
             </p>
           ) : null}
         </div>
@@ -266,7 +266,6 @@ function StepBubble({
       waterTone={step.tone}
     />
   );
-  const openCue = <span className="mt-1 text-[11px] font-semibold text-crm-terracotta">Open</span>;
   let control;
   if (step.id === 'final_checklist') {
     control = (
@@ -277,7 +276,6 @@ function StepBubble({
         aria-label={`${step.title}, open checklist`}
       >
         {bubble}
-        {openCue}
       </button>
     );
   } else if (onOpen) {
@@ -289,7 +287,6 @@ function StepBubble({
         aria-label={`${step.title}, open`}
       >
         {bubble}
-        {openCue}
       </button>
     );
   } else {

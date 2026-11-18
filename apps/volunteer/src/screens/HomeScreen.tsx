@@ -16,7 +16,7 @@ import { ProgressBubble } from '../components/ProgressBubble';
 import { CONNECTOR } from '../lib/stepConnector';
 import { ServicePeriodInfo } from '../components/ServicePeriodInfo';
 import { ServicePeriodTimeline } from '../components/ServicePeriodTimeline';
-import { greetingBackdrop, journeyArrived, journeyDestination } from '../lib/journey';
+import { greetingBackdrop, journeyArrived, journeyDestination, LOCAL_GUIDANCE_NOTE, showsLesvosGuidance } from '../lib/journey';
 import { stepFillPercent } from '../lib/formProgress';
 import { nextVolunteerAction } from '../lib/nextAction';
 import {
@@ -96,6 +96,7 @@ export function HomeScreen({
   const firstName = view.firstName || view.name.trim().split(/\s+/)[0] || view.name;
   const arrived = journeyArrived(view);
   const destination = journeyDestination(view);
+  const lesvos = showsLesvosGuidance(view);
   const backdrop = onField ? FIELD_HOME_BACKDROP : greetingBackdrop(destination.region);
   const showServicePeriod = !onField && destination.region !== 'germany';
 
@@ -138,7 +139,10 @@ export function HomeScreen({
   if (showThanks) {
     return (
       <>
-        <SubmissionThanksOverlay hold />
+        <SubmissionThanksOverlay
+          hold
+          onFinished={() => onPreviewHomeChange?.(3)}
+        />
         {arrows}
       </>
     );
@@ -310,14 +314,25 @@ export function HomeScreen({
 
       {onField ? (
         <>
-          <section
-            aria-label="Field schedules"
-            className="relative left-1/2 w-screen -translate-x-1/2 bg-white"
-          >
-            <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">
-              <FieldScheduleBar />
-            </div>
-          </section>
+          {lesvos ? (
+            <section
+              aria-label="Field schedules"
+              className="relative left-1/2 w-screen -translate-x-1/2 bg-white"
+            >
+              <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">
+                <FieldScheduleBar />
+              </div>
+            </section>
+          ) : (
+            <section
+              aria-label="Field schedules"
+              className="relative left-1/2 w-screen -translate-x-1/2 bg-white"
+            >
+              <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">
+                <p className="text-base font-semibold text-navy">{LOCAL_GUIDANCE_NOTE}</p>
+              </div>
+            </section>
+          )}
           <section
             aria-label="Your Service Period"
             className="relative left-1/2 w-screen -translate-x-1/2 border-t border-navy/15 bg-[#f7f7f7] bg-cover bg-center bg-no-repeat px-5 py-8"
@@ -340,6 +355,7 @@ export function HomeScreen({
                 vehicleReservations: saveVehicleReservation(current.vehicleReservations, reservation),
               }))
             }
+            localTools={lesvos}
           />
         </>
       ) : null}

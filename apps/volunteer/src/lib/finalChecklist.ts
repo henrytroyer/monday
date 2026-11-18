@@ -3,11 +3,13 @@ import { resolveOnboardingSteps } from './onboarding';
 
 export const FINAL_CHECKLIST_ITEMS = [
   { id: 'passport', label: 'Passport' },
-  { id: 'payment', label: 'Payment method' },
+  { id: 'payment', label: 'Credit/debit card' },
   { id: 'clothing', label: 'Season-appropriate clothing' },
 ] as const;
 
 export const FINAL_CHECKLIST_SEASON_NOTE = 'Summer and winter packing differ.';
+
+export const FINAL_CHECKLIST_CASH_NOTE = 'Cash is easy to lose. You do not have to bring it.';
 
 export function finalChecklistIsComplete(
   checked: readonly string[] | undefined,

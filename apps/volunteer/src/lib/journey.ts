@@ -157,6 +157,15 @@ function isPlaceholderLocation(location: string): boolean {
   return /not listed/i.test(location.trim());
 }
 
+/** Lesvos lodging, vehicles, and camp pages. Other locations keep the global pages. */
+export function showsLesvosGuidance(me: VolunteerApplicationStatus): boolean {
+  if (/lesvos/i.test(me.location)) return true;
+  return (me.termOfService?.locationPreferences ?? []).some((place) => /lesvos/i.test(place));
+}
+
+export const LOCAL_GUIDANCE_NOTE =
+  'Local guidance for your location is not in the portal yet.';
+
 function classifyPlace(value: string): JourneyDestination | null {
   const text = value.trim();
   if (!text) return null;

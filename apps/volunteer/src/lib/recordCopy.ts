@@ -1,5 +1,5 @@
 import type { MyInfoFlightLeg, MyInfoFlights } from './myInfo';
-import { downloadPdfFile, printHtmlDocument } from './preparationDocumentPdf';
+import { downloadPdfFile, printHtmlDocument, recordDownloadName } from './preparationDocumentPdf';
 
 export type ItineraryDirection = {
   title: string;
@@ -21,6 +21,7 @@ export function itineraryLines(flights: MyInfoFlights): string[] {
     'Itinerary',
     `Passenger: ${flights.passenger}`,
     `Record locator: ${flights.recordLocator}`,
+    `Airline: ${flights.airlineLabel}`,
   ];
   for (const direction of itineraryDirections(flights)) {
     lines.push(direction.title);
@@ -63,6 +64,7 @@ export function itineraryPrintHtml(flights: MyInfoFlights): string {
   <h1 style="margin:12px 0 0;font-size:28px">Itinerary</h1>
   <p style="margin:18px 0 0;font-size:18px;font-weight:700">${escapeHtml(flights.passenger)}</p>
   <p style="margin:4px 0 0">Record locator: ${escapeHtml(flights.recordLocator)}</p>
+  <p style="margin:4px 0 0">Airline: ${escapeHtml(flights.airlineLabel)}</p>
   ${directions}
 </body>
 </html>`;
@@ -89,17 +91,20 @@ export function passportPrintHtml(src: string, number: string, expiration: strin
 }
 
 export function downloadItinerary(flights: MyInfoFlights): void {
-  downloadPdfFile('itinerary.pdf', itineraryLines(flights));
+  const type = flights.airlineLabel.trim()
+    ? `${flights.airlineLabel.trim()} itinerary`
+    : 'Itinerary';
+  downloadPdfFile(recordDownloadName(flights.passenger, type, 'pdf'), itineraryLines(flights));
 }
 
 export function printItinerary(flights: MyInfoFlights): void {
   printHtmlDocument(itineraryPrintHtml(flights));
 }
 
-export function downloadPassportImage(src: string): void {
+export function downloadPassportImage(src: string, volunteerName = 'Volunteer'): void {
   const link = document.createElement('a');
   link.href = src;
-  link.download = 'passport.png';
+  link.download = recordDownloadName(volunteerName, 'Passport', 'png');
   link.click();
 }
 

@@ -21,31 +21,23 @@ export function FieldScheduleBar() {
   return (
     <>
       <div className="relative z-10 grid w-full grid-cols-3 text-center">
-        {SCHEDULES.map((schedule, index) => (
+        {SCHEDULES.map((schedule) => (
           <div
             key={schedule.id}
-            className="relative flex flex-col items-center justify-center gap-0.5 px-3 py-1.5"
+            className="relative flex flex-col items-center justify-center px-2 py-1.5"
           >
-            <div className="flex items-center justify-center gap-3 sm:gap-4">
-              <p className="text-center text-base font-semibold leading-tight text-navy sm:text-lg">
+            <button
+              type="button"
+              aria-label={schedule.label}
+              aria-expanded={open === schedule.id}
+              onClick={() => toggle(schedule.id)}
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-3 py-2 ring-1 ring-navy/15 hover:ring-navy/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy sm:gap-4"
+            >
+              <span className="text-center text-base font-semibold leading-tight text-navy sm:text-lg">
                 {schedule.label}
-              </p>
-              <button
-                type="button"
-                aria-label={schedule.label}
-                aria-expanded={open === schedule.id}
-                onClick={() => toggle(schedule.id)}
-                className="shrink-0 rounded-full transition hover:brightness-95"
-              >
-                <ScheduleMark id={schedule.id} />
-              </button>
-            </div>
-            {index < SCHEDULES.length - 1 ? (
-              <span
-                className="absolute top-1/2 right-0 h-10 w-px -translate-y-1/2 bg-navy/15"
-                aria-hidden
-              />
-            ) : null}
+              </span>
+              <ScheduleMark id={schedule.id} />
+            </button>
           </div>
         ))}
       </div>

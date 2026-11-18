@@ -48,7 +48,7 @@ export function PortalShell({
         className={`mx-auto w-full flex-1 px-5 ${
           tab === 'volunteer'
             ? 'max-w-6xl pt-0 pb-0'
-            : tab === 'visionValues'
+            :           tab === 'visionValues' || tab === 'guidelinesFaith'
               ? 'max-w-5xl pt-8 pb-0'
               : 'max-w-5xl py-8'
         }`}

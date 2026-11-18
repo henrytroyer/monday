@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { JANE_MILLER } from '../mock/fixtures.ts';
 import {
+  FINAL_CHECKLIST_CASH_NOTE,
   FINAL_CHECKLIST_ITEMS,
   FINAL_CHECKLIST_SEASON_NOTE,
   arriveInEurope,
@@ -76,9 +77,10 @@ describe('final checklist', () => {
   it('keeps the departure essentials and the season note', () => {
     assert.deepEqual(
       FINAL_CHECKLIST_ITEMS.map((item) => item.label),
-      ['Passport', 'Payment method', 'Season-appropriate clothing'],
+      ['Passport', 'Credit/debit card', 'Season-appropriate clothing'],
     );
     assert.equal(FINAL_CHECKLIST_SEASON_NOTE, 'Summer and winter packing differ.');
+    assert.equal(FINAL_CHECKLIST_CASH_NOTE, 'Cash is easy to lose. You do not have to bring it.');
   });
 
   it('keeps arrival separate from a finished checklist', () => {

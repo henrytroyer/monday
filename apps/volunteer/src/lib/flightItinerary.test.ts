@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { flightItineraryFor } from './flightItinerary.ts';
+import { flightItinerariesFor, flightItineraryFor } from './flightItinerary.ts';
 
 describe('flight itinerary', () => {
   it('names the volunteer and keeps the sample record locator', () => {
     const itinerary = flightItineraryFor('  Jane Miller  ');
     assert.equal(itinerary.passenger, 'Jane Miller');
     assert.equal(itinerary.recordLocator, 'I58-7K2M');
+    assert.equal(itinerary.airlineLabel, 'Delta, Aegean, Olympic Air');
     assert.equal(itinerary.field, 'Lesvos');
   });
 
@@ -37,5 +38,14 @@ describe('flight itinerary', () => {
       assert.ok(leg.toCode.length === 3);
     }
     assert.equal(legs[0]?.nextDay, true);
+  });
+
+  it('keeps a second record locator beside the main ticket', () => {
+    const tickets = flightItinerariesFor('Jane Miller');
+    assert.equal(tickets.length, 2);
+    assert.equal(tickets[1]?.recordLocator, 'A3-19KX');
+    assert.equal(tickets[1]?.airlineLabel, 'Aegean');
+    assert.equal(tickets[1]?.passenger, 'Jane Miller');
+    assert.equal(tickets[0]?.recordLocator, flightItineraryFor('Jane Miller').recordLocator);
   });
 });

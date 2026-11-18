@@ -51,8 +51,8 @@ export const PROVIDER_LINKS = {
   },
   safeguarding_certificate: {
     href: 'https://www.i58global.org/',
-    label: 'Open the safeguarding course (placeholder)',
-    note: 'Placeholder link. This opens a new tab and does not record your course.',
+    label: 'Open Kaya Connect (placeholder)',
+    note: 'Placeholder link. The safeguarding course is on Kaya Connect. This opens a new tab and does not record your course.',
   },
 } as const;
 

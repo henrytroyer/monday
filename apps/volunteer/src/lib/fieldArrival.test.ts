@@ -4,7 +4,7 @@ import { JANE_MILLER } from '../mock/fixtures.ts';
 import { resolveOnboardingSteps } from './onboarding.ts';
 import {
   FIELD_ARRIVAL_NOTICE,
-  fieldLandingAt,
+  fieldPortalOpensAt,
   hasLandedInEurope,
   showFieldArrivalNotice,
 } from './fieldArrival.ts';
@@ -25,24 +25,21 @@ function withTrainingFilled(filled: boolean) {
 }
 
 describe('field arrival', () => {
-  const landing = new Date('2026-06-06T15:00:00.000Z');
+  const opens = new Date('2026-06-06T00:00:00.000Z');
 
-  it('lands Jane in Mytilene at 6:00 PM Greece time on 6 June 2026', () => {
-    assert.equal(fieldLandingAt(JANE_MILLER)?.toISOString(), landing.toISOString());
-    assert.equal(
-      hasLandedInEurope(JANE_MILLER, new Date(landing.getTime() - 60_000)),
-      false,
-    );
-    assert.equal(hasLandedInEurope(JANE_MILLER, landing), true);
+  it('opens Jane’s field portal the day after she leaves home', () => {
+    assert.equal(fieldPortalOpensAt(JANE_MILLER)?.toISOString(), opens.toISOString());
+    assert.equal(hasLandedInEurope(JANE_MILLER, new Date(opens.getTime() - 60_000)), false);
+    assert.equal(hasLandedInEurope(JANE_MILLER, opens), true);
   });
 
   it('leaves a term with no itinerary on the ground', () => {
     const other = { ...JANE_MILLER, term: 'Fall 2027' };
-    assert.equal(fieldLandingAt(other), null);
-    assert.equal(hasLandedInEurope(other, landing), false);
+    assert.equal(fieldPortalOpensAt(other), null);
+    assert.equal(hasLandedInEurope(other, opens), false);
   });
 
-  it('shows the landing notice once Team Training is filled', () => {
+  it('shows the departure notice once Team Training is filled', () => {
     assert.equal(showFieldArrivalNotice(withTrainingFilled(false)), false);
     assert.equal(showFieldArrivalNotice(withTrainingFilled(true)), true);
     assert.equal(
@@ -51,7 +48,7 @@ describe('field arrival', () => {
     );
     assert.equal(
       FIELD_ARRIVAL_NOTICE,
-      "The On-Field Volunteer Page will appear when you've landed in Europe.",
+      'The On-Field Volunteer Page will appear the day after you depart.',
     );
   });
 });

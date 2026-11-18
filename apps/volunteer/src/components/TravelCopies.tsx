@@ -16,10 +16,12 @@ export function PassportImage({
   src,
   number,
   expiration,
+  volunteerName = 'Volunteer',
 }: {
   src: string;
   number: string;
   expiration: string;
+  volunteerName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
@@ -46,7 +48,7 @@ export function PassportImage({
           label="Passport"
           wide
           onClose={close}
-          onDownload={() => downloadPassportImage(src)}
+          onDownload={() => downloadPassportImage(src, volunteerName)}
           onPrint={() => printPassport(src, number, expiration)}
         >
           <img src={src} alt="Passport" className="w-full rounded-sm bg-white" />
@@ -84,6 +86,7 @@ export function ItineraryImage({ flights }: { flights: MyInfoFlights }) {
             <p className="mt-2 font-display text-2xl font-extrabold">Itinerary</p>
             <div className="mt-3 h-0.5 w-12 bg-crm-terracotta" />
             <p className="mt-4 font-display text-lg font-extrabold">{flights.passenger}</p>
+            <p className="text-sm tracking-wide">{flights.airlineLabel}</p>
             <p className="text-sm tracking-wide">Record locator {flights.recordLocator}</p>
             {routes.map((direction) => (
               <section key={direction.title} className="mt-5">

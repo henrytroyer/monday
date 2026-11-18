@@ -10,7 +10,13 @@ import { PREVIEW_THUMB_CLASS, PreviewDialog } from './PreviewDialog';
 const THUMB_WIDTH = 88;
 const THUMB_HEIGHT = 112;
 
-export function DocumentCopy({ document: record }: { document: MyInfoDocument }) {
+export function DocumentCopy({
+  document: record,
+  volunteerName = 'Volunteer',
+}: {
+  document: MyInfoDocument;
+  volunteerName?: string;
+}) {
   const draft = record.draft;
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
@@ -40,7 +46,7 @@ export function DocumentCopy({ document: record }: { document: MyInfoDocument })
         <PreviewDialog
           label={fields.title}
           onClose={close}
-          onDownload={() => downloadPreparationDocumentPdf(record.id, draft)}
+          onDownload={() => downloadPreparationDocumentPdf(record.id, draft, volunteerName)}
           onPrint={() => printPreparationDocument(record.id, draft)}
         >
           <DocumentPage {...page} />

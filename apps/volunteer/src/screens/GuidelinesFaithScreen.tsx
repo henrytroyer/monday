@@ -1,5 +1,6 @@
-import type { ReactNode, SVGProps } from 'react';
-import { SectionWave } from '../components/SectionWave';
+import type { CSSProperties, ReactNode, SVGProps } from 'react';
+import { tornWashStyle } from '../components/TornWash';
+import { CORE_VALUES_WASH } from '../lib/visionValues';
 import {
   GUIDELINES_FAITH_CONDUCT_BULLETS,
   GUIDELINES_FAITH_CONDUCT_HEADING,
@@ -18,9 +19,25 @@ import {
   DRESS_CODE_MEN_HEADING,
 } from '../process/guidelines';
 
+const WASH_ART = `url(${CORE_VALUES_WASH})`;
+
+/** Torn edge only. The artwork is painted separately so it keeps its own shape. */
+const guidelinesWashMask: CSSProperties = {
+  maskImage: tornWashStyle.maskImage,
+  WebkitMaskImage: tornWashStyle.WebkitMaskImage,
+  maskSize: tornWashStyle.maskSize,
+  WebkitMaskSize: tornWashStyle.WebkitMaskSize,
+  maskPosition: tornWashStyle.maskPosition,
+  WebkitMaskPosition: tornWashStyle.WebkitMaskPosition,
+  maskRepeat: tornWashStyle.maskRepeat,
+  WebkitMaskRepeat: tornWashStyle.WebkitMaskRepeat,
+  maskComposite: tornWashStyle.maskComposite,
+  WebkitMaskComposite: tornWashStyle.WebkitMaskComposite,
+};
+
 export function GuidelinesFaithScreen() {
   return (
-    <div className="pb-16">
+    <div>
       <section className="relative left-1/2 -mt-8 w-screen -translate-x-1/2">
         <div className="relative h-[22rem] overflow-hidden sm:h-[26rem]">
           <img
@@ -42,37 +59,61 @@ export function GuidelinesFaithScreen() {
         <blockquote className="mx-auto max-w-3xl px-5 pt-12 pb-20 text-center text-xl font-semibold leading-9 text-white sm:pt-16 sm:pb-24 sm:text-2xl sm:leading-10">
           “{GUIDELINES_FAITH_PURPOSE}”
         </blockquote>
-        <SectionWave className="pointer-events-none absolute inset-x-0 bottom-0 h-[4.25rem] w-full text-crm-white" />
       </section>
 
-      <ApproachBlock heading={GUIDELINES_FAITH_CONDUCT_HEADING} icon={<PeopleIcon />}>
-        <BulletList items={GUIDELINES_FAITH_CONDUCT_BULLETS} />
-      </ApproachBlock>
+      <section
+        className="relative left-1/2 z-10 -mt-[4.25rem] w-screen -translate-x-1/2 bg-[#f7f7f7] px-5 pb-16"
+        style={guidelinesWashMask}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 aspect-[1024/495] bg-[length:100%_100%] bg-top bg-no-repeat"
+          style={{
+            backgroundImage: WASH_ART,
+            maskImage: 'linear-gradient(to bottom, #000 68%, transparent)',
+            WebkitMaskImage: 'linear-gradient(to bottom, #000 68%, transparent)',
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 aspect-[1024/495] bg-[length:100%_100%] bg-bottom bg-no-repeat"
+          style={{
+            backgroundImage: WASH_ART,
+            maskImage: 'linear-gradient(to bottom, transparent 60%, #000 88%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 60%, #000 88%)',
+          }}
+        />
+        <div className="relative mx-auto max-w-3xl pt-[calc(4.25rem+1.5rem)]">
+          <ApproachBlock heading={GUIDELINES_FAITH_CONDUCT_HEADING} icon={<PeopleIcon />}>
+            <BulletList items={GUIDELINES_FAITH_CONDUCT_BULLETS} />
+          </ApproachBlock>
 
-      <ApproachBlock heading={DRESS_CODE_HEADING} icon={<ShirtIcon />}>
-        <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-          <div className="rounded-2xl bg-rose-50 px-5 py-5">
-            <h3 className="font-display text-center text-2xl font-extrabold text-navy">
-              {DRESS_CODE_LADIES_HEADING.replace(/:$/, '')}
-            </h3>
-            <BulletList items={DRESS_CODE_LADIES_BULLETS} />
-          </div>
-          <div className="rounded-2xl bg-sky-50 px-5 py-5">
-            <h3 className="font-display text-center text-2xl font-extrabold text-navy">
-              {DRESS_CODE_MEN_HEADING.replace(/:$/, '')}
-            </h3>
-            <BulletList items={DRESS_CODE_MEN_BULLETS} />
-          </div>
+          <ApproachBlock heading={DRESS_CODE_HEADING} icon={<ShirtIcon />}>
+            <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+              <div className="px-5 py-5">
+                <h3 className="font-display text-center text-2xl font-extrabold text-navy">
+                  {DRESS_CODE_LADIES_HEADING.replace(/:$/, '')}
+                </h3>
+                <BulletList items={DRESS_CODE_LADIES_BULLETS} />
+              </div>
+              <div className="px-5 py-5">
+                <h3 className="font-display text-center text-2xl font-extrabold text-navy">
+                  {DRESS_CODE_MEN_HEADING.replace(/:$/, '')}
+                </h3>
+                <BulletList items={DRESS_CODE_MEN_BULLETS} />
+              </div>
+            </div>
+            <p className="mt-5 px-5 py-4 text-base leading-7 text-navy">
+              {DRESS_CODE_BRACELET_NOTE}.
+            </p>
+          </ApproachBlock>
+
+          <ApproachBlock heading={DRESS_CODE_GENERAL_HEADING} icon={<HeartIcon />}>
+            <BulletList items={DRESS_CODE_GENERAL_BULLETS} />
+            <p className="mt-8 text-base leading-7 text-navy">{AGREEMENT_NOTE}.</p>
+          </ApproachBlock>
         </div>
-        <p className="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-base leading-7 text-navy">
-          {DRESS_CODE_BRACELET_NOTE}.
-        </p>
-      </ApproachBlock>
-
-      <ApproachBlock heading={DRESS_CODE_GENERAL_HEADING} icon={<HeartIcon />}>
-        <BulletList items={DRESS_CODE_GENERAL_BULLETS} />
-        <p className="mt-8 text-base leading-7 text-navy">{AGREEMENT_NOTE}.</p>
-      </ApproachBlock>
+      </section>
     </div>
   );
 }
@@ -87,7 +128,7 @@ function ApproachBlock({
   children: ReactNode;
 }) {
   return (
-    <section className="mx-auto mt-14 max-w-3xl scroll-mt-28 sm:mt-20">
+    <section className="mt-14 scroll-mt-28 first:mt-0 sm:mt-20 sm:first:mt-0">
       <div className="flex items-center justify-center gap-4">
         <h2 className="font-display text-[1.85rem] font-extrabold leading-tight text-crm-terracotta">
           {heading}

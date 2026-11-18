@@ -7,7 +7,9 @@ import {
   MOCK_PROFILE_PHOTO,
   MOCK_VOLUNTEER_PHONE,
   NOT_ON_FILE,
+  contactDraftFor,
   myInfoFor,
+  withMyInfoContact,
 } from './myInfo.ts';
 
 describe('my info', () => {
@@ -25,10 +27,14 @@ describe('my info', () => {
     assert.equal(info.passportNumber, '548291763');
     assert.equal(info.passportExpiration, 'August 18, 2029');
     assert.equal(info.location, 'Lesvos (confirmed)');
-    assert.equal(info.term, 'Summer 2026');
-    assert.equal(info.length, '3 months');
+    assert.equal(info.term, 'June 6, 2026 – August 28, 2026');
+    assert.equal(info.length, '83 days');
     assert.equal(info.airport, 'Charlotte (CLT)');
     assert.equal(info.flights?.recordLocator, 'I58-7K2M');
+    assert.equal(info.flights?.airlineLabel, 'Delta, Aegean, Olympic Air');
+    assert.equal(info.itineraries.length, 2);
+    assert.equal(info.itineraries[1]?.recordLocator, 'A3-19KX');
+    assert.equal(info.itineraries[1]?.airlineLabel, 'Aegean');
     assert.equal(info.flights?.passenger, 'Jane Miller');
     assert.equal(info.flights?.arrivalFlight, 'Olympic Air OA 221');
     assert.match(info.flights?.arrival ?? '', /Mytilene/);
@@ -161,7 +167,7 @@ describe('my info', () => {
     assert.equal(info.passportNumber, '111222333');
     assert.equal(info.passportExpiration, 'January 5, 2030');
     assert.equal(info.location, 'Germany');
-    assert.equal(info.length, '6 weeks');
+    assert.equal(info.length, '83 days');
     assert.equal(info.airport, 'PHL');
     assert.equal(info.documents[0]?.statusLabel, 'Received by i58');
     assert.equal(info.documents[0]?.onFile, false);
@@ -193,6 +199,7 @@ describe('my info', () => {
     assert.equal(info.term, NOT_ON_FILE);
     assert.equal(info.length, NOT_ON_FILE);
     assert.equal(info.flights, null);
+    assert.deepEqual(info.itineraries, []);
     assert.equal(info.documents[0]?.statusLabel, NOT_ON_FILE);
     assert.equal(info.documents[0]?.draft, null);
     assert.deepEqual(
@@ -200,5 +207,28 @@ describe('my info', () => {
       ['i58'],
     );
     assert.equal(info.medical, NOT_ON_FILE);
+  });
+
+  it('writes corrected contact details back onto the application', () => {
+    const saved = withMyInfoContact(JANE_MILLER, {
+      ...contactDraftFor(JANE_MILLER),
+      email: 'jane.updated@example.com',
+      phone: '(704) 555-0100',
+      birthdate: '1998-05-02',
+      street: '12 Church Street',
+      photoFileName: 'lanyard.png',
+      photoDataUrl: 'data:image/png;base64,abc',
+    });
+    const info = myInfoFor(saved);
+    assert.equal(saved.email, 'jane.updated@example.com');
+    assert.equal(saved.generalInformation?.street, '12 Church Street');
+    assert.equal(saved.generalInformation?.birthdate, '1998-05-02');
+    assert.equal(saved.generalInformation?.phone, '7045550100');
+    assert.equal(saved.profilePhoto?.photoFileName, 'lanyard.png');
+    assert.equal(info.phone, '(704) 555-0100');
+    assert.equal(info.birthday, 'May 2, 1998');
+    assert.equal(info.address[0], '12 Church Street');
+    assert.equal(info.photo, 'data:image/png;base64,abc');
+    assert.equal(myInfoFor(saved).documents[0]?.statusLabel, 'On file');
   });
 });

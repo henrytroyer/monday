@@ -98,6 +98,20 @@ export function printHtmlDocument(html: string): void {
   win.print();
 }
 
+export function recordDownloadName(
+  volunteerName: string,
+  documentType: string,
+  extension: string,
+): string {
+  const person = safeFilePart(volunteerName) || 'Volunteer';
+  const type = safeFilePart(documentType) || 'Document';
+  return `${person} - ${type}.${extension}`;
+}
+
+function safeFilePart(value: string): string {
+  return value.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+}
+
 export function downloadPdfFile(filename: string, lines: readonly string[]): void {
   const bytes = buildPdf(lines);
   const blob = new Blob(
@@ -115,8 +129,10 @@ export function downloadPdfFile(filename: string, lines: readonly string[]): voi
 export function downloadPreparationDocumentPdf(
   id: PreparationDocumentId,
   draft: PreparationDocumentDraft,
+  volunteerName?: string,
 ): void {
-  downloadPdfFile(`${id.replaceAll('_', '-')}.pdf`, [
+  const person = volunteerName?.trim() || draft.name.trim() || 'Volunteer';
+  downloadPdfFile(recordDownloadName(person, DOCUMENT_FIELDS[id].title, 'pdf'), [
     DOCUMENT_FIELDS[id].title,
     `${DOCUMENT_FIELDS[id].nameLabel}: ${draft.name}`,
     `${DOCUMENT_FIELDS[id].dateLabel}: ${draft.date}`,

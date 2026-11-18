@@ -1,8 +1,17 @@
-import { useState, type ReactNode } from 'react';
-import type { VolunteerApplicationStatus } from '../contract/volunteerApi';
+import { useRef, useState, type ReactNode } from 'react';
+import type { VolunteerApplicationStatus, VolunteerApplicationUpdate } from '../contract/volunteerApi';
 import { DocumentCopy } from '../components/DocumentCopy';
+import { TextField } from '../components/Field';
 import { ItineraryImage, PassportImage } from '../components/TravelCopies';
-import { NOT_ON_FILE, myInfoFor, type MyInfoDocument } from '../lib/myInfo';
+import {
+  NOT_ON_FILE,
+  contactDraftFor,
+  myInfoFor,
+  withMyInfoContact,
+  type MyInfoContactDraft,
+  type MyInfoDocument,
+  type MyInfoFlights,
+} from '../lib/myInfo';
 import { GERMANY_GREETING_BACKDROP, HOME_GREETING_BACKDROP } from '../lib/nav';
 import { DOCUMENT_FIELDS } from '../lib/preparationDocuments';
 import { downloadPreparationDocumentPdf } from '../lib/preparationDocumentPdf';
@@ -10,15 +19,40 @@ import { COORDINATOR_EMAIL } from '../lib/volunteerGuide';
 
 type SectionId = 'profile' | 'passport' | 'flights' | 'documents';
 
-export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) {
+export function VolunteerInfoScreen({
+  me,
+  onUpdateMe,
+}: {
+  me: VolunteerApplicationStatus;
+  onUpdateMe: (next: VolunteerApplicationUpdate) => void;
+}) {
   const info = myInfoFor(me);
   const [copied, setCopied] = useState<string | null>(null);
   const [openDocument, setOpenDocument] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<MyInfoContactDraft>(() => contactDraftFor(me));
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const cover = /germany/i.test(info.location)
     ? GERMANY_GREETING_BACKDROP
     : HOME_GREETING_BACKDROP;
   const onFile = info.documents.filter((document) => document.onFile).length;
   const role = [info.location, info.term].filter((part) => part !== NOT_ON_FILE).join(' · ');
+
+  function beginEdit() {
+    setDraft(contactDraftFor(me));
+    setEditing(true);
+  }
+
+  function saveEdit() {
+    onUpdateMe(withMyInfoContact(me, draft));
+    setEditing(false);
+  }
+
+  function patchDraft<K extends keyof MyInfoContactDraft>(key: K, value: MyInfoContactDraft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  const photo = editing && draft.photoDataUrl ? draft.photoDataUrl : info.photo;
 
   function copy(id: string, value: string) {
     if (!value || value === NOT_ON_FILE) return;
@@ -42,7 +76,7 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="flex items-end gap-4">
                   <img
-                    src={info.photo}
+                    src={photo}
                     alt=""
                     className="-mt-12 h-24 w-24 shrink-0 rounded-full bg-white object-cover object-[center_18%] ring-4 ring-white"
                   />
@@ -53,12 +87,40 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                     {role ? <p className="mt-0.5 text-sm text-navy/70">{role}</p> : null}
                   </div>
                 </div>
-                <a
-                  href={`mailto:${COORDINATOR_EMAIL}`}
-                  className="inline-flex w-fit rounded-full bg-crm-terracotta px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
-                >
-                  Message us
-                </a>
+                <div className="flex flex-wrap items-center gap-2">
+                  {editing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setEditing(false)}
+                        className="inline-flex rounded-full px-4 py-2 text-sm font-semibold text-navy hover:bg-crm-surface"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveEdit}
+                        className="inline-flex rounded-full bg-crm-terracotta px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+                      >
+                        Save
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={beginEdit}
+                      className="inline-flex rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <a
+                    href={`mailto:${COORDINATOR_EMAIL}`}
+                    className="inline-flex w-fit rounded-full bg-crm-terracotta px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+                  >
+                    Message us
+                  </a>
+                </div>
               </div>
               <dl className="mt-5 grid grid-cols-3 gap-4 border-t border-sand/80 pt-5">
                 <Stat label="Length" value={info.length} />
@@ -68,19 +130,116 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                   value={onFile === 0 ? NOT_ON_FILE : onFile === 1 ? '1 on file' : `${onFile} on file`}
                 />
               </dl>
-              <dl className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-sand/80 pt-5 sm:grid-cols-3">
-                <IntroRow label="Phone">
-                  <PhoneLink phone={info.phone} />
-                </IntroRow>
-                <IntroRow label="Email">
-                  <MailLink email={info.email} />
-                </IntroRow>
-                <IntroRow label="Birthday">{info.birthday}</IntroRow>
-                <IntroRow label="Gender">{info.gender}</IntroRow>
-                <IntroRow label="Home address" className="sm:col-span-2">
-                  {info.address.join(', ')}
-                </IntroRow>
-              </dl>
+              {editing ? (
+                <form
+                  className="mt-5 grid grid-cols-1 gap-4 border-t border-sand/80 pt-5 sm:grid-cols-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    saveEdit();
+                  }}
+                >
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = typeof reader.result === 'string' ? reader.result : '';
+                        setDraft((current) => ({
+                          ...current,
+                          photoFileName: file.name,
+                          photoDataUrl: result,
+                        }));
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  <div className="sm:col-span-2">
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="inline-flex rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+                    >
+                      Replace photo
+                    </button>
+                  </div>
+                  <TextField
+                    label="Phone"
+                    name="phone"
+                    autoComplete="tel"
+                    value={draft.phone}
+                    onChange={(event) => patchDraft('phone', event.target.value)}
+                  />
+                  <TextField
+                    label="Email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    value={draft.email}
+                    onChange={(event) => patchDraft('email', event.target.value)}
+                  />
+                  <TextField
+                    label="Birthday"
+                    name="birthdate"
+                    type="date"
+                    value={draft.birthdate}
+                    onChange={(event) => patchDraft('birthdate', event.target.value)}
+                  />
+                  <TextField
+                    label="Street"
+                    name="street"
+                    autoComplete="address-line1"
+                    value={draft.street}
+                    onChange={(event) => patchDraft('street', event.target.value)}
+                  />
+                  <TextField
+                    label="City"
+                    name="city"
+                    autoComplete="address-level2"
+                    value={draft.city}
+                    onChange={(event) => patchDraft('city', event.target.value)}
+                  />
+                  <TextField
+                    label="State"
+                    name="state"
+                    autoComplete="address-level1"
+                    value={draft.state}
+                    onChange={(event) => patchDraft('state', event.target.value)}
+                  />
+                  <TextField
+                    label="Postal code"
+                    name="postalCode"
+                    autoComplete="postal-code"
+                    value={draft.postalCode}
+                    onChange={(event) => patchDraft('postalCode', event.target.value)}
+                  />
+                  <TextField
+                    label="Country"
+                    name="country"
+                    autoComplete="country-name"
+                    value={draft.country}
+                    onChange={(event) => patchDraft('country', event.target.value)}
+                  />
+                </form>
+              ) : (
+                <dl className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-sand/80 pt-5 sm:grid-cols-3">
+                  <IntroRow label="Phone">
+                    <PhoneLink phone={info.phone} />
+                  </IntroRow>
+                  <IntroRow label="Email">
+                    <MailLink email={info.email} />
+                  </IntroRow>
+                  <IntroRow label="Birthday">{info.birthday}</IntroRow>
+                  <IntroRow label="Gender">{info.gender}</IntroRow>
+                  <IntroRow label="Home address" className="sm:col-span-2">
+                    {info.address.join(', ')}
+                  </IntroRow>
+                </dl>
+              )}
             </div>
         </section>
       </div>
@@ -93,6 +252,7 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                 <DocumentSnapshot
                   key={document.id}
                   document={document}
+                  volunteerName={info.name}
                   open={openDocument === document.id}
                   onToggle={() =>
                     setOpenDocument((current) => (current === document.id ? null : document.id))
@@ -111,6 +271,7 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                           src={info.passportPhoto}
                           number={info.passportNumber}
                           expiration={info.passportExpiration}
+                          volunteerName={info.name}
                         />
                       ) : null
                     }
@@ -137,24 +298,17 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
                 </InfoCard>
 
                 <InfoCard id="flights" title="Flights">
-                  {info.flights ? (
-                    <RecordSnapshot thumb={<ItineraryImage flights={info.flights} />}>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy/45">
-                        Flights
-                      </p>
-                      <div className="mt-2 h-px w-10 bg-crm-terracotta" />
-                      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-navy/45">
-                        Record locator
-                      </p>
-                      <div className="font-display text-base font-extrabold leading-tight text-navy">
-                        <CopyValue
-                          id="locator"
-                          value={info.flights.recordLocator}
+                  {info.itineraries.length > 0 ? (
+                    <div className="flex flex-col gap-3">
+                      {info.itineraries.map((ticket) => (
+                        <FlightTicket
+                          key={ticket.recordLocator}
+                          flights={ticket}
                           copied={copied}
                           onCopy={copy}
                         />
-                      </div>
-                    </RecordSnapshot>
+                      ))}
+                    </div>
                   ) : (
                     <p className="text-sm text-navy/60">Flight details are not on file yet.</p>
                   )}
@@ -163,6 +317,36 @@ export function VolunteerInfoScreen({ me }: { me: VolunteerApplicationStatus }) 
         </div>
       </div>
     </div>
+  );
+}
+
+function FlightTicket({
+  flights,
+  copied,
+  onCopy,
+}: {
+  flights: MyInfoFlights;
+  copied: string | null;
+  onCopy: (id: string, value: string) => void;
+}) {
+  return (
+    <RecordSnapshot thumb={<ItineraryImage flights={flights} />}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy/45">
+        {flights.airlineLabel || 'Flights'}
+      </p>
+      <div className="mt-2 h-px w-10 bg-crm-terracotta" />
+      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-navy/45">
+        Record locator
+      </p>
+      <div className="font-display text-base font-extrabold leading-tight text-navy">
+        <CopyValue
+          id={flights.recordLocator}
+          value={flights.recordLocator}
+          copied={copied}
+          onCopy={onCopy}
+        />
+      </div>
+    </RecordSnapshot>
   );
 }
 
@@ -248,10 +432,12 @@ function Detail({
 
 function DocumentSnapshot({
   document,
+  volunteerName,
   open,
   onToggle,
 }: {
   document: MyInfoDocument;
+  volunteerName: string;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -286,7 +472,7 @@ function DocumentSnapshot({
             </button>
           ) : null}
         </div>
-        <DocumentCopy document={document} />
+        <DocumentCopy document={document} volunteerName={volunteerName} />
       </div>
       {open && draft ? (
         <dl className="mt-3 grid gap-2 px-1">
@@ -300,7 +486,7 @@ function DocumentSnapshot({
           <div>
             <button
               type="button"
-              onClick={() => downloadPreparationDocumentPdf(document.id, draft)}
+              onClick={() => downloadPreparationDocumentPdf(document.id, draft, volunteerName)}
               className="text-sm font-semibold text-navy underline decoration-sand underline-offset-2"
             >
               Download

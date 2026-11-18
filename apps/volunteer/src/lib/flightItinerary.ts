@@ -20,6 +20,8 @@ export type FlightDirection = {
 export type FlightItinerary = {
   passenger: string;
   recordLocator: string;
+  /** Airlines on this ticket, shown beside the record locator. */
+  airlineLabel: string;
   term: string;
   field: string;
   directions: FlightDirection[];
@@ -103,12 +105,43 @@ const HOME: FlightLeg[] = [
   },
 ];
 
+const ATHENS_WEEKEND: FlightLeg[] = [
+  {
+    airline: 'Aegean',
+    flight: 'A3 701',
+    date: 'Friday, 17 July 2026',
+    fromCity: 'Mytilene',
+    fromCode: 'MJT',
+    departs: '8:00 AM',
+    toCity: 'Athens',
+    toCode: 'ATH',
+    arrives: '8:50 AM',
+    nextDay: false,
+  },
+];
+
+const ATHENS_RETURN: FlightLeg[] = [
+  {
+    airline: 'Aegean',
+    flight: 'A3 702',
+    date: 'Sunday, 19 July 2026',
+    fromCity: 'Athens',
+    fromCode: 'ATH',
+    departs: '7:10 PM',
+    toCity: 'Mytilene',
+    toCode: 'MJT',
+    arrives: '8:00 PM',
+    nextDay: false,
+  },
+];
+
 /** Sample booked flights for the preview. A reload does not store a personal itinerary. */
 export function flightItineraryFor(passenger: string): FlightItinerary {
-  const name = passenger.trim();
+  const name = passenger.trim() || 'Volunteer';
   return {
-    passenger: name || 'Volunteer',
+    passenger: name,
     recordLocator: 'I58-7K2M',
+    airlineLabel: 'Delta, Aegean, Olympic Air',
     term: 'Summer 2026',
     field: 'Lesvos',
     directions: [
@@ -116,4 +149,23 @@ export function flightItineraryFor(passenger: string): FlightItinerary {
       { id: 'home', title: 'Return home', legs: HOME },
     ],
   };
+}
+
+/** Every ticket on file. One itinerary is the usual case; some volunteers have another PNR. */
+export function flightItinerariesFor(passenger: string): FlightItinerary[] {
+  const primary = flightItineraryFor(passenger);
+  return [
+    primary,
+    {
+      passenger: primary.passenger,
+      recordLocator: 'A3-19KX',
+      airlineLabel: 'Aegean',
+      term: primary.term,
+      field: primary.field,
+      directions: [
+        { id: 'to-field', title: 'To Athens', legs: ATHENS_WEEKEND },
+        { id: 'home', title: 'Return to Lesvos', legs: ATHENS_RETURN },
+      ],
+    },
+  ];
 }

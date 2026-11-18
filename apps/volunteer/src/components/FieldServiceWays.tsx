@@ -13,6 +13,7 @@ import {
   type FieldServiceWayId,
   type FieldVehicle,
 } from '../lib/fieldService';
+import { LOCAL_GUIDANCE_NOTE } from '../lib/journey';
 import {
   VEHICLE_BOOKING_MONTH,
   vehicleCalendarWeeks,
@@ -37,22 +38,34 @@ export function FieldServiceWays({
   volunteerName,
   reservations,
   onReserve,
+  localTools = true,
 }: {
   volunteerId: string;
   volunteerName: string;
   reservations: readonly VehicleReservation[];
   onReserve: (reservation: VehicleReservation) => void;
+  /** Lesvos camp tools. Other locations keep feedback only. */
+  localTools?: boolean;
 }) {
   const [openTool, setOpenTool] = useState<FieldServiceWayId | null>(null);
   const closeTool = useCallback(() => setOpenTool(null), []);
+  const ways = localTools
+    ? FIELD_SERVICE_WAYS
+    : FIELD_SERVICE_WAYS.filter((way) => way.id === 'feedback');
 
   return (
     <section
       aria-label="Field tools"
       className="relative left-1/2 flex w-screen -translate-x-1/2 justify-center bg-gradient-to-b from-[#667b96] via-[#5d7ea8] to-[#224a6d] px-8 py-12 md:px-12 md:py-16"
     >
-      <ul className="grid w-full max-w-4xl grid-cols-1 items-stretch gap-4 sm:grid-cols-2 md:gap-5">
-        {FIELD_SERVICE_WAYS.map((way) => (
+      <div className="grid w-full max-w-4xl gap-4">
+        {localTools ? null : (
+          <p className="rounded-2xl bg-white px-5 py-4 text-sm font-medium text-navy shadow-[0_12px_28px_rgba(15,32,56,0.16)] ring-1 ring-navy/15">
+            {LOCAL_GUIDANCE_NOTE}
+          </p>
+        )}
+        <ul className="grid w-full grid-cols-1 items-stretch gap-4 sm:grid-cols-2 md:gap-5">
+        {ways.map((way) => (
           <ServiceWayCard
             key={way.id}
             way={way}
@@ -60,7 +73,8 @@ export function FieldServiceWays({
             onOpen={() => setOpenTool(way.id)}
           />
         ))}
-      </ul>
+        </ul>
+      </div>
       {openTool === 'vehicle' ? (
         <VehiclePickerDialog
           volunteerId={volunteerId}
@@ -531,7 +545,7 @@ function ServiceWayCard({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={onOpen}
-        className="flex h-full w-full items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-[0_12px_28px_rgba(15,32,56,0.16)] ring-white/40 hover:ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="flex h-full w-full items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-[0_12px_28px_rgba(15,32,56,0.16)] ring-1 ring-navy/15 hover:ring-navy/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
         <span className="min-w-0">
           <span className="block font-display text-xl font-bold leading-tight text-navy">{way.title}</span>

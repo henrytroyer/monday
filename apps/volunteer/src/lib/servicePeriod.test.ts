@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { JANE_MILLER } from '../mock/fixtures.ts';
-import { serviceMonths, servicePeriodFor, serviceProgress } from './servicePeriod.ts';
+import { serviceMonths, servicePeriodFor, serviceProgress, serviceRatioLabel } from './servicePeriod.ts';
 
 describe('service period', () => {
   const arrival = new Date(Date.UTC(2026, 5, 6));
@@ -48,21 +48,42 @@ describe('service period', () => {
     assert.equal(serviceProgress(arrival, departure, new Date(Date.UTC(2026, 10, 2))), 100);
   });
 
-  it('marks a Summer 2026 volunteer complete on November 2, 2026', () => {
+  it('marks a Summer 2026 volunteer complete after the assigned departure', () => {
     const period = servicePeriodFor(JANE_MILLER, new Date(Date.UTC(2026, 10, 2)));
     assert.equal(period.months, 3);
+    assert.equal(period.days, 83);
+    assert.equal(period.served, 83);
     assert.equal(period.start?.toISOString().slice(0, 10), '2026-06-06');
-    assert.equal(period.end?.toISOString().slice(0, 10), '2026-09-06');
+    assert.equal(period.end?.toISOString().slice(0, 10), '2026-08-28');
     assert.equal(period.progress, 100);
+    assert.equal(serviceRatioLabel(period), '83 days / 83 days = 100%');
   });
 
-  it('leaves the heart at the start when the term has no arrival date', () => {
+  it('counts days already served against the full term', () => {
+    const period = servicePeriodFor(JANE_MILLER, new Date(2026, 6, 6));
+    assert.equal(period.days, 83);
+    assert.equal(period.served, 30);
+    assert.equal(period.progress, 36);
+    assert.equal(serviceRatioLabel(period), '30 days / 83 days = 36%');
+  });
+
+  it('stays at zero days served until arrival', () => {
+    const period = servicePeriodFor(JANE_MILLER, new Date(2026, 5, 6));
+    assert.equal(period.served, 0);
+    assert.equal(period.progress, 0);
+    assert.equal(serviceRatioLabel(period), '0 days / 83 days = 0%');
+  });
+
+  it('leaves the bar at the start when the term has no arrival date', () => {
     const period = servicePeriodFor(
       { ...JANE_MILLER, term: 'Fall 2027' },
       new Date(Date.UTC(2026, 10, 2)),
     );
     assert.equal(period.start, null);
     assert.equal(period.end, null);
+    assert.equal(period.days, 0);
+    assert.equal(period.served, 0);
     assert.equal(period.progress, 0);
+    assert.equal(serviceRatioLabel(period), null);
   });
 });

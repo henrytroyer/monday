@@ -1,26 +1,15 @@
 import type { VolunteerApplicationStatus } from '../contract/volunteerApi';
-import { flightItineraryFor } from './flightItinerary';
+import { assignedTeamDates, daysBetween, formatTeamDate } from './teamDates';
 
 /** Almost every short-term volunteer serves for three months. */
 export const SHORT_TERM_SERVICE_MONTHS = 3;
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
-
 export type ServicePeriod = {
   months: number;
+  /** Calendar days from arrival through the day before departure. */
+  days: number;
+  /** Days already served: 0 before arrival, `days` once the period is over. */
+  served: number;
   start: Date | null;
   end: Date | null;
   /** 0 before the period, 100 after it, otherwise how far today is between the two. */
@@ -46,42 +35,51 @@ export function serviceProgress(start: Date, end: Date, now: Date): number {
   return Math.round(((today - from) / (to - from)) * 100);
 }
 
+export function servicePeriodLabel(period: ServicePeriod): string | null {
+  if (!period.start || !period.end) return null;
+  return `${formatTeamDate(period.start)} – ${formatTeamDate(period.end)}`;
+}
+
+export function serviceDayLabel(days: number): string {
+  return days === 1 ? '1 day' : `${days} days`;
+}
+
+export function serviceLengthLabel(period: ServicePeriod): string | null {
+  if (!period.start || !period.end || period.days <= 0) return null;
+  return serviceDayLabel(period.days);
+}
+
+/** Days served over the full term, with the same percent the timeline draws. */
+export function serviceRatioLabel(period: ServicePeriod): string | null {
+  if (period.days <= 0) return null;
+  const progress = Math.min(100, Math.max(0, Math.round(period.progress)));
+  return `${serviceDayLabel(period.served)} / ${serviceDayLabel(period.days)} = ${progress}%`;
+}
+
 export function servicePeriodFor(
   me: VolunteerApplicationStatus,
   now = new Date(),
 ): ServicePeriod {
   const months = serviceMonths(me);
-  const start = fieldArrival(me);
-  if (!start) return { months, start: null, end: null, progress: 0 };
-  const end = addMonths(start, months);
+  const { arrivesField, departsField } = assignedTeamDates(me);
+  if (!arrivesField || !departsField) {
+    return { months, days: 0, served: 0, start: arrivesField, end: departsField, progress: 0 };
+  }
   const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  return { months, start, end, progress: serviceProgress(start, end, today) };
+  const days = daysBetween(arrivesField, departsField);
+  return {
+    months,
+    days,
+    served: daysServed(arrivesField, departsField, today, days),
+    start: arrivesField,
+    end: departsField,
+    progress: serviceProgress(arrivesField, departsField, today),
+  };
 }
 
-function fieldArrival(me: VolunteerApplicationStatus): Date | null {
-  const term = me.term.trim();
-  if (!term) return null;
-  const itinerary = flightItineraryFor(me.name);
-  if (itinerary.term !== term) return null;
-  const inbound = itinerary.directions.find((direction) => direction.id === 'to-field');
-  const landing = inbound?.legs.at(-1);
-  return landing ? parseLongDate(landing.date) : null;
-}
-
-function parseLongDate(value: string): Date | null {
-  const match = value.match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
-  if (!match) return null;
-  const month = MONTHS.findIndex((name) => name.toLowerCase() === match[2]!.toLowerCase());
-  if (month < 0) return null;
-  return new Date(Date.UTC(Number(match[3]), month, Number(match[1])));
-}
-
-function addMonths(date: Date, months: number): Date {
-  const whole = Math.trunc(months);
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + whole;
-  const day = date.getUTCDate();
-  const first = new Date(Date.UTC(year, month, 1));
-  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, last)));
+function daysServed(start: Date, end: Date, today: Date, total: number): number {
+  const now = today.getTime();
+  if (total <= 0 || now <= start.getTime()) return 0;
+  if (now >= end.getTime()) return total;
+  return daysBetween(start, today);
 }

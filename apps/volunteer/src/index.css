@@ -187,8 +187,33 @@ h2.font-display.text-crm-terracotta {
   animation: submission-thanks-zoom 200ms ease-out both;
 }
 
+@keyframes submission-thanks-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.submission-thanks-fill {
+  transform: scaleX(0);
+  transform-origin: left center;
+  background-image: linear-gradient(to bottom, #667b96, #647fa8, #224a6d);
+  animation: submission-thanks-fill var(--thanks-fill-ms, 10000ms) linear forwards;
+}
+
+.submission-thanks-fill[data-loop='true'] {
+  animation-iteration-count: infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .submission-thanks-zoom {
     animation: none;
+  }
+
+  .submission-thanks-fill {
+    animation: none;
+    transform: scaleX(1);
   }
 }

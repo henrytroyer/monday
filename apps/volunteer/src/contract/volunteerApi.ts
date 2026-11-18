@@ -116,6 +116,8 @@ export interface VolunteerPassportDetails {
 /** Preview-only Profile Photo form. Not a Monday field. Local file name only — no upload. */
 export interface VolunteerProfilePhoto {
   photoFileName: string;
+  /** In-memory preview of a replaced photo. A reload clears it. */
+  photoDataUrl?: string;
 }
 
 /** Preview-only History / Skills / Languages form. Not a Monday field. */
@@ -265,10 +267,27 @@ export interface VolunteerApplicationStatus extends VolunteerIdentity {
    */
   finalChecklistChecked?: readonly string[];
   /**
-   * Set when the Europe arrival time has passed.
+   * Assigned team dates from Monday, as YYYY-MM-DD.
+   * Not written back to Monday from this portal.
+   */
+  teamDates?: {
+    /** Day the volunteer leaves home. */
+    departsHome?: string;
+    /** Day the volunteer arrives on the field. */
+    arrivesField?: string;
+    /** Day the volunteer leaves the field. */
+    departsField?: string;
+  };
+  /**
+   * Set when on-field access has opened.
    * Not a Monday field. A reload clears it.
    */
   arrivedInEurope?: boolean;
+  /**
+   * The Jane Miller preview keeps its sample records after the email is corrected.
+   * Not a Monday field.
+   */
+  keepsPreviewRecord?: boolean;
   /**
    * Vehicle times this volunteer reserved. Not a Monday field.
    * `volunteerId` is the account email so staff can see who reserved.

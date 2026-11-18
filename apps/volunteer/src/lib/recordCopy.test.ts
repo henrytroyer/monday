@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { JANE_MILLER } from '../mock/fixtures.ts';
 import { myInfoFor } from './myInfo.ts';
 import { itineraryLines, itineraryPrintHtml, passportPrintHtml } from './recordCopy.ts';
+import { recordDownloadName } from './preparationDocumentPdf.ts';
 
 describe('record copies', () => {
   it('prints the passport image with the number and expiration', () => {
@@ -29,5 +30,14 @@ describe('record copies', () => {
     assert.match(page, /Jane &lt;Miller&gt;/);
     assert.match(page, /I58-7K2M/);
     assert.doesNotMatch(page, /Jane <Miller>/);
+  });
+
+  it('names a download with the volunteer and the document', () => {
+    assert.equal(recordDownloadName('Jane Miller', 'Passport', 'png'), 'Jane Miller - Passport.png');
+    assert.equal(
+      recordDownloadName('Jane Miller', 'Background check', 'pdf'),
+      'Jane Miller - Background check.pdf',
+    );
+    assert.equal(recordDownloadName('  ', 'Itinerary', 'pdf'), 'Volunteer - Itinerary.pdf');
   });
 });
