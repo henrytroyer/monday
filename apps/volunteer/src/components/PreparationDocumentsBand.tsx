@@ -122,22 +122,9 @@ function DocumentCard({
   const certificate = isCertificateUpload(id);
   const formCard = id !== 'flights';
   const uploaded = !formCard && uploadStage === 'uploaded';
-  const accent: CardAccent = formCard
-    ? shown === 'accepted'
-      ? 'green'
-      : certificate && shown === 'declined'
-        ? 'gray'
-        : 'navy'
-    : uploaded
-      ? 'green'
-      : 'navy';
 
   return (
-    <CardShell
-      accent={accent}
-      title={title}
-      mark={formCard ? <StageGlyph stage={shown} /> : <FlightsGlyph />}
-    >
+    <CardShell title={title} mark={formCard ? <StageGlyph stage={shown} /> : <FlightsGlyph />}>
       <button type="button" onClick={onOpen} className={cardActionClass}>
         {formCard
           ? certificate
@@ -147,13 +134,13 @@ function DocumentCard({
       </button>
       {!formCard ? <StaffWaitingNote kind="flights" uploaded={uploaded} /> : null}
       {certificate && certificateShowsWaiting(shown) ? (
-        <p className="text-center text-xs text-crm-slate">{CERTIFICATE_WAITING_LINE}</p>
+        <p className={cardNoteClass}>{CERTIFICATE_WAITING_LINE}</p>
       ) : null}
       {formCard && !certificate && shown === 'sent' ? (
-        <p className="text-center text-xs text-crm-slate">... waiting for i58 to receive it ...</p>
+        <p className={cardNoteClass}>... waiting for i58 to receive it ...</p>
       ) : null}
       {formCard && !certificate && shown === 'received' ? (
-        <p className="text-center text-xs text-crm-slate">... waiting for i58 to accept it ...</p>
+        <p className={cardNoteClass}>... waiting for i58 to accept it ...</p>
       ) : null}
       {sent && draft && !certificate ? (
         <button
@@ -179,7 +166,7 @@ function DocumentCard({
         />
       ) : null}
       {formCard && previewStage == null && stage === 'received' ? (
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
+        <div className="flex w-full flex-wrap justify-center gap-x-3 gap-y-1">
           <button
             type="button"
             onClick={() => onUpdateMe((current) => acceptPreparationDocument(current, id))}
@@ -210,11 +197,7 @@ function TrainingCard({
   onOpen: () => void;
 }) {
   return (
-    <CardShell
-      accent={uploaded ? 'green' : 'navy'}
-      title="Team Training"
-      mark={<TrainingGlyph />}
-    >
+    <CardShell title="Team Training" mark={<TrainingGlyph />}>
       <button type="button" onClick={onOpen} className={cardActionClass}>
         View training details
       </button>
@@ -240,12 +223,12 @@ export function PreviewStageArrows({
   onStep: (delta: -1 | 1) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex w-full items-center justify-between gap-2">
       <button
         type="button"
         aria-label={previousLabel}
         onClick={() => onStep(-1)}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs text-white! hover:brightness-110"
+        className="flex h-7 w-7 shrink-0 items-center justify-center border border-navy bg-white text-xs text-navy hover:bg-navy hover:text-white!"
       >
         ←
       </button>
@@ -256,7 +239,7 @@ export function PreviewStageArrows({
         type="button"
         aria-label={nextLabel}
         onClick={() => onStep(1)}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs text-white! hover:brightness-110"
+        className="flex h-7 w-7 shrink-0 items-center justify-center border border-navy bg-white text-xs text-navy hover:bg-navy hover:text-white!"
       >
         →
       </button>
@@ -264,10 +247,10 @@ export function PreviewStageArrows({
   );
 }
 
-type CardAccent = 'navy' | 'terracotta' | 'green' | 'gray';
-
 const cardActionClass =
-  'inline-flex h-auto min-h-8 items-center self-center rounded-full bg-navy px-3 py-1.5 text-center text-xs font-semibold leading-tight text-white! hover:brightness-110';
+  'inline-flex h-auto min-h-8 items-center self-center border border-navy bg-navy px-3 py-1.5 text-center text-xs font-semibold leading-tight text-white! hover:bg-navy-dark';
+
+const cardNoteClass = 'w-full text-center text-xs leading-snug text-crm-slate';
 
 function StaffWaitingNote({
   kind,
@@ -278,51 +261,30 @@ function StaffWaitingNote({
 }) {
   const line = staffUploadWaitingLine(kind, uploaded);
   if (!line) return null;
-  return <p className="text-center text-xs text-crm-slate">{line}</p>;
+  return <p className={cardNoteClass}>{line}</p>;
 }
 
 const cardQuietClass =
-  'inline-flex h-8 items-center self-center rounded-full bg-white px-3.5 text-xs font-semibold text-navy ring-1 ring-navy/15 hover:bg-navy/5';
-
-const CARD_BAR: Record<CardAccent, string> = {
-  navy: 'bg-navy',
-  terracotta: 'bg-crm-terracotta',
-  green: 'bg-[#1f9d55]',
-  gray: 'bg-crm-slate',
-};
-
-const CARD_TILE: Record<CardAccent, string> = {
-  navy: 'bg-navy/10 text-navy',
-  terracotta: 'bg-crm-terracotta/15 text-crm-terracotta',
-  green: 'bg-[#1f9d55]/15 text-[#1f9d55]',
-  gray: 'bg-crm-slate/15 text-crm-slate',
-};
+  'inline-flex h-8 items-center self-center border border-navy/25 bg-white px-3 text-xs font-semibold text-navy hover:border-navy';
 
 function CardShell({
-  accent,
   title,
   mark,
   children,
 }: {
-  accent: CardAccent;
   title: string;
   mark: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_14px_32px_rgba(15,32,56,0.28)] ring-1 ring-white/70">
-      <div className={`h-1 ${CARD_BAR[accent]}`} />
-      <div className="flex items-center gap-3 px-3.5 pt-3">
-        <span
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${CARD_TILE[accent]}`}
-        >
-          {mark}
-        </span>
-        <h3 className="min-w-0 font-display text-base font-semibold leading-tight text-navy">
+    <article className="flex h-full flex-col border border-[#c9d0d8] bg-white">
+      <div className="flex items-center justify-center gap-2.5 border-b border-[#e4e8ed] px-3.5 py-3 text-center">
+        <span className="flex h-6 w-7 shrink-0 items-center justify-center text-navy">{mark}</span>
+        <h3 className="text-center font-display text-[15px] font-bold leading-tight text-navy">
           {title}
         </h3>
       </div>
-      <div className="flex flex-col gap-2 px-3.5 pt-2.5 pb-3.5">{children}</div>
+      <div className="flex flex-1 flex-col items-center gap-2.5 px-3.5 py-3 text-center">{children}</div>
     </article>
   );
 }

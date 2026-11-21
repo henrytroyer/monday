@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { JANE_MILLER } from '../mock/fixtures.ts';
-import { serviceMonths, servicePeriodFor, serviceProgress, serviceRatioLabel } from './servicePeriod.ts';
+import {
+  previewServicePeriod,
+  serviceDayPercent,
+  serviceMonths,
+  servicePeriodFor,
+  serviceProgress,
+  serviceRatioLabel,
+} from './servicePeriod.ts';
 
 describe('service period', () => {
   const arrival = new Date(Date.UTC(2026, 5, 6));
@@ -59,12 +66,34 @@ describe('service period', () => {
     assert.equal(serviceRatioLabel(period), '83 days / 83 days = 100%');
   });
 
+  it('counts 34 days into Jane’s 83-day term from her arrival date', () => {
+    const period = previewServicePeriod(JANE_MILLER);
+    assert.equal(period.days, 83);
+    assert.equal(period.served, 34);
+    assert.equal(serviceDayPercent(period), 41);
+    assert.equal(serviceRatioLabel(period), '34 days / 83 days = 41%');
+  });
+
   it('counts days already served against the full term', () => {
     const period = servicePeriodFor(JANE_MILLER, new Date(2026, 6, 6));
     assert.equal(period.days, 83);
     assert.equal(period.served, 30);
     assert.equal(period.progress, 36);
+    assert.equal(serviceDayPercent(period), 36);
     assert.equal(serviceRatioLabel(period), '30 days / 83 days = 36%');
+  });
+
+  it('uses days served over the full term even when the calendar progress is complete', () => {
+    const period = {
+      months: 3,
+      days: 90,
+      served: 30,
+      start: arrival,
+      end: departure,
+      progress: 100,
+    };
+    assert.equal(serviceDayPercent(period), 33);
+    assert.equal(serviceRatioLabel(period), '30 days / 90 days = 33%');
   });
 
   it('stays at zero days served until arrival', () => {

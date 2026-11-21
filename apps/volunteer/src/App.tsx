@@ -77,7 +77,7 @@ export default function App() {
   const [guestView, setGuestView] = useState<MockGuestView>('landing');
   const [unknownEmail, setUnknownEmail] = useState('');
   const [mockPreviews, setMockPreviews] = useState<MockPreviews>({});
-  const [notificationsOpen, setNotificationsOpen] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [previewHome, setPreviewHome] = useState<PreviewHomeIndex>(0);
   const [previewForEmail, setPreviewForEmail] = useState<string | null>(null);
   const [flightsUpload, setFlightsUpload] = useState<StaffUploadStage>('waiting');
@@ -101,7 +101,7 @@ export default function App() {
     setToast(null);
     setGuestView('landing');
     setUnknownEmail('');
-    setNotificationsOpen(true);
+    setNotificationsOpen(false);
     setFlightsUpload('waiting');
     setTrainingUpload('waiting');
     setChatGroup('waiting');
@@ -114,7 +114,7 @@ export default function App() {
     setProcessFocus(null);
     setDocumentFocus(null);
     setToast(message);
-    setNotificationsOpen(true);
+    setNotificationsOpen(false);
   }
 
   function rememberPreview(next: VolunteerApplicationStatus) {

@@ -29,7 +29,7 @@ import {
   processRingSteps,
   type ProcessRingSegment,
 } from '../lib/onboarding';
-import { FIELD_HOME_BACKDROP, type PortalDestination } from '../lib/nav';
+import { FIELD_HOME_BACKDROP, HOME_GREETING_BACKDROP, type PortalDestination } from '../lib/nav';
 import {
   PREVIEW_DOCUMENT_STAGE_ARROWS,
   withChatGroupProgress,
@@ -45,7 +45,7 @@ import {
   type PreviewHomeIndex,
 } from '../lib/previewHomeStepper';
 import { saveVehicleReservation } from '../lib/fieldVehicleReservation';
-import { servicePeriodFor } from '../lib/servicePeriod';
+import { previewServicePeriod } from '../lib/servicePeriod';
 import { showWelcomeHome } from '../lib/portalSession';
 import { canOpenProcessStep } from '../process/previewAccess';
 
@@ -193,13 +193,12 @@ export function HomeScreen({
               <div className="mt-2 flex min-w-0 flex-1 justify-center md:mt-1">
                 <FieldPurpose />
               </div>
-              <div className="flex h-full max-h-full min-h-0 w-full flex-col md:w-[28rem] md:flex-none">
+              <div className="w-full md:w-[28rem] md:flex-none">
                 <NotificationsPanel
                   me={view}
                   open={notificationsOpen}
                   onOpenChange={onNotificationsOpenChange}
-                  fillAvailable
-                  className="max-h-full min-h-0 w-full"
+                  className="w-full"
                 />
               </div>
             </div>
@@ -208,12 +207,14 @@ export function HomeScreen({
           <img
             src={backdrop}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            className={`absolute inset-0 h-full w-full object-cover object-center ${
+              backdrop === HOME_GREETING_BACKDROP ? 'brightness-110' : ''
+            }`}
           />
         )}
         {onField ? null : (
           <div
-            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-navy/45 via-navy/20 to-navy/35"
+            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-navy/25 via-navy/10 to-navy/18"
             aria-hidden
           />
         )}
@@ -222,12 +223,11 @@ export function HomeScreen({
             <h1 className="w-max max-w-xs shrink-0 font-display text-3xl font-extrabold tracking-tight text-white! md:ml-[max(0.25rem,calc((100vw-64rem)/2))]">
               Hello, {firstName}
             </h1>
-            <div className="h-[21rem] max-h-[calc(100%-5rem)] w-full max-w-md self-start md:flex-none">
+            <div className="w-full max-w-md self-start md:flex-none">
               <NotificationsPanel
                 me={view}
                 open={notificationsOpen}
                 onOpenChange={onNotificationsOpenChange}
-                fillAvailable
                 className="w-full"
               />
             </div>
@@ -241,7 +241,7 @@ export function HomeScreen({
           className="relative left-1/2 w-screen -translate-x-1/2 bg-[#f7f7f7] bg-cover bg-center bg-no-repeat"
           style={washStyle}
         >
-          <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">
+          <div className="mx-auto w-full max-w-5xl px-5 pt-4 pb-[calc(4.25rem+1rem)] md:pt-6">
             <div
               className={`grid text-center ${showServicePeriod ? 'grid-cols-3' : 'grid-cols-2'}`}
             >
@@ -354,7 +354,7 @@ export function HomeScreen({
             <div className="mx-auto w-full max-w-5xl">
               <h2 className="font-display text-lg font-extrabold text-navy">Your Service Period</h2>
               <div className="mt-4">
-                <ServicePeriodTimeline period={servicePeriodFor(view)} labelled={false} />
+                <ServicePeriodTimeline period={previewServicePeriod(view)} labelled={false} />
               </div>
             </div>
           </section>

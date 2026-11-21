@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { JANE_MILLER, previewStatusForNewAccount } from '../mock/fixtures.ts';
 import {
   formatNotificationDate,
+  notificationRollDownMax,
   sortedNotifications,
   unreadNotificationCount,
 } from './notifications.ts';
@@ -41,6 +42,13 @@ describe('volunteer notifications', () => {
     const me = previewStatusForNewAccount({ name: 'Sam', email: 'sam@example.com' });
     assert.equal(unreadNotificationCount(me), 1);
     assert.equal(sortedNotifications(me)[0]?.id, 'welcome');
+  });
+
+  it('caps the open panel so the gap below matches the gap above', () => {
+    assert.equal(notificationRollDownMax(100, 84, 500), 384);
+    assert.equal(notificationRollDownMax(48, 16, 448), 368);
+    assert.equal(notificationRollDownMax(200, 188, 214), 2);
+    assert.equal(notificationRollDownMax(200, 188, 210), 0);
   });
 
   it('formats a short UTC date', () => {

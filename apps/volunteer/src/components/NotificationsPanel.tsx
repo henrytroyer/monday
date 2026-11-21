@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import type {
   VolunteerApplicationStatus,
   VolunteerNotificationSource,
@@ -7,6 +8,7 @@ import {
   NOTIFICATION_SOURCE_LABEL,
   NOTIFICATIONS_TITLE,
   formatNotificationDate,
+  notificationRollDownMax,
   sortedNotifications,
   unreadNotificationCount,
 } from '../lib/notifications';
@@ -15,26 +17,59 @@ export function NotificationsPanel({
   me,
   open,
   onOpenChange,
-  fillAvailable = false,
   className = '',
 }: {
   me: VolunteerApplicationStatus;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Keep the open list inside a parent that already has a height. */
-  fillAvailable?: boolean;
   className?: string;
 }) {
   const items = sortedNotifications(me);
   const unread = unreadNotificationCount(me);
   const listId = 'volunteer-notifications';
+  const panelRef = useRef<HTMLElement>(null);
+  const [maxHeight, setMaxHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const measure = () => {
+      const bounds = rollDownBounds(panel);
+      if (!bounds) return;
+      const cap = notificationRollDownMax(bounds.panelTop, bounds.aboveBottom, bounds.belowTop);
+      const header = panel.querySelector(':scope > header');
+      const minimum = header instanceof HTMLElement ? header.offsetHeight : 0;
+      const next = Math.round(Math.max(minimum, cap));
+      setMaxHeight((current) => (current === next ? current : next));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    const hero = enclosingSection(panel);
+    if (hero) observer.observe(hero);
+    const next = hero?.nextElementSibling;
+    if (next instanceof HTMLElement) observer.observe(next);
+    const overlay = panel.parentElement?.parentElement;
+    if (overlay) {
+      for (const child of overlay.children) {
+        if (child instanceof HTMLElement) observer.observe(child);
+      }
+    }
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
 
   return (
     <section
+      ref={panelRef}
       aria-label={NOTIFICATIONS_TITLE}
-      className={`flex flex-col overflow-hidden rounded-2xl bg-white/95 shadow-lg ring-1 ring-white/60 backdrop-blur ${
-        fillAvailable ? 'max-h-full min-h-0' : ''
-      } ${fillAvailable && open ? 'h-full' : ''} ${className}`}
+      style={maxHeight == null ? undefined : { maxHeight }}
+      className={`flex w-full min-h-0 flex-col overflow-hidden bg-white/95 shadow-lg ring-1 ring-white/60 backdrop-blur ${className}`}
     >
       <header
         className={`flex shrink-0 items-center justify-between gap-3 px-4 py-3 ${open ? 'border-b border-sand/70' : ''}`}
@@ -53,7 +88,7 @@ export function NotificationsPanel({
             onClick={() => onOpenChange(!open)}
             className="flex h-7 w-7 items-center justify-center rounded-full text-navy hover:bg-sand/40"
           >
-            <span className="sr-only">{open ? 'Roll up notifications' : 'Show notifications'}</span>
+            <span className="sr-only">{open ? 'Roll up notifications' : 'Roll down notifications'}</span>
             <svg
               viewBox="0 0 24 24"
               className={`h-4 w-4 transition-transform motion-reduce:transition-none ${open ? '' : 'rotate-180'}`}
@@ -70,9 +105,9 @@ export function NotificationsPanel({
 
       <div
         id={listId}
-        className={`grid min-h-0 motion-safe:transition-[grid-template-rows] motion-safe:duration-300 motion-safe:ease-out ${
-          fillAvailable && open ? 'min-h-0 flex-1' : 'min-h-0'
-        } ${open ? 'grid-rows-[minmax(0,1fr)]' : 'grid-rows-[0fr]'}`}
+        className={`grid min-h-0 overflow-hidden motion-safe:transition-[grid-template-rows] motion-safe:duration-300 motion-safe:ease-out ${
+          open ? 'grid-rows-[minmax(0,1fr)]' : 'grid-rows-[0fr]'
+        }`}
         aria-hidden={!open}
         inert={!open}
       >
@@ -122,6 +157,40 @@ export function NotificationsPanel({
       </div>
     </section>
   );
+}
+
+/** The page section that contains the panel. The panel itself is also a section. */
+function enclosingSection(panel: HTMLElement): HTMLElement | null {
+  const parent = panel.parentElement;
+  return parent ? parent.closest('section') : null;
+}
+
+/** Gap above the panel, and the top of the section underneath it. */
+function rollDownBounds(
+  panel: HTMLElement,
+): { panelTop: number; aboveBottom: number; belowTop: number } | null {
+  const rect = panel.getBoundingClientRect();
+  const hero = enclosingSection(panel);
+  if (!hero) return null;
+  const heroRect = hero.getBoundingClientRect();
+  let aboveBottom = heroRect.top;
+
+  const overlay = panel.parentElement?.parentElement;
+  if (overlay) {
+    for (const child of overlay.children) {
+      if (!(child instanceof HTMLElement) || child.contains(panel)) continue;
+      const childRect = child.getBoundingClientRect();
+      const overlapsX = childRect.right > rect.left + 1 && childRect.left < rect.right - 1;
+      if (overlapsX && childRect.bottom <= rect.top + 1) {
+        aboveBottom = Math.max(aboveBottom, childRect.bottom);
+      }
+    }
+  }
+
+  const next = hero.nextElementSibling;
+  const nextTop = next instanceof HTMLElement ? next.getBoundingClientRect().top : heroRect.bottom;
+  const belowTop = nextTop > rect.top + 1 ? nextTop : heroRect.bottom;
+  return { panelTop: rect.top, aboveBottom, belowTop };
 }
 
 function SourceIcon({ source }: { source: VolunteerNotificationSource }) {

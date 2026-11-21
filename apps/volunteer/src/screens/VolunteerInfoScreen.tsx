@@ -71,7 +71,13 @@ export function VolunteerInfoScreen({
     <div>
       <div className="relative left-1/2 w-screen -translate-x-1/2">
         <section id="profile" className="min-w-0 bg-white">
-          <img src={cover} alt="" className="h-36 w-full object-cover object-center sm:h-44" />
+          <img
+            src={cover}
+            alt=""
+            className={`h-36 w-full object-cover object-center sm:h-44 ${
+              cover === HOME_GREETING_BACKDROP ? 'brightness-110' : ''
+            }`}
+          />
           <div className="mx-auto w-full max-w-6xl px-5 pb-5 sm:px-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="flex items-end gap-4">

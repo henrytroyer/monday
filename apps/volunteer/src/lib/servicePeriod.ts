@@ -4,6 +4,12 @@ import { assignedTeamDates, daysBetween, formatTeamDate } from './teamDates';
 /** Almost every short-term volunteer serves for three months. */
 export const SHORT_TERM_SERVICE_MONTHS = 3;
 
+/**
+ * Days after arrival the preview timeline counts as served.
+ * Arrival and departure still come from each volunteer's dates.
+ */
+const PREVIEW_DAYS_SERVED = 34;
+
 export type ServicePeriod = {
   months: number;
   /** Calendar days from arrival through the day before departure. */
@@ -49,11 +55,16 @@ export function serviceLengthLabel(period: ServicePeriod): string | null {
   return serviceDayLabel(period.days);
 }
 
-/** Days served over the full term, with the same percent the timeline draws. */
+/** Percent of the term already served: days served divided by the full term. */
+export function serviceDayPercent(period: ServicePeriod): number {
+  if (period.days <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((period.served / period.days) * 100)));
+}
+
+/** Days served over the full term, with the percent that ratio produces. */
 export function serviceRatioLabel(period: ServicePeriod): string | null {
   if (period.days <= 0) return null;
-  const progress = Math.min(100, Math.max(0, Math.round(period.progress)));
-  return `${serviceDayLabel(period.served)} / ${serviceDayLabel(period.days)} = ${progress}%`;
+  return `${serviceDayLabel(period.served)} / ${serviceDayLabel(period.days)} = ${serviceDayPercent(period)}%`;
 }
 
 export function servicePeriodFor(
@@ -75,6 +86,18 @@ export function servicePeriodFor(
     end: departsField,
     progress: serviceProgress(arrivesField, departsField, today),
   };
+}
+
+/** Preview stand-in for "today" until Monday supplies the live service date. */
+export function previewServicePeriod(me: VolunteerApplicationStatus): ServicePeriod {
+  const { arrivesField } = assignedTeamDates(me);
+  if (!arrivesField) return servicePeriodFor(me);
+  const asOf = new Date(
+    arrivesField.getUTCFullYear(),
+    arrivesField.getUTCMonth(),
+    arrivesField.getUTCDate() + PREVIEW_DAYS_SERVED,
+  );
+  return servicePeriodFor(me, asOf);
 }
 
 function daysServed(start: Date, end: Date, today: Date, total: number): number {

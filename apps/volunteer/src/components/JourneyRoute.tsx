@@ -3,6 +3,7 @@ import { SHORT_TERM_STEP_DEFAULTS } from '../contract/volunteerApi';
 import { stepFillPercent } from '../lib/formProgress';
 import { canOpenProcessStep } from '../process/previewAccess';
 import { ProgressBubble } from './ProgressBubble';
+import { SectionWave } from './SectionWave';
 import { progressConnectorTone } from '../lib/stepConnector';
 import { StepConnector } from './StepConnector';
 
@@ -32,10 +33,13 @@ export function JourneyRoute({
   return (
     <section
       className={`relative left-1/2 w-screen -translate-x-1/2 bg-white ${
-        compact ? 'py-4' : 'py-6 sm:py-8'
+        compact ? 'py-4' : 'pt-0 pb-6 sm:pb-8'
       }`}
       aria-label={`Your application progress: ${done} of ${steps.length} complete`}
     >
+      {compact ? null : (
+        <SectionWave className="pointer-events-none absolute inset-x-0 top-0 h-[4.25rem] w-full -translate-y-[calc(100%-1px)] text-white" />
+      )}
       <div className="mx-auto max-w-5xl px-5">
         <p
           className={`font-display font-semibold text-navy ${

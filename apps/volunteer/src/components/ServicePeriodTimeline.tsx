@@ -1,4 +1,8 @@
-import { serviceDayLabel, serviceRatioLabel, type ServicePeriod } from '../lib/servicePeriod';
+import {
+  serviceDayLabel,
+  serviceDayPercent,
+  type ServicePeriod,
+} from '../lib/servicePeriod';
 
 export function ServicePeriodTimeline({
   period,
@@ -7,7 +11,11 @@ export function ServicePeriodTimeline({
   period: ServicePeriod;
   labelled?: boolean;
 }) {
-  const progress = shownProgress(period);
+  const progress = serviceDayPercent(period);
+  const days =
+    period.days > 0
+      ? `${serviceDayLabel(period.served)} / ${serviceDayLabel(period.days)}`
+      : null;
   const Tag = labelled ? 'section' : 'div';
 
   return (
@@ -21,6 +29,9 @@ export function ServicePeriodTimeline({
         </h2>
       ) : null}
       <div className="relative">
+        {days ? (
+          <p className="mb-2.5 text-center text-sm font-semibold tracking-wide text-navy">{days}</p>
+        ) : null}
         <div
           className="h-2.5 w-full overflow-hidden rounded-full bg-navy/10"
           role="progressbar"
@@ -34,16 +45,10 @@ export function ServicePeriodTimeline({
             style={{ width: `${progress}%` }}
           />
         </div>
-        <p className="mt-2.5 text-center text-sm font-semibold tracking-wide text-navy">
-          {serviceRatioLabel(period) ?? `${progress}%`}
-        </p>
+        <p className="mt-2.5 text-center text-sm font-semibold tracking-wide text-navy">{progress}%</p>
       </div>
     </Tag>
   );
-}
-
-function shownProgress(period: ServicePeriod): number {
-  return Math.min(100, Math.max(0, Math.round(period.progress)));
 }
 
 function timelineLabel(period: ServicePeriod, progress: number): string {

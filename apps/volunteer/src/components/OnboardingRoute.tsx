@@ -27,6 +27,7 @@ import {
   type StaffUploadStage,
 } from '../lib/preparationDocuments';
 import { FinalChecklistPanel } from './FinalChecklistPanel';
+import { SectionWave } from './SectionWave';
 import { PreparationDocumentsBand } from './PreparationDocumentsBand';
 import { ProgressBubble } from './ProgressBubble';
 import { progressConnectorTone } from '../lib/stepConnector';
@@ -79,9 +80,10 @@ export function OnboardingRoute({
   return (
     <>
     <section
-      className="relative left-1/2 w-screen -translate-x-1/2 border-t border-[#8ea3b8] bg-white py-6 sm:py-8"
+      className="relative left-1/2 w-screen -translate-x-1/2 bg-white pt-0 pb-6 sm:pb-8"
       aria-label={`Acceptance & Service Preparation Progress: ${done} of ${steps.length} complete`}
     >
+      <SectionWave className="pointer-events-none absolute inset-x-0 top-0 h-[4.25rem] w-full -translate-y-[calc(100%-1px)] text-white" />
       <div className="mx-auto max-w-5xl px-5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <p className="font-display text-2xl font-semibold text-navy">

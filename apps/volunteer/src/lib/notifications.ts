@@ -29,6 +29,19 @@ export function unreadNotificationCount(me: VolunteerApplicationStatus): number 
   return (me.notifications ?? []).filter((item) => !item.read).length;
 }
 
+/**
+ * Tallest the panel may open while leaving the same gap under it as above it.
+ * Distances are along the page, in pixels.
+ */
+export function notificationRollDownMax(
+  panelTop: number,
+  aboveBottom: number,
+  belowTop: number,
+): number {
+  const margin = Math.max(0, panelTop - aboveBottom);
+  return Math.max(0, belowTop - panelTop - margin);
+}
+
 /** Short date such as "Oct 12". */
 export function formatNotificationDate(sentAt: string): string {
   return new Date(sentAt).toLocaleDateString('en-US', {
