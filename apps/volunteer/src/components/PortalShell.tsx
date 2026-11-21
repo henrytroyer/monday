@@ -23,7 +23,7 @@ export function PortalShell({
   portalName?: string | null;
   homeOnly?: boolean;
   toast?: string | null;
-  footerTone?: 'soft' | 'white' | 'sand' | 'deep';
+  footerTone?: 'soft' | 'white' | 'sand' | 'deep' | 'gradient';
   children: ReactNode;
 }) {
   return (
@@ -48,9 +48,11 @@ export function PortalShell({
         className={`mx-auto w-full flex-1 px-5 ${
           tab === 'volunteer'
             ? 'max-w-6xl pt-0 pb-0'
-            :           tab === 'visionValues' || tab === 'guidelinesFaith'
+            : footerTone === 'gradient'
               ? 'max-w-5xl pt-8 pb-0'
-              : 'max-w-5xl py-8'
+              : tab === 'visionValues' || tab === 'guidelinesFaith'
+                ? 'flex max-w-5xl flex-col pt-8 pb-0'
+                : 'max-w-5xl py-8'
         }`}
       >
         {children}

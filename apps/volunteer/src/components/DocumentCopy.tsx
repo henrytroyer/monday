@@ -5,10 +5,8 @@ import {
   downloadPreparationDocumentPdf,
   printPreparationDocument,
 } from '../lib/preparationDocumentPdf';
-import { PREVIEW_THUMB_CLASS, PreviewDialog } from './PreviewDialog';
-
-const THUMB_WIDTH = 88;
-const THUMB_HEIGHT = 112;
+import { CertificatePdfThumb } from './CertificatePdfThumb';
+import { PreviewDialog } from './PreviewDialog';
 
 export function DocumentCopy({
   document: record,
@@ -37,10 +35,9 @@ export function DocumentCopy({
         onClick={() => setOpen(true)}
         aria-label={`View ${fields.title}`}
         aria-haspopup="dialog"
-        className={PREVIEW_THUMB_CLASS}
-        style={{ width: THUMB_WIDTH, height: THUMB_HEIGHT }}
+        className="shrink-0 rounded bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
       >
-        <DocumentMiniature kind={page.kind} name={page.name} date={page.date} />
+        <CertificatePdfThumb kaya={page.kind === 'safeguarding_certificate'} />
       </button>
       {open ? (
         <PreviewDialog
@@ -53,48 +50,6 @@ export function DocumentCopy({
         </PreviewDialog>
       ) : null}
     </>
-  );
-}
-
-function DocumentMiniature({
-  kind,
-  name,
-  date,
-}: {
-  kind: MyInfoDocument['id'];
-  name: string;
-  date: string;
-}) {
-  if (kind === 'safeguarding_certificate') {
-    return (
-      <span aria-hidden className="flex h-full flex-col items-center border-[3px] border-double border-navy px-1 py-1.5 text-center">
-        <span className="text-[8px] font-bold uppercase tracking-[0.16em] text-navy">i58</span>
-        <span className="mt-1 line-clamp-3 font-display text-[9px] font-extrabold leading-tight text-navy">
-          {name}
-        </span>
-        <span className="mt-1 text-[7px] font-semibold text-navy/70">{date}</span>
-        <span className="mt-auto mb-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-crm-terracotta text-[6px] font-bold uppercase tracking-wider text-crm-terracotta">
-          i58
-        </span>
-      </span>
-    );
-  }
-  return (
-    <span aria-hidden className="flex h-full flex-col text-left">
-      <span className="bg-navy px-1.5 py-1.5 text-white">
-        <span className="block text-[7px] font-bold uppercase tracking-[0.14em]">i58</span>
-        <span className="mt-0.5 block font-display text-[8px] font-extrabold leading-tight">
-          Background check
-        </span>
-      </span>
-      <span className="px-1.5 pt-1.5 font-display text-[9px] font-extrabold leading-tight text-navy">
-        {name}
-      </span>
-      <span className="px-1.5 text-[7px] font-semibold text-navy/70">{date}</span>
-      <span className="mx-1.5 mt-1.5 h-px bg-sand" aria-hidden />
-      <span className="mx-1.5 mt-1 h-px bg-sand" aria-hidden />
-      <span className="mx-1.5 mt-1 h-px w-8 bg-sand" aria-hidden />
-    </span>
   );
 }
 

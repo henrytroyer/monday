@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState } from 'react';
 import type {
   ShortTermStepId,
   VolunteerApplicationStatus,
@@ -14,6 +14,7 @@ import { OnboardingReminder, OnboardingRoute } from '../components/OnboardingRou
 import { NotificationsPanel } from '../components/NotificationsPanel';
 import { ProgressBubble } from '../components/ProgressBubble';
 import { CONNECTOR } from '../lib/stepConnector';
+import { DepartureProgressDialog } from '../components/DepartureProgressDialog';
 import { ServicePeriodInfo } from '../components/ServicePeriodInfo';
 import { ServicePeriodTimeline } from '../components/ServicePeriodTimeline';
 import { greetingBackdrop, journeyArrived, journeyDestination, LOCAL_GUIDANCE_NOTE, showsLesvosGuidance } from '../lib/journey';
@@ -25,6 +26,7 @@ import {
   onboardingFillPercent,
   processCompletionPercent,
   processCompletionSegments,
+  processRingSteps,
   type ProcessRingSegment,
 } from '../lib/onboarding';
 import { FIELD_HOME_BACKDROP, type PortalDestination } from '../lib/nav';
@@ -93,6 +95,8 @@ export function HomeScreen({
   const nextFill = next ? stepFillPercent(view, next.id) : 0;
   const completion = processCompletionPercent(view);
   const completionSegments = processCompletionSegments(view);
+  const ringSteps = processRingSteps(view);
+  const [progressOpen, setProgressOpen] = useState(false);
   const firstName = view.firstName || view.name.trim().split(/\s+/)[0] || view.name;
   const arrived = journeyArrived(view);
   const destination = journeyDestination(view);
@@ -214,103 +218,112 @@ export function HomeScreen({
           />
         )}
         {onField ? null : (
-          <div className="absolute inset-0 z-10 grid grid-rows-[minmax(0,1fr)_auto]">
-            <div className="flex min-h-0 flex-col gap-3 px-4 pt-4 md:flex-row md:items-start md:justify-between md:gap-4">
-              <h1 className="w-max max-w-xs shrink-0 font-display text-3xl font-extrabold tracking-tight text-white! md:ml-[max(0.25rem,calc((100vw-64rem)/2))]">
-                Hello, {firstName}
-              </h1>
-              <div className="min-h-0 w-full max-w-md flex-1 md:h-full md:flex-none">
-                <NotificationsPanel
-                  me={view}
-                  open={notificationsOpen}
-                  onOpenChange={onNotificationsOpenChange}
-                  fillAvailable
-                  className="w-full"
-                />
-              </div>
+          <div className="absolute inset-0 z-10 flex min-h-0 flex-col gap-3 px-4 pt-4 md:flex-row md:items-start md:justify-between md:gap-4">
+            <h1 className="w-max max-w-xs shrink-0 font-display text-3xl font-extrabold tracking-tight text-white! md:ml-[max(0.25rem,calc((100vw-64rem)/2))]">
+              Hello, {firstName}
+            </h1>
+            <div className="h-[21rem] max-h-[calc(100%-5rem)] w-full max-w-md self-start md:flex-none">
+              <NotificationsPanel
+                me={view}
+                open={notificationsOpen}
+                onOpenChange={onNotificationsOpenChange}
+                fillAvailable
+                className="w-full"
+              />
             </div>
-            <div className="p-4">
-              <div
-                className={`grid rounded-2xl bg-white/95 text-center shadow-lg ring-1 ring-white/60 backdrop-blur ${
-                  showServicePeriod ? 'grid-cols-3' : 'grid-cols-2'
-                }`}
-              >
-                <FooterCell divider>
-                  {onboardingNext ? (
-                    <div className="flex items-center justify-center gap-4">
-                      <div className="flex shrink-0 flex-col items-center">
-                        <p className="text-center text-lg font-semibold leading-tight text-navy whitespace-nowrap">
-                          {onboardingFill > 0 ? 'Continue this step:' : 'Next step:'}
-                        </p>
-                        <p className="mt-1 text-center text-sm font-semibold leading-tight text-navy">
-                          {onboardingNext.title}
-                        </p>
-                      </div>
-                      <OnboardingReminder step={onboardingNext} size="lg" showLabel={false} />
-                    </div>
-                  ) : next ? (
-                    <div className="flex items-center justify-center gap-4">
-                      <div className="flex shrink-0 flex-col items-center">
-                        <p className="text-center text-lg font-semibold leading-tight text-navy whitespace-nowrap">
-                          {nextFill > 0 ? 'Continue this step:' : 'Next step:'}
-                        </p>
-                        <p className="mt-1 text-center text-sm font-semibold leading-tight text-navy">
-                          {next.title}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => openStep(next.id)}
-                        className="w-fit shrink-0"
-                        aria-label={`${next.title}, ${
-                          next.status === 'complete'
-                            ? 'complete'
-                            : nextFill > 0
-                              ? 'in progress'
-                              : 'not finished'
-                        }`}
-                      >
-                        <ProgressBubble
-                          id={next.id}
-                          title={next.title}
-                          fill={nextFill}
-                          complete={next.status === 'complete'}
-                          svgId={`${next.id}-next`}
-                          size="lg"
-                          showLabel={false}
-                        />
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-crm-slate">
+          </div>
+        )}
+      </section>
+
+      {onField ? null : (
+        <section
+          aria-label="Departure progress"
+          className="relative left-1/2 w-screen -translate-x-1/2 bg-[#f7f7f7] bg-cover bg-center bg-no-repeat"
+          style={washStyle}
+        >
+          <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">
+            <div
+              className={`grid text-center ${showServicePeriod ? 'grid-cols-3' : 'grid-cols-2'}`}
+            >
+              <div className="flex h-full items-center justify-center px-2 py-1.5">
+                {onboardingNext ? (
+                  <div className={footerPillClass}>
+                    <FooterStepCopy
+                      label={onboardingFill > 0 ? 'Continue this step:' : 'Next step:'}
+                      title={onboardingNext.title}
+                    />
+                    <OnboardingReminder step={onboardingNext} size="lg" showLabel={false} />
+                  </div>
+                ) : next ? (
+                  <button
+                    type="button"
+                    onClick={() => openStep(next.id)}
+                    className={footerPillClass}
+                    aria-label={`${next.title}, ${
+                      next.status === 'complete'
+                        ? 'complete'
+                        : nextFill > 0
+                          ? 'in progress'
+                          : 'not finished'
+                    }`}
+                  >
+                    <FooterStepCopy
+                      label={nextFill > 0 ? 'Continue this step:' : 'Next step:'}
+                      title={next.title}
+                    />
+                    <ProgressBubble
+                      id={next.id}
+                      title={next.title}
+                      fill={nextFill}
+                      complete={next.status === 'complete'}
+                      svgId={`${next.id}-next`}
+                      size="lg"
+                      showLabel={false}
+                    />
+                  </button>
+                ) : (
+                  <div className={footerPillClass}>
+                    <p className="text-center text-sm font-semibold leading-tight text-navy">
                       {completion === 100
                         ? "We're excited to welcome you to Europe!"
                         : arrived
                           ? 'Your short-term application is complete.'
                           : 'Nothing for you to do right now on this application.'}
                     </p>
-                  )}
-                </FooterCell>
-                <FooterCell divider={showServicePeriod}>
-                  <div className="flex items-center justify-center gap-4">
-                    <p className="text-center text-lg font-semibold leading-tight text-navy">
-                      Progress
-                      <br />
-                      until departure
-                    </p>
-                    <CompletionRing percent={completion} segments={completionSegments} />
                   </div>
-                </FooterCell>
-                {showServicePeriod ? (
-                  <FooterCell>
-                    <ServicePeriodInfo className="w-[82%] shadow-none ring-0" />
-                  </FooterCell>
-                ) : null}
+                )}
               </div>
+              <div className="flex h-full items-center justify-center px-2 py-1.5">
+                <button
+                  type="button"
+                  aria-expanded={progressOpen}
+                  onClick={() => setProgressOpen(true)}
+                  className={footerPillClass}
+                >
+                  <p className="text-center text-base font-semibold leading-tight text-navy sm:text-lg">
+                    Progress
+                    <br />
+                    until departure
+                  </p>
+                  <CompletionRing percent={completion} segments={completionSegments} />
+                </button>
+              </div>
+              {showServicePeriod ? (
+                <div className="flex h-full items-center justify-center px-2 py-1.5">
+                  <ServicePeriodInfo />
+                </div>
+              ) : null}
             </div>
+            {progressOpen ? (
+              <DepartureProgressDialog
+                percent={completion}
+                steps={ringSteps}
+                onClose={() => setProgressOpen(false)}
+              />
+            ) : null}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {onField ? (
         <>
@@ -411,22 +424,16 @@ function PreviewHomeArrows({
   );
 }
 
-function FooterCell({
-  children,
-  divider = false,
-}: {
-  children: ReactNode;
-  divider?: boolean;
-}) {
+const footerPillClass =
+  'flex h-full w-full items-center justify-center gap-3 rounded-2xl bg-white px-3 py-2 ring-1 ring-navy/15 hover:ring-navy/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy sm:gap-4';
+
+function FooterStepCopy({ label, title }: { label: string; title: string }) {
   return (
-    <div className="relative flex flex-col items-center justify-center gap-0.5 px-3 py-1.5">
-      {children}
-      {divider ? (
-        <span
-          className="absolute top-1/2 right-0 h-8 w-0.5 -translate-y-1/2 bg-navy/60"
-          aria-hidden
-        />
-      ) : null}
+    <div className="flex shrink-0 flex-col items-center">
+      <p className="text-center text-base font-semibold leading-tight whitespace-nowrap text-navy sm:text-lg">
+        {label}
+      </p>
+      <p className="mt-1 text-center text-sm font-semibold leading-tight text-navy">{title}</p>
     </div>
   );
 }

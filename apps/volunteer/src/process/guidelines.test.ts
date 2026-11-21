@@ -50,7 +50,7 @@ describe('guidelines thank-you copy', () => {
   it('uses the submit overlay lines', () => {
     assert.equal(
       SUBMISSION_THANKS_TITLE,
-      'Thank-you for submitting an application to\ni58 Global!',
+      'Thank-you for submitting an application to i58 Global!',
     );
     assert.equal(SUBMISSION_THANKS_NOTICE, 'You will be notified when we receive it.');
     assert.equal(SUBMISSION_THANKS_NOTE, 'Next steps coming soon . . .');

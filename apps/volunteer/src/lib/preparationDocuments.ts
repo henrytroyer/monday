@@ -50,7 +50,7 @@ export const PROVIDER_LINKS = {
     note: 'Placeholder link. This opens a new tab and does not submit your background check.',
   },
   safeguarding_certificate: {
-    href: 'https://www.i58global.org/',
+    href: 'https://kayaconnect.org/login/index.php',
     label: 'Open Kaya Connect (placeholder)',
     note: 'Placeholder link. The safeguarding course is on Kaya Connect. This opens a new tab and does not record your course.',
   },

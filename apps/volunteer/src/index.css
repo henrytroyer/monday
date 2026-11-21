@@ -141,6 +141,20 @@ h2.font-display.text-crm-terracotta {
   }
 }
 
+.kaya-card {
+  color: #384042;
+  font-family: "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+}
+
+.kaya-card h1,
+.kaya-card h2,
+.kaya-card h3,
+.kaya-card h4 {
+  color: #384042;
+  font-family: inherit;
+  font-weight: 400;
+}
+
 .site-nav-link {
   position: relative;
   flex-shrink: 0;
@@ -187,6 +201,25 @@ h2.font-display.text-crm-terracotta {
   animation: submission-thanks-zoom 200ms ease-out both;
 }
 
+@keyframes upload-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.upload-pop {
+  animation: upload-pop 220ms ease-out both;
+}
+
 @keyframes submission-thanks-fill {
   from {
     transform: scaleX(0);
@@ -199,7 +232,7 @@ h2.font-display.text-crm-terracotta {
 .submission-thanks-fill {
   transform: scaleX(0);
   transform-origin: left center;
-  background-image: linear-gradient(to bottom, #667b96, #647fa8, #224a6d);
+  background-color: #667b96;
   animation: submission-thanks-fill var(--thanks-fill-ms, 10000ms) linear forwards;
 }
 

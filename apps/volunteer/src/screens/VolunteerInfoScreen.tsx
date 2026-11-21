@@ -128,6 +128,14 @@ export function VolunteerInfoScreen({
                 <Stat
                   label="Documents"
                   value={onFile === 0 ? NOT_ON_FILE : onFile === 1 ? '1 on file' : `${onFile} on file`}
+                  onClick={
+                    onFile > 0
+                      ? () =>
+                          document
+                            .getElementById('documents')
+                            ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      : undefined
+                  }
                 />
               </dl>
               {editing ? (
@@ -383,12 +391,27 @@ function InfoCard({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  onClick?: () => void;
+}) {
+  const tone = value === NOT_ON_FILE ? 'text-navy/45' : 'text-navy';
   return (
     <div className="min-w-0">
       <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-crm-terracotta">{label}</dt>
-      <dd className={`mt-1 text-sm font-semibold ${value === NOT_ON_FILE ? 'text-navy/45' : 'text-navy'}`}>
-        {value}
+      <dd className={`mt-1 text-sm font-semibold ${tone}`}>
+        {onClick ? (
+          <button type="button" onClick={onClick} className="text-left hover:underline">
+            {value}
+          </button>
+        ) : (
+          value
+        )}
       </dd>
     </div>
   );
@@ -443,20 +466,58 @@ function DocumentSnapshot({
 }) {
   const fields = DOCUMENT_FIELDS[document.id];
   const draft = document.draft;
+  const sterling = document.id === 'background_check_sent';
   return (
-    <li className="flex flex-col rounded-2xl bg-crm-surface p-3">
-      <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-sand/80">
+    <li
+      className={
+        sterling
+          ? 'flex flex-col bg-white shadow-sm'
+          : 'kaya-card flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_0.5rem_1rem_rgba(0,0,0,0.15)]'
+      }
+    >
+      <div
+        className={`flex items-center justify-between gap-3 border-b border-[#ececec] bg-[#fafafa] px-4 ${
+          sterling ? 'py-3' : 'py-2'
+        }`}
+      >
+        <p
+          className={
+            sterling
+              ? 'text-base font-semibold tracking-tight text-[#323e48]'
+              : 'text-base font-normal leading-tight text-[#384042]'
+          }
+        >
+          {fields.title}
+        </p>
+        <img
+          src={
+            sterling
+              ? '/brand/sterling-volunteers.svg'
+              : '/brand/humanitarian-leadership-academy.png?v=2'
+          }
+          alt={sterling ? 'Sterling Volunteers' : 'Humanitarian Leadership Academy'}
+          className={sterling ? 'h-8 w-auto shrink-0' : 'h-14 w-auto shrink-0'}
+        />
+      </div>
+      <div className="flex items-center gap-3 px-4 py-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy/45">
-            {fields.title}
-          </p>
-          <div className="mt-2 h-px w-10 bg-crm-terracotta" />
           {draft ? (
-            <p className="mt-3 font-display text-base font-extrabold leading-tight text-navy">
-              {draft.name || document.title}
-            </p>
+            <>
+              <p
+                className={`text-lg font-bold leading-tight ${
+                  sterling ? 'text-[#1c1c1c]' : 'text-[#384042]'
+                }`}
+              >
+                {draft.name || document.title}
+              </p>
+              {draft.date ? (
+                <p className={`mt-1 text-sm ${sterling ? 'text-[#5c5c5c]' : 'text-[#384042]'}`}>
+                  {draft.date}
+                </p>
+              ) : null}
+            </>
           ) : (
-            <p className="mt-3 text-sm text-navy/60">Nothing has been uploaded yet.</p>
+            <p className="text-sm text-navy/60">Nothing has been uploaded yet.</p>
           )}
           <p className={`mt-3 text-xs font-semibold ${document.onFile ? 'text-[#1f9d55]' : 'text-navy/60'}`}>
             {document.statusLabel}
@@ -466,7 +527,11 @@ function DocumentSnapshot({
               type="button"
               aria-expanded={open}
               onClick={onToggle}
-              className="mt-3 inline-flex rounded-full bg-navy px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+              className={
+                sterling
+                  ? 'mt-3 inline-flex min-h-9 items-center rounded bg-[#ff4700] px-3 text-sm font-bold tracking-wide text-white uppercase hover:brightness-110'
+                  : 'mt-3 inline-flex h-9 items-center justify-center rounded-full bg-[#F76D36] px-4 text-sm font-semibold text-white hover:bg-[#f65211]'
+              }
             >
               {open ? 'Close' : 'Open'}
             </button>
@@ -475,7 +540,7 @@ function DocumentSnapshot({
         <DocumentCopy document={document} volunteerName={volunteerName} />
       </div>
       {open && draft ? (
-        <dl className="mt-3 grid gap-2 px-1">
+        <dl className="mt-3 grid gap-2 px-4 pb-4">
           <Detail label={fields.nameLabel} value={draft.name || NOT_ON_FILE} />
           <Detail label={fields.dateLabel} value={draft.date || NOT_ON_FILE} />
           <Detail

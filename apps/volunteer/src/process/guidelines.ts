@@ -46,7 +46,7 @@ export const DRESS_CODE_GENERAL_BULLETS = [
 export const SUBMISSION_THANKS_MS = 10000;
 
 export const SUBMISSION_THANKS_TITLE =
-  'Thank-you for submitting an application to\ni58 Global!';
+  'Thank-you for submitting an application to i58 Global!';
 
 export const SUBMISSION_THANKS_NOTICE = 'You will be notified when we receive it.';
 

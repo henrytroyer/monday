@@ -46,16 +46,12 @@ export function SubmissionThanksOverlay({
         aria-labelledby="submission-thanks-title"
         className="submission-thanks-zoom relative flex h-full w-full items-center justify-center rounded-3xl bg-neutral-800/90 px-8 py-16 text-center text-white shadow-2xl"
       >
-        <div className="max-w-3xl">
+        <div className="max-w-full">
           <h2
             id="submission-thanks-title"
-            className="font-display text-2xl font-semibold leading-snug text-white! md:text-4xl"
+            className="whitespace-nowrap font-display text-[clamp(1.65rem,3.4vw,3.25rem)] font-extrabold leading-tight text-white!"
           >
-            {SUBMISSION_THANKS_TITLE.split('\n').map((line) => (
-              <span key={line} className="block">
-                {line}
-              </span>
-            ))}
+            {SUBMISSION_THANKS_TITLE}
           </h2>
           <p className="mt-5 text-base leading-relaxed text-white/85 md:text-lg">
             {SUBMISSION_THANKS_NOTICE} {SUBMISSION_THANKS_NOTE}
@@ -72,7 +68,7 @@ export function SubmissionThanksOverlay({
               className="submission-thanks-fill absolute inset-y-0 left-0 w-full"
               style={{ '--thanks-fill-ms': `${durationMs}ms` } as CSSProperties}
             />
-            <span className="relative">Continue</span>
+            <span className="relative">Continue →</span>
           </button>
         </div>
       </div>

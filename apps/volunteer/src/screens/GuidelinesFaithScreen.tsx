@@ -37,7 +37,7 @@ const guidelinesWashMask: CSSProperties = {
 
 export function GuidelinesFaithScreen() {
   return (
-    <div>
+    <div className="flex flex-1 flex-col">
       <section className="relative left-1/2 -mt-8 w-screen -translate-x-1/2">
         <div className="relative h-[22rem] overflow-hidden sm:h-[26rem]">
           <img
@@ -62,7 +62,7 @@ export function GuidelinesFaithScreen() {
       </section>
 
       <section
-        className="relative left-1/2 z-10 -mt-[4.25rem] w-screen -translate-x-1/2 bg-[#f7f7f7] px-5 pb-16"
+        className="relative left-1/2 z-10 -mt-[4.25rem] flex w-screen flex-1 -translate-x-1/2 flex-col bg-[#f7f7f7] px-5 pb-16"
         style={guidelinesWashMask}
       >
         <div

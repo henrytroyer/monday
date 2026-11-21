@@ -117,6 +117,41 @@ export function processCompletionSegments(
   return mergeRingSegments(slices);
 }
 
+interface ProcessRingStepBase {
+  title: string;
+  fill: number;
+  tone: OnboardingWaterTone;
+  start: number;
+  arc: number;
+}
+
+export type ProcessRingStep =
+  | (ProcessRingStepBase & { id: ShortTermStepId; kind: 'application' })
+  | (ProcessRingStepBase & { id: OnboardingStepId; kind: 'preparation' });
+
+/** Every journey step in ring order, including steps that have not been started. */
+export function processRingSteps(me: VolunteerApplicationStatus): ProcessRingStep[] {
+  const application = SHORT_TERM_STEP_DEFAULTS.map((step, index) => ({
+    id: step.id,
+    kind: 'application' as const,
+    title: step.title,
+    fill: applicationStepFill(me, step.id),
+    tone: 'blue' as const,
+    start: index * STEP_ARC,
+    arc: STEP_ARC,
+  }));
+  const preparation = resolveOnboardingSteps(me).map((step, index) => ({
+    id: step.id,
+    kind: 'preparation' as const,
+    title: step.title,
+    fill: onboardingFillPercent(step),
+    tone: onboardingWaterTone(step.id),
+    start: (SHORT_TERM_STEP_DEFAULTS.length + index) * STEP_ARC,
+    arc: STEP_ARC,
+  }));
+  return [...application, ...preparation];
+}
+
 function mergeRingSegments(slices: ProcessRingSegment[]): ProcessRingSegment[] {
   const merged: ProcessRingSegment[] = [];
   for (const slice of slices) {

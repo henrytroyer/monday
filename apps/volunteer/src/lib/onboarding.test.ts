@@ -10,6 +10,7 @@ import {
   previewDepartureProgress,
   processCompletionPercent,
   processCompletionSegments,
+  processRingSteps,
   resolveOnboardingSteps,
   revealOnboarding,
 } from './onboarding.ts';
@@ -149,6 +150,42 @@ describe('post-submit onboarding', () => {
       { tone: 'green', start: 70, length: 5 },
       { tone: 'orange', start: 75, length: 15 },
     ]);
+  });
+
+  it('keeps every step on the departure ring, including unfinished ones', () => {
+    const fresh = previewStatusForNewAccount({ name: 'Ada', email: 'ada@example.com' });
+    const steps = processRingSteps(fresh);
+    assert.equal(steps.length, 20);
+    assert.equal(steps[0]?.title, 'Getting Started');
+    assert.equal(steps[0]?.tone, 'blue');
+    assert.equal(steps[0]?.fill, 0);
+    assert.equal(steps.at(-1)?.title, 'Final check-list');
+    assert.ok(steps.every((step) => step.fill === 0));
+
+    const acceptanceOnly = {
+      ...fresh,
+      onboardingSteps: ONBOARDING_STEP_DEFAULTS.map((step) => ({
+        ...step,
+        status: step.id === 'acceptance' ? ('complete' as const) : ('not_started' as const),
+      })),
+    };
+    const accepted = processRingSteps(acceptanceOnly);
+    const acceptance = accepted.find((step) => step.id === 'acceptance');
+    assert.equal(acceptance?.fill, 100);
+    assert.equal(acceptance?.tone, 'green');
+    assert.equal(acceptance?.start, 70);
+    assert.ok(accepted.filter((step) => step.id !== 'acceptance').every((step) => step.fill === 0));
+
+    const preview = processRingSteps(previewDepartureProgress(fresh));
+    assert.ok(preview.slice(0, 18).every((step) => step.fill === 100));
+    assert.equal(preview[14]?.id, 'acceptance');
+    assert.equal(preview[14]?.tone, 'green');
+    assert.equal(preview[13]?.tone, 'blue');
+    assert.equal(preview[15]?.tone, 'orange');
+    assert.equal(preview[18]?.title, 'Team Training');
+    assert.equal(preview[18]?.fill, 0);
+    assert.equal(preview[18]?.tone, 'orange');
+    assert.equal(preview[19]?.fill, 0);
   });
 
   it('colors Acceptance green, earlier steps blue, and later steps orange', () => {

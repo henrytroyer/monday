@@ -150,7 +150,7 @@ function waveBody(level: number): string {
   return `${waveEdge(level)} V52 H0 Z`;
 }
 
-function StepIcon({ mark, className }: { mark: ReactNode; className: string }) {
+export function StepIcon({ mark, className }: { mark: ReactNode; className: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -167,7 +167,7 @@ function StepIcon({ mark, className }: { mark: ReactNode; className: string }) {
   );
 }
 
-function StepIconPaths({ id }: { id: ShortTermStepId }) {
+export function StepIconPaths({ id }: { id: ShortTermStepId }) {
   switch (id) {
     case 'application_received':
       return (

@@ -292,14 +292,18 @@ export default function App() {
         homeOnly={PREVIEW_HOME_STEPPER && previewHome < 4}
         toast={toast}
         footerTone={
-          tab === 'volunteer' ||
-          (tab === 'home' &&
-            !showsApplicationProgress(
-              PREVIEW_HOME_STEPPER ? previewHomeStatus(me, previewHome) : me,
-              PREVIEW_HOME_STEPPER ? previewHome : null,
-            ))
-            ? 'white'
-            : 'deep'
+          tab === 'document' &&
+          (documentFocus === 'safeguarding_certificate' ||
+            documentFocus === 'background_check_sent')
+            ? 'gradient'
+            : tab === 'volunteer' ||
+                (tab === 'home' &&
+                  !showsApplicationProgress(
+                    PREVIEW_HOME_STEPPER ? previewHomeStatus(me, previewHome) : me,
+                    PREVIEW_HOME_STEPPER ? previewHome : null,
+                  ))
+              ? 'white'
+              : 'deep'
         }
       >
         {tab === 'home' ? (

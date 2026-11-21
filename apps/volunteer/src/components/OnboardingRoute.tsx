@@ -79,7 +79,7 @@ export function OnboardingRoute({
   return (
     <>
     <section
-      className="relative left-1/2 w-screen -translate-x-1/2 bg-white py-6 sm:py-8"
+      className="relative left-1/2 w-screen -translate-x-1/2 border-t border-[#8ea3b8] bg-white py-6 sm:py-8"
       aria-label={`Acceptance & Service Preparation Progress: ${done} of ${steps.length} complete`}
     >
       <div className="mx-auto max-w-5xl px-5">
@@ -330,7 +330,7 @@ function StepBubble({
   );
 }
 
-function OnboardingIcon({ id }: { id: OnboardingStepId }) {
+export function OnboardingIcon({ id }: { id: OnboardingStepId }) {
   switch (id) {
     case 'application_received_post':
       return (

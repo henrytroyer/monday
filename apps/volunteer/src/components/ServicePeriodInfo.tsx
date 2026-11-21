@@ -74,7 +74,7 @@ export function ServicePeriodInfo({ className = '' }: { className?: string }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className={`relative z-30 flex items-center justify-center rounded-2xl bg-crm-terracotta/40 px-3 py-1.5 text-center text-sm font-semibold text-navy ${className}`}
+        className={`relative z-30 flex h-full w-full items-center justify-center rounded-2xl bg-white px-3 py-2 text-center text-base font-semibold leading-tight text-navy ring-1 ring-navy/15 hover:ring-navy/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy sm:text-lg ${className}`}
       >
         {CHIP_TITLE}
       </button>

@@ -230,7 +230,7 @@ function TrainingCard({
   );
 }
 
-function PreviewStageArrows({
+export function PreviewStageArrows({
   previousLabel,
   nextLabel,
   onStep,
