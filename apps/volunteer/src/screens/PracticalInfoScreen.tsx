@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { InfoTopicCarousel, type InfoTopic } from '../components/InfoTopicCarousel';
+import { InfoTopicGrid, type InfoTopic } from '../components/InfoTopicGrid';
 import { GENERAL_INFO_SECTION_LABEL } from '../lib/nav';
 import {
   APARTMENT_CARE,
@@ -12,14 +12,11 @@ import {
 } from '../lib/practicalInfo';
 
 type PracticalSlide = InfoTopic & {
-  place?: string;
   topic?: PracticalTopic;
   kind: 'topic' | 'mail';
 };
 
 const PRACTICAL_INFO_HEADER = '/brand/practical-info-header.jpg';
-const CARD_GRADIENT = 'bg-gradient-to-b from-[#667b96] via-[#647fa8] to-[#224a6d]';
-const CARD_CLASS = `flex min-h-[22rem] flex-col rounded-3xl px-6 py-7 text-white shadow-[0_16px_40px_rgba(27,54,93,0.18)] sm:px-8 sm:py-8 ${CARD_GRADIENT}`;
 
 const TITLE_COUNTS = new Map<string, number>();
 for (const place of PRACTICAL_PLACES) {
@@ -33,7 +30,6 @@ const PRACTICAL_SLIDES: readonly PracticalSlide[] = [
     place.topics.map((topic) => ({
       id: `${place.id}-${topic.id}`,
       label: (TITLE_COUNTS.get(topic.title) ?? 0) > 1 ? `${place.name} ${topic.title}` : topic.title,
-      place: place.name,
       topic,
       kind: 'topic' as const,
     })),
@@ -61,7 +57,7 @@ export function PracticalInfoScreen() {
   }
 
   return (
-    <InfoTopicCarousel
+    <InfoTopicGrid
       header={<PracticalHeader />}
       ariaLabel="Practical info topics"
       topics={PRACTICAL_SLIDES}
@@ -70,9 +66,8 @@ export function PracticalInfoScreen() {
         if (!slide) return null;
         if (slide.kind === 'mail') {
           return (
-            <article className={CARD_CLASS}>
-              <h2 className="font-display text-3xl font-extrabold text-white!">Mailing address</h2>
-              <p className="mt-5 text-base leading-7 text-white">{MAILING_ADDRESS_LEAD}</p>
+            <>
+              <p className="text-base leading-7 text-white">{MAILING_ADDRESS_LEAD}</p>
               <address className="mt-4 font-display text-2xl font-extrabold leading-8 text-white not-italic">
                 {MAILING_ADDRESS_LINES.map((line) => (
                   <span key={line} className="block">
@@ -90,11 +85,11 @@ export function PracticalInfoScreen() {
               <p className="mt-5 rounded-xl bg-white/15 px-4 py-3 text-sm leading-6 text-white">
                 {MAILING_ADDRESS_NOTE}
               </p>
-            </article>
+            </>
           );
         }
         if (!slide.topic) return null;
-        return <TopicCard topic={slide.topic} place={slide.place} />;
+        return <TopicBody topic={slide.topic} />;
       }}
     />
   );
@@ -115,49 +110,41 @@ function PracticalHeader() {
   );
 }
 
-function TopicCard({ topic, place }: { topic: PracticalTopic; place?: string }) {
+function TopicBody({ topic }: { topic: PracticalTopic }) {
   return (
-    <article className={CARD_CLASS}>
-      {place ? (
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/70">{place}</p>
+    <>
+      {topic.note ? (
+        <p className="rounded-xl bg-white/15 px-4 py-3 text-sm leading-6 text-white">
+          <span className="font-semibold">Please note. </span>
+          {topic.note}
+        </p>
       ) : null}
-      <h2 className={`font-display text-3xl font-extrabold text-white! ${place ? 'mt-1' : ''}`}>
-        {topic.title}
-      </h2>
-      <div className="mt-5">
-        {topic.note ? (
-          <p className="rounded-xl bg-white/15 px-4 py-3 text-sm leading-6 text-white">
-            <span className="font-semibold">Please note. </span>
-            {topic.note}
-          </p>
-        ) : null}
-        {topic.spots ? (
-          <ul className={`${topic.note ? 'mt-4' : ''} grid gap-3 sm:grid-cols-2`}>
-            {topic.spots.map((spot) => (
-              <li key={spot.name} className="rounded-xl bg-white/15 px-4 py-3">
-                <p className="font-display text-lg font-extrabold text-white">{spot.name}</p>
-                <p className="mt-1 text-sm leading-6 text-white/90">{spot.detail}</p>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {topic.body ? <p className="text-base leading-7 text-white">{topic.body}</p> : null}
-        {topic.hours ? (
-          <p className="mt-3 text-sm font-semibold leading-6 text-white">{topic.hours}</p>
-        ) : null}
-        {topic.reminders ? (
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-            {topic.reminders.map((reminder) => (
-              <li key={reminder.title} className="rounded-xl bg-white/15 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/70">
-                  {reminder.title}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-white">{reminder.body}</p>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    </article>
+      {topic.spots ? (
+        <ul className={`${topic.note ? 'mt-4' : ''} grid gap-3 sm:grid-cols-2`}>
+          {topic.spots.map((spot) => (
+            <li key={spot.name} className="rounded-xl bg-white/15 px-4 py-3">
+              <p className="font-display text-lg font-extrabold text-white">{spot.name}</p>
+              <p className="mt-1 text-sm leading-6 text-white/90">{spot.detail}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {topic.body ? <p className="text-base leading-7 text-white">{topic.body}</p> : null}
+      {topic.hours ? (
+        <p className="mt-3 text-sm font-semibold leading-6 text-white">{topic.hours}</p>
+      ) : null}
+      {topic.reminders ? (
+        <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+          {topic.reminders.map((reminder) => (
+            <li key={reminder.title} className="rounded-xl bg-white/15 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/70">
+                {reminder.title}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-white">{reminder.body}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
   );
 }

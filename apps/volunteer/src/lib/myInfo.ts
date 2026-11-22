@@ -13,7 +13,11 @@ import { MARITAL_STATUS_OPTIONS } from '../process/familyStatus';
 import { emptyGeneralInformation } from '../process/generalInformation';
 import { PASSPORT_EXAMPLE_SRC } from '../process/passportDetails';
 import { COORDINATOR_EMAIL } from './volunteerGuide';
-import { flightItinerariesFor, flightItineraryFor, type FlightItinerary } from './flightItinerary';
+import {
+  flightItineraryFor,
+  itinerariesForPlace,
+  type FlightItinerary,
+} from './flightItinerary';
 import { documentIsEdited, documentStage, DOCUMENT_FIELDS, type DocumentStage } from './preparationDocuments';
 import { serviceLengthLabel, serviceMonths, servicePeriodFor, servicePeriodLabel } from './servicePeriod';
 
@@ -115,6 +119,7 @@ export type MyInfoFlightLeg = {
   toCity: string;
   toCode: string;
   arrives: string;
+  nextDay: boolean;
 };
 
 export type MyInfoFlights = {
@@ -356,10 +361,12 @@ function airportLabel(me: VolunteerApplicationStatus, flights: FlightItinerary |
 function bookedItineraries(me: VolunteerApplicationStatus): FlightItinerary[] {
   const term = me.term.trim();
   if (!term) return [];
-  return flightItinerariesFor(me.name).filter((itinerary) => itinerary.term === term);
+  return itinerariesForPlace(me.name, assignmentLocation(me)).filter(
+    (itinerary) => itinerary.term === term,
+  );
 }
 
-function flightSummary(itinerary: FlightItinerary): MyInfoFlights {
+export function myInfoFlightsFrom(itinerary: FlightItinerary): MyInfoFlights {
   const inbound = itinerary.directions.find((direction) => direction.id === 'to-field')?.legs.at(-1);
   const outbound = itinerary.directions.find((direction) => direction.id === 'home')?.legs[0];
   return {
@@ -384,9 +391,14 @@ function flightSummary(itinerary: FlightItinerary): MyInfoFlights {
         toCity: leg.toCity,
         toCode: leg.toCode,
         arrives: leg.arrives,
+        nextDay: leg.nextDay,
       })),
     ),
   };
+}
+
+function flightSummary(itinerary: FlightItinerary): MyInfoFlights {
+  return myInfoFlightsFrom(itinerary);
 }
 
 function documentInfo(

@@ -1,28 +1,22 @@
-import { InfoTopicCarousel } from '../components/InfoTopicCarousel';
+import { InfoTopicGrid } from '../components/InfoTopicGrid';
 import { GENERAL_INFO_SECTION_LABEL } from '../lib/nav';
 import { ORIENTATION_SECTIONS, type OrientationSection } from '../lib/orientationInfo';
 
 const ORIENTATION_INFO_HEADER = '/brand/orientation-info-header.jpg';
-const CARD_GRADIENT = 'bg-gradient-to-b from-[#667b96] via-[#647fa8] to-[#224a6d]';
-const CARD_CLASS = `flex flex-col rounded-3xl px-5 py-5 text-white shadow-[0_16px_40px_rgba(27,54,93,0.18)] sm:px-6 sm:py-6 ${CARD_GRADIENT}`;
 
 export function OrientationInfoScreen() {
   return (
-    <InfoTopicCarousel
+    <InfoTopicGrid
       header={<OrientationHeader />}
       ariaLabel="Orientation topics"
-      topics={ORIENTATION_SECTIONS.map((section) => ({ id: section.id, label: section.nav }))}
+      topics={ORIENTATION_SECTIONS.map((section) => ({
+        id: section.id,
+        label: section.title,
+      }))}
       render={(index) => {
         const section = ORIENTATION_SECTIONS[index];
         if (!section) return null;
-        return (
-          <article className={CARD_CLASS}>
-            <h2 className="font-display text-2xl font-extrabold text-white!">{section.title}</h2>
-            <div className="mt-3">
-              <SectionBody section={section} />
-            </div>
-          </article>
-        );
+        return <SectionBody section={section} />;
       }}
     />
   );

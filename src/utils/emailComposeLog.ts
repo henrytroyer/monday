@@ -42,6 +42,7 @@ export interface AppendComposeLogInput {
   templateId?: string;
   templateName?: string;
   sourceLabel?: string;
+  alertAfterDays?: number;
   accountId?: string;
   accountEmail?: string;
 }
@@ -68,6 +69,7 @@ export function appendEmailComposeLogEntry(
     accountEmail: input.accountEmail ?? account?.email,
     templateId: input.templateId,
     templateName: input.templateName,
+    alertAfterDays: input.alertAfterDays,
   };
 
   writeAll([entry, ...readAll()]);

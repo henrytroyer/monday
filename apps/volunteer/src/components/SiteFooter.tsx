@@ -2,8 +2,10 @@ import { HOPE_IN_ACTION, ISAIAH_FOOTER } from '../lib/nav';
 
 export function SiteFooter({
   tone = 'soft',
+  pin = true,
 }: {
   tone?: 'soft' | 'white' | 'sand' | 'deep' | 'gradient';
+  pin?: boolean;
 }) {
   const surface =
     tone === 'white'
@@ -18,7 +20,7 @@ export function SiteFooter({
   const verse = tone === 'white' || tone === 'sand' ? 'text-crm-slate' : 'text-white/80';
 
   return (
-    <footer className={`mt-auto px-5 py-6 ${surface}`}>
+    <footer className={`${pin ? 'mt-auto ' : ''}px-5 py-6 ${surface}`}>
       <div className="mx-auto max-w-5xl">
         <p className="font-display text-sm font-semibold tracking-wide">{HOPE_IN_ACTION}</p>
         <p className={`mt-2 max-w-3xl text-xs leading-relaxed ${verse}`}>

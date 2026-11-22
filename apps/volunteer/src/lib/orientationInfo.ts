@@ -28,12 +28,6 @@ export const VEHICLE_DAMAGE_COSTS = [
   { label: 'Dents', amount: '150 euros' },
 ] as const;
 
-/** Move through the topic carousel, wrapping at both ends. */
-export function stepOrientation(index: number, delta: number, count: number): number {
-  if (count <= 0) return 0;
-  return ((index + delta) % count + count) % count;
-}
-
 type OrientationSpan = 'full' | 'half';
 
 type BulletSection = {

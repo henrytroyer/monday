@@ -46,6 +46,7 @@ export const JANE_MILLER: VolunteerApplicationStatus = {
       body: 'Thanks for your passport details. When you can, add a clear, front-facing photo for your lanyard.',
       sentAt: '2026-10-12T14:20:00Z',
       read: false,
+      alertAfterDays: 7,
     },
     {
       id: 'jane-reference-requested',
@@ -55,6 +56,7 @@ export const JANE_MILLER: VolunteerApplicationStatus = {
       body: 'Your General Information is in. We emailed your pastor and will let you know when the reference arrives.',
       sentAt: '2026-10-09T16:05:00Z',
       read: false,
+      alertAfterDays: 60,
     },
     {
       id: 'jane-passport-done',
@@ -73,6 +75,8 @@ export const JANE_MILLER: VolunteerApplicationStatus = {
       body: 'Orientation calls start in the spring. We will email the schedule once it is set.',
       sentAt: '2026-09-28T13:00:00Z',
       read: true,
+      alertAfterDays: 14,
+      respondedAt: '2026-10-02T15:00:00Z',
     },
   ],
 };

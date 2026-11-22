@@ -41,6 +41,8 @@ export interface EmailLogEntry {
   accountEmail?: string;
   templateId?: string;
   templateName?: string;
+  /** Days without a reply before the volunteer portal flags this message. */
+  alertAfterDays?: number;
 }
 
 export interface EmailLogFilters {

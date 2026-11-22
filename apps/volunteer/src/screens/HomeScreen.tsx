@@ -5,6 +5,7 @@ import type {
   VolunteerApplicationUpdate,
 } from '../contract/volunteerApi';
 import { FieldPurpose } from '../components/FieldPurpose';
+import { SectionWave } from '../components/SectionWave';
 import { washStyle } from '../components/TornWash';
 import { SubmissionThanksOverlay } from '../components/SubmissionThanksOverlay';
 import { FieldScheduleBar } from '../components/FieldScheduleBar';
@@ -330,30 +331,32 @@ export function HomeScreen({
           {lesvos ? (
             <section
               aria-label="Field schedules"
-              className="relative left-1/2 w-screen -translate-x-1/2 bg-white"
+              className="relative left-1/2 w-screen -translate-x-1/2 bg-[#f7f7f7] bg-cover bg-center bg-no-repeat"
+              style={washStyle}
             >
-              <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">
+              <div className="mx-auto w-full max-w-5xl px-5 pt-4 pb-[calc(4.25rem+1rem)] md:pt-6">
                 <FieldScheduleBar />
               </div>
             </section>
           ) : (
             <section
               aria-label="Field schedules"
-              className="relative left-1/2 w-screen -translate-x-1/2 bg-white"
+              className="relative left-1/2 w-screen -translate-x-1/2 bg-[#f7f7f7] bg-cover bg-center bg-no-repeat"
+              style={washStyle}
             >
-              <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-10">
+              <div className="mx-auto w-full max-w-5xl px-5 pt-4 pb-[calc(4.25rem+1rem)] md:pt-6">
                 <p className="text-base font-semibold text-navy">{LOCAL_GUIDANCE_NOTE}</p>
               </div>
             </section>
           )}
           <section
             aria-label="Your Service Period"
-            className="relative left-1/2 w-screen -translate-x-1/2 border-t border-navy/15 bg-[#f7f7f7] bg-cover bg-center bg-no-repeat px-5 py-8"
-            style={washStyle}
+            className="relative left-1/2 w-screen -translate-x-1/2 bg-white pt-0 pb-6 sm:pb-8"
           >
-            <div className="mx-auto w-full max-w-5xl">
-              <h2 className="font-display text-lg font-extrabold text-navy">Your Service Period</h2>
-              <div className="mt-4">
+            <SectionWave className="pointer-events-none absolute inset-x-0 top-0 h-[4.25rem] w-full -translate-y-[calc(100%-1px)] text-white" />
+            <div className="mx-auto w-full max-w-5xl px-5">
+              <h2 className="font-display text-2xl font-semibold text-navy">Your Service Period</h2>
+              <div className="mt-8">
                 <ServicePeriodTimeline period={previewServicePeriod(view)} labelled={false} />
               </div>
             </div>

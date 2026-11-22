@@ -4,6 +4,8 @@ import type { ApplicationEmail, EmailRecipientRole } from '../../types/volunteer
 import type { VolunteerDetail } from '../../types/volunteer';
 import type { EmailDraftAttachment } from '../../types/emailCompose';
 import EmailComposePanel from '../email/EmailComposePanel';
+import ReplyAlertDaysField from '../email/ReplyAlertDaysField';
+import { parseAlertAfterDays } from '../../utils/replyAlert';
 import {
   buildMailtoUrl,
   buildMergeContext,
@@ -25,6 +27,7 @@ function logApplicationCompose(input: {
   body: string;
   templateId?: string;
   templateName?: string;
+  alertAfterDays?: number;
 }) {
   appendEmailComposeLogEntry({
     subject: input.subject,
@@ -36,6 +39,7 @@ function logApplicationCompose(input: {
     templateId: input.templateId,
     templateName: input.templateName,
     sourceLabel: 'Application compose',
+    alertAfterDays: input.alertAfterDays,
   });
 }
 
@@ -81,6 +85,8 @@ export default function SendEmailModal({
   const [bcc, setBcc] = useState('');
   const [sending, setSending] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [alertAfterDays, setAlertAfterDays] = useState('');
+  const replyAlertDays = parseAlertAfterDays(alertAfterDays);
 
   useEffect(() => {
     if (!initialTemplateId || templates.length === 0) return;
@@ -187,6 +193,7 @@ export default function SendEmailModal({
         body: finalEmail.body,
         templateId: selectedTemplate?.templateId,
         templateName: selectedTemplate?.name,
+        alertAfterDays: replyAlertDays,
       });
       setStatusMessage('Email sent successfully.');
       onAfterSend?.();
@@ -306,6 +313,12 @@ export default function SendEmailModal({
                 </select>
               </div>
 
+              <ReplyAlertDaysField
+                id="application-reply-alert-days"
+                value={alertAfterDays}
+                onChange={setAlertAfterDays}
+              />
+
               <EmailComposePanel
                 subject={subject}
                 body={body}
@@ -354,6 +367,7 @@ export default function SendEmailModal({
                     body: finalEmail.body,
                     templateId: selectedTemplate?.templateId,
                     templateName: selectedTemplate?.name,
+                    alertAfterDays: replyAlertDays,
                   });
                 }
                 onAfterMailto?.();

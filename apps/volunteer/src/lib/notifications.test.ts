@@ -2,10 +2,15 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { JANE_MILLER, previewStatusForNewAccount } from '../mock/fixtures.ts';
 import {
+  flaggedNotificationCount,
+  flaggedNotifications,
   formatNotificationDate,
+  isNotificationFlagged,
   notificationRollDownMax,
   sortedNotifications,
   unreadNotificationCount,
+  unreadNotifications,
+  wholeDaysSinceSent,
 } from './notifications.ts';
 
 describe('volunteer notifications', () => {
@@ -30,12 +35,65 @@ describe('volunteer notifications', () => {
 
   it('counts unread messages', () => {
     assert.equal(unreadNotificationCount(JANE_MILLER), 2);
+    assert.deepEqual(
+      unreadNotifications(JANE_MILLER).map((item) => item.id),
+      ['jane-team-photo', 'jane-reference-requested'],
+    );
+  });
+
+  it('flags a message once the reply threshold has passed', () => {
+    const sentAt = '2026-10-12T14:20:00Z';
+    const message = {
+      id: 'photo',
+      source: 'portal' as const,
+      kind: 'team_note' as const,
+      title: 'Photo',
+      body: 'Please send a photo.',
+      sentAt,
+      read: true,
+      alertAfterDays: 7,
+    };
+    const justBefore = new Date(Date.parse(sentAt) + 7 * 24 * 60 * 60 * 1000 - 1);
+    const onTheDay = new Date(Date.parse(sentAt) + 7 * 24 * 60 * 60 * 1000);
+    assert.equal(wholeDaysSinceSent(sentAt, justBefore), 6);
+    assert.equal(isNotificationFlagged(message, justBefore), false);
+    assert.equal(wholeDaysSinceSent(sentAt, onTheDay), 7);
+    assert.equal(isNotificationFlagged(message, onTheDay), true);
+  });
+
+  it('does not flag a message that has a reply or no threshold', () => {
+    const now = new Date('2026-11-22T12:00:00Z');
+    const base = {
+      id: 'note',
+      source: 'email' as const,
+      kind: 'reminder' as const,
+      title: 'Note',
+      body: 'Hello',
+      sentAt: '2026-09-01T00:00:00Z',
+      read: false,
+    };
+    assert.equal(isNotificationFlagged(base, now), false);
+    assert.equal(isNotificationFlagged({ ...base, alertAfterDays: 3, respondedAt: '2026-09-02T00:00:00Z' }, now), false);
+    assert.equal(isNotificationFlagged({ ...base, alertAfterDays: 3, respondedAt: '   ' }, now), true);
+    assert.equal(isNotificationFlagged({ ...base, alertAfterDays: -1 }, now), false);
+    assert.equal(isNotificationFlagged({ ...base, sentAt: 'not-a-date', alertAfterDays: 0 }, now), false);
+    assert.equal(isNotificationFlagged({ ...base, alertAfterDays: 0 }, now), true);
+  });
+
+  it('flags Jane’s unanswered photo note and leaves the rest alone', () => {
+    const now = new Date('2026-11-22T12:00:00Z');
+    assert.equal(flaggedNotificationCount(JANE_MILLER, now), 1);
+    assert.deepEqual(
+      flaggedNotifications(JANE_MILLER, now).map((item) => item.id),
+      ['jane-team-photo'],
+    );
   });
 
   it('handles a record with no notifications', () => {
     const me = { ...JANE_MILLER, notifications: undefined };
     assert.deepEqual(sortedNotifications(me), []);
     assert.equal(unreadNotificationCount(me), 0);
+    assert.equal(flaggedNotificationCount(me, new Date('2026-11-22T12:00:00Z')), 0);
   });
 
   it('greets a new preview account with one unread message', () => {

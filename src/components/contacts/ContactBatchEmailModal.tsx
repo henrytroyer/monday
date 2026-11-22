@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ContactListItem, ContactTag } from '../../types/contact';
 import type { EmailDraftAttachment } from '../../types/emailCompose';
 import EmailComposePanel from '../email/EmailComposePanel';
+import ReplyAlertDaysField from '../email/ReplyAlertDaysField';
+import { parseAlertAfterDays } from '../../utils/replyAlert';
 import {
   buildBatchBccMailtoUrl,
   mergeEmailTemplate,
@@ -42,6 +44,8 @@ export default function ContactBatchEmailModal({
   const [attachments, setAttachments] = useState<EmailDraftAttachment[]>([]);
   const [cc, setCc] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [alertAfterDays, setAlertAfterDays] = useState('');
+  const replyAlertDays = parseAlertAfterDays(alertAfterDays);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   const recipients = useMemo(
@@ -126,6 +130,7 @@ export default function ContactBatchEmailModal({
       templateId: selectedTemplate?.templateId,
       templateName: selectedTemplate?.name,
       sourceLabel: 'Contact batch compose',
+      alertAfterDays: replyAlertDays,
     });
   };
 
@@ -249,6 +254,12 @@ export default function ContactBatchEmailModal({
           </div>
 
           <div className="min-h-0 overflow-y-auto p-3">
+            <ReplyAlertDaysField
+              id="batch-reply-alert-days"
+              value={alertAfterDays}
+              onChange={setAlertAfterDays}
+            />
+
             <EmailComposePanel
               subject={subject}
               body={body}

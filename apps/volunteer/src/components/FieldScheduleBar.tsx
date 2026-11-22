@@ -24,14 +24,14 @@ export function FieldScheduleBar() {
         {SCHEDULES.map((schedule) => (
           <div
             key={schedule.id}
-            className="relative flex flex-col items-center justify-center px-2 py-1.5"
+            className="flex h-full items-center justify-center px-2 py-1.5"
           >
             <button
               type="button"
               aria-label={schedule.label}
               aria-expanded={open === schedule.id}
               onClick={() => toggle(schedule.id)}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-3 py-2 ring-1 ring-navy/15 hover:ring-navy/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy sm:gap-4"
+              className="flex h-full w-full items-center justify-center gap-3 rounded-2xl bg-white px-3 py-2 ring-1 ring-navy/15 hover:ring-navy/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy sm:gap-4"
             >
               <span className="text-center text-base font-semibold leading-tight text-navy sm:text-lg">
                 {schedule.label}

@@ -3,14 +3,52 @@ import type { MyInfoFlights } from '../lib/myInfo';
 import {
   downloadItinerary,
   downloadPassportImage,
-  itineraryDirections,
   printItinerary,
   printPassport,
 } from '../lib/recordCopy';
+import { itineraryBannerSrc, itinerarySheetLeg } from '../lib/flightItinerary';
+import { ItineraryForm } from './ItineraryForm';
 import { PREVIEW_THUMB_CLASS, PreviewDialog } from './PreviewDialog';
 
 const PASSPORT_THUMB_WIDTH = 168;
 const ITINERARY_THUMB = { width: 88, height: 112 };
+
+export function ItineraryBanner({ place, compact = false }: { place: string; compact?: boolean }) {
+  return (
+    <span
+      className={`relative block overflow-hidden ${
+        compact ? 'h-full w-full' : 'h-48 w-full rounded-2xl sm:h-60'
+      }`}
+    >
+      <img
+        src={itineraryBannerSrc(place)}
+        alt=""
+        className={`absolute inset-0 h-full w-full object-cover ${
+          /germany/i.test(place) ? 'object-[center_42%]' : 'object-[center_12%]'
+        }`}
+      />
+      <span className="absolute inset-0 bg-black/20" aria-hidden />
+      <span className="relative flex h-full flex-col items-center justify-center px-2 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)]">
+        <span
+          className={`font-script leading-none ${
+            compact ? '-mb-1 text-[15px]' : '-mb-3 text-5xl sm:-mb-5 sm:text-6xl'
+          }`}
+        >
+          Travel
+        </span>
+        <span
+          className={
+            compact
+              ? 'text-[7px] font-light tracking-[0.12em]'
+              : 'text-2xl font-light tracking-[0.22em] sm:text-5xl'
+          }
+        >
+          ITINERARY
+        </span>
+      </span>
+    </span>
+  );
+}
 
 export function PassportImage({
   src,
@@ -58,10 +96,9 @@ export function PassportImage({
   );
 }
 
-export function ItineraryImage({ flights }: { flights: MyInfoFlights }) {
+export function ItineraryImage({ flights, place }: { flights: MyInfoFlights; place: string }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
-  const routes = itineraryDirections(flights);
   return (
     <>
       <button
@@ -69,84 +106,28 @@ export function ItineraryImage({ flights }: { flights: MyInfoFlights }) {
         onClick={() => setOpen(true)}
         aria-label="View itinerary"
         aria-haspopup="dialog"
-        className={PREVIEW_THUMB_CLASS}
+        className={`${PREVIEW_THUMB_CLASS} rounded-lg`}
         style={ITINERARY_THUMB}
       >
-        <ItineraryMiniature flights={flights} />
+        <ItineraryBanner place={place} compact />
       </button>
       {open ? (
         <PreviewDialog
           label="Itinerary"
+          wide
           onClose={close}
           onDownload={() => downloadItinerary(flights)}
           onPrint={() => printItinerary(flights)}
         >
-          <article className="bg-white px-5 py-5 text-navy">
-            <p className="text-xs font-bold uppercase tracking-[0.28em]">i58</p>
-            <p className="mt-2 font-display text-2xl font-extrabold">Itinerary</p>
-            <div className="mt-3 h-0.5 w-12 bg-crm-terracotta" />
-            <p className="mt-4 font-display text-lg font-extrabold">{flights.passenger}</p>
-            <p className="text-sm tracking-wide">{flights.airlineLabel}</p>
-            <p className="text-sm tracking-wide">Record locator {flights.recordLocator}</p>
-            {routes.map((direction) => (
-              <section key={direction.title} className="mt-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-navy/55">
-                  {direction.title}
-                </p>
-                <ul className="mt-2 space-y-3">
-                  {direction.legs.map((leg) => (
-                    <li key={`${leg.flight}-${leg.date}`}>
-                      <p className="text-sm font-semibold">
-                        {leg.airline} {leg.flight}
-                      </p>
-                      <p className="text-sm text-navy/75">{leg.date}</p>
-                      <p className="text-sm">
-                        {leg.fromCity} ({leg.fromCode}) {leg.departs}
-                        <span className="text-navy/45"> to </span>
-                        {leg.toCity} ({leg.toCode}) {leg.arrives}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
+          <article className="overflow-hidden rounded-2xl bg-white text-navy">
+            <ItineraryBanner place={place} />
+            <ItineraryForm
+              recordLocator={flights.recordLocator}
+              legs={flights.legs.map((leg) => itinerarySheetLeg(leg))}
+            />
           </article>
         </PreviewDialog>
       ) : null}
     </>
-  );
-}
-
-function ItineraryMiniature({ flights }: { flights: MyInfoFlights }) {
-  const routes = itineraryDirections(flights);
-  return (
-    <span aria-hidden className="flex h-full flex-col text-left text-navy">
-      <span className="bg-navy px-1.5 py-1.5 text-white">
-        <span className="block text-[7px] font-bold uppercase tracking-[0.14em]">i58</span>
-        <span className="mt-0.5 block font-display text-[8px] font-extrabold leading-tight">
-          Itinerary
-        </span>
-      </span>
-      <span className="flex flex-col gap-1 px-1.5 pt-1.5">
-        {routes.map((direction) => {
-          const first = direction.legs[0];
-          const last = direction.legs.at(-1);
-          if (!first || !last) return null;
-          return (
-            <span key={direction.title} className="block leading-tight">
-              <span className="block text-[8px] font-extrabold">
-                {first.fromCode} – {last.toCode}
-              </span>
-              <span className="block text-[7px] text-navy/70">
-                {last.airline} {last.flight}
-              </span>
-            </span>
-          );
-        })}
-      </span>
-      <span className="mt-auto px-1.5 pb-1.5 text-[7px] font-semibold tracking-wide">
-        {flights.recordLocator}
-      </span>
-    </span>
   );
 }

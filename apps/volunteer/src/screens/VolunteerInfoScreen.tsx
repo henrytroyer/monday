@@ -2,10 +2,13 @@ import { useRef, useState, type ReactNode } from 'react';
 import type { VolunteerApplicationStatus, VolunteerApplicationUpdate } from '../contract/volunteerApi';
 import { DocumentCopy } from '../components/DocumentCopy';
 import { TextField } from '../components/Field';
+import { PreviewStageArrows } from '../components/PreparationDocumentsBand';
 import { ItineraryImage, PassportImage } from '../components/TravelCopies';
+import { itinerariesForPlace } from '../lib/flightItinerary';
 import {
   NOT_ON_FILE,
   contactDraftFor,
+  myInfoFlightsFrom,
   myInfoFor,
   withMyInfoContact,
   type MyInfoContactDraft,
@@ -19,6 +22,8 @@ import { COORDINATOR_EMAIL } from '../lib/volunteerGuide';
 
 type SectionId = 'profile' | 'passport' | 'flights' | 'documents';
 
+const FLIGHT_PLACES = ['Greece', 'Germany'] as const;
+
 export function VolunteerInfoScreen({
   me,
   onUpdateMe,
@@ -27,6 +32,11 @@ export function VolunteerInfoScreen({
   onUpdateMe: (next: VolunteerApplicationUpdate) => void;
 }) {
   const info = myInfoFor(me);
+  const [flightPlaceIndex, setFlightPlaceIndex] = useState(() =>
+    /germany/i.test(info.location) ? 1 : 0,
+  );
+  const flightPlace = FLIGHT_PLACES[flightPlaceIndex] ?? 'Greece';
+  const shownFlights = itinerariesForPlace(info.name, flightPlace).map(myInfoFlightsFrom);
   const [copied, setCopied] = useState<string | null>(null);
   const [openDocument, setOpenDocument] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -276,7 +286,7 @@ export function VolunteerInfoScreen({
             </ul>
           </InfoCard>
 
-          <div className="grid gap-3 md:grid-cols-2 md:gap-4">
+          <div className="grid items-start gap-3 md:grid-cols-2 md:gap-4">
                 <InfoCard id="passport" title="Passport">
                   <RecordSnapshot
                     thumb={
@@ -312,12 +322,13 @@ export function VolunteerInfoScreen({
                 </InfoCard>
 
                 <InfoCard id="flights" title="Flights">
-                  {info.itineraries.length > 0 ? (
+                  {shownFlights.length > 0 ? (
                     <div className="flex flex-col gap-3">
-                      {info.itineraries.map((ticket) => (
+                      {shownFlights.map((ticket) => (
                         <FlightTicket
                           key={ticket.recordLocator}
                           flights={ticket}
+                          place={flightPlace}
                           copied={copied}
                           onCopy={copy}
                         />
@@ -326,6 +337,17 @@ export function VolunteerInfoScreen({
                   ) : (
                     <p className="text-sm text-navy/60">Flight details are not on file yet.</p>
                   )}
+                  <div className="mt-4">
+                    <PreviewStageArrows
+                      previousLabel="Previous flight destination"
+                      nextLabel="Next flight destination"
+                      onStep={(delta) =>
+                        setFlightPlaceIndex(
+                          (index) => (index + delta + FLIGHT_PLACES.length) % FLIGHT_PLACES.length,
+                        )
+                      }
+                    />
+                  </div>
                 </InfoCard>
           </div>
         </div>
@@ -336,15 +358,17 @@ export function VolunteerInfoScreen({
 
 function FlightTicket({
   flights,
+  place,
   copied,
   onCopy,
 }: {
   flights: MyInfoFlights;
+  place: string;
   copied: string | null;
   onCopy: (id: string, value: string) => void;
 }) {
   return (
-    <RecordSnapshot thumb={<ItineraryImage flights={flights} />}>
+    <RecordSnapshot thumb={<ItineraryImage flights={flights} place={place} />}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-navy/45">
         {flights.airlineLabel || 'Flights'}
       </p>

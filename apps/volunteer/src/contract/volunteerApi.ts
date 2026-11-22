@@ -219,6 +219,13 @@ export interface VolunteerNotification {
   /** ISO 8601 timestamp. */
   sentAt: string;
   read: boolean;
+  /**
+   * Whole days without a reply before this message is flagged.
+   * Staff set this when they send the message. Omit when no reply is expected.
+   */
+  alertAfterDays?: number;
+  /** ISO 8601 timestamp of the volunteer's reply. Absent until they respond. */
+  respondedAt?: string;
 }
 
 export interface VolunteerApplicationStatus extends VolunteerIdentity {

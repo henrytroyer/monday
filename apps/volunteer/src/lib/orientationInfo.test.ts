@@ -7,7 +7,6 @@ import {
   ORIENTATION_CODES,
   ORIENTATION_SECTIONS,
   VEHICLE_DAMAGE_COSTS,
-  stepOrientation,
   type OrientationSection,
 } from './orientationInfo.ts';
 
@@ -88,13 +87,5 @@ describe('orientation info', () => {
     );
     assert.match(copy, /100 euros/);
     assert.match(copy, /150 euros/);
-  });
-
-  it('cycles the topic carousel from either end', () => {
-    const count = ORIENTATION_SECTIONS.length;
-    assert.equal(stepOrientation(0, -1, count), count - 1);
-    assert.equal(stepOrientation(count - 1, 1, count), 0);
-    assert.equal(stepOrientation(2, 1, count), 3);
-    assert.equal(stepOrientation(0, 0, 0), 0);
   });
 });

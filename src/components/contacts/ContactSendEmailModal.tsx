@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ContactDetail } from '../../types/contact';
 import type { EmailDraftAttachment } from '../../types/emailCompose';
 import EmailComposePanel from '../email/EmailComposePanel';
+import ReplyAlertDaysField from '../email/ReplyAlertDaysField';
+import { parseAlertAfterDays } from '../../utils/replyAlert';
 import {
   buildContactMergeContext,
   buildMailtoUrl,
@@ -37,6 +39,8 @@ export default function ContactSendEmailModal({
   const [bcc, setBcc] = useState('');
   const [sending, setSending] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [alertAfterDays, setAlertAfterDays] = useState('');
+  const replyAlertDays = parseAlertAfterDays(alertAfterDays);
 
   const selectedTemplate =
     templateKey === BLANK_EMAIL_TEMPLATE_ID
@@ -178,6 +182,12 @@ export default function ContactSendEmailModal({
           </div>
 
           <div className="min-h-0 overflow-y-auto p-3">
+            <ReplyAlertDaysField
+              id="contact-reply-alert-days"
+              value={alertAfterDays}
+              onChange={setAlertAfterDays}
+            />
+
             <EmailComposePanel
               subject={subject}
               body={body}
@@ -224,6 +234,7 @@ export default function ContactSendEmailModal({
                   templateId: selectedTemplate?.templateId,
                   templateName: selectedTemplate?.name,
                   sourceLabel: 'Contact compose',
+                  alertAfterDays: replyAlertDays,
                 });
               }}
               className="rounded-xl border border-crm-taupe/20 px-4 py-2 text-sm font-medium text-crm-heading hover:bg-crm-taupe-50"
@@ -260,6 +271,7 @@ export default function ContactSendEmailModal({
                     templateId: selectedTemplate?.templateId,
                     templateName: selectedTemplate?.name,
                     sourceLabel: 'Contact compose',
+                    alertAfterDays: replyAlertDays,
                   });
                   setStatusMessage('Email sent successfully.');
                   onSent?.();

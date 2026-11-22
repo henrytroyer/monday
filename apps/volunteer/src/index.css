@@ -23,6 +23,7 @@
   --color-sand: #e8dfd2;
   --color-advise-amber: #b45309;
   --color-advise-wash: #fff8e1;
+  --color-alert-red: #b42318;
   --color-advise-rose: #e11d48;
   --color-advise-rose-wash: #fff1f2;
 }
@@ -122,6 +123,10 @@ h4 {
 .font-story {
   font-family: "Merriweather", Georgia, "Times New Roman", serif;
   font-weight: 300;
+}
+
+.font-script {
+  font-family: "Great Vibes", cursive;
 }
 
 h1.font-display.text-crm-terracotta,

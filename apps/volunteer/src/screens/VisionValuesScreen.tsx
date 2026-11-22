@@ -17,16 +17,6 @@ const VALUE_CARDS = [
   { tab: 'bg-crm-slate', title: 'text-crm-slate', Icon: IntegrityIcon },
 ] as const;
 
-/** Kingdom Passion sits high in the center, then the rest step right, low, and left. */
-const VALUE_LAYOUT = ['Kingdom Passion', 'Forward Focus', 'Integrity', 'Walk of Faith'] as const;
-
-const VALUE_PLACE = [
-  'sm:col-start-2 sm:row-start-1',
-  'sm:col-start-3 sm:row-start-2',
-  'sm:col-start-2 sm:row-start-3',
-  'sm:col-start-1 sm:row-start-2',
-] as const;
-
 export function VisionValuesScreen() {
   const [lead, rest] = VISION_VALUES_TITLE.split(' & ');
 
@@ -57,24 +47,22 @@ export function VisionValuesScreen() {
       </section>
 
       <section
-        className={`relative left-1/2 z-10 -mt-[4.25rem] w-screen -translate-x-1/2 px-5 pt-[calc(4.25rem+3.5rem)] pb-16 ${tornWashClassName}`}
+        className={`relative left-1/2 z-10 -mt-[4.25rem] w-screen -translate-x-1/2 px-5 pt-[calc(4.25rem+1.5rem)] pb-16 ${tornWashClassName}`}
         style={tornWashStyle}
       >
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-[40rem]">
         <h2 className="flex items-center justify-center gap-3 font-display text-[1.85rem] font-extrabold leading-tight tracking-wide">
           <img src={VALUES_MARK} alt="" className="h-14 w-14 shrink-0 object-contain" />
           <span className="text-crm-terracotta">Our Core Values</span>
         </h2>
-        <div className="mx-auto mt-12 grid w-full max-w-[18.5rem] grid-cols-1 justify-items-center gap-y-14 sm:mt-14 sm:max-w-[59.5rem] sm:grid-cols-3 sm:gap-x-5 sm:gap-y-12">
-          {VALUE_LAYOUT.map((title, place) => {
-            const index = CORE_VALUE_STATEMENTS.findIndex((item) => item.title === title);
-            const item = CORE_VALUE_STATEMENTS[index]!;
+        <div className="mt-12 grid grid-cols-1 gap-x-8 gap-y-14 sm:grid-cols-2 sm:gap-y-16">
+          {CORE_VALUE_STATEMENTS.map((item, index) => {
             const tone = VALUE_CARDS[index]!;
             const Icon = tone.Icon;
             return (
               <article
                 key={item.title}
-                className={`relative w-full max-w-[18.5rem] rounded-[1.25rem] border border-navy/10 bg-white px-5 pt-9 pb-5 shadow-[0_14px_32px_rgba(27,54,93,0.12)] ${VALUE_PLACE[place]}`}
+                className="relative rounded-[1.25rem] border border-navy/10 bg-white px-5 pt-9 pb-5 shadow-[0_14px_32px_rgba(27,54,93,0.12)]"
               >
                 <span
                   className={`absolute top-0 left-1/2 flex h-12 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-t-2xl rounded-b-lg text-white ${tone.tab}`}

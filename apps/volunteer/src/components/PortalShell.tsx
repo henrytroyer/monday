@@ -26,6 +26,12 @@ export function PortalShell({
   footerTone?: 'soft' | 'white' | 'sand' | 'deep' | 'gradient';
   children: ReactNode;
 }) {
+  const hugContent =
+    tab === 'generalInfo' &&
+    (generalInfoSection === 'orientation' ||
+      generalInfoSection === 'practical' ||
+      generalInfoSection === 'galini');
+
   return (
     <div className="relative flex min-h-dvh flex-col overflow-x-clip bg-crm-white">
       <AppHeader
@@ -45,7 +51,7 @@ export function PortalShell({
         </p>
       ) : null}
       <main
-        className={`mx-auto w-full flex-1 px-5 ${
+        className={`mx-auto w-full ${hugContent ? '' : 'flex-1 '}px-5 ${
           tab === 'volunteer'
             ? 'max-w-6xl pt-0 pb-0'
             : footerTone === 'gradient'
@@ -57,7 +63,7 @@ export function PortalShell({
       >
         {children}
       </main>
-      <SiteFooter tone={footerTone} />
+      <SiteFooter tone={footerTone} pin={!hugContent} />
     </div>
   );
 }

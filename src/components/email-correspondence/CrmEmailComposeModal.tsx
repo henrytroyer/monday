@@ -15,6 +15,8 @@ import { plainTextToHtml } from '../../utils/htmlEmailBody';
 import { sendCrmEmail } from '../../services/sendCrmEmail';
 import { appendEmailComposeLogEntry } from '../../utils/emailComposeLog';
 import EmailComposePanel from '../email/EmailComposePanel';
+import ReplyAlertDaysField from '../email/ReplyAlertDaysField';
+import { parseAlertAfterDays } from '../../utils/replyAlert';
 import OverlayBackButton from '../layout/OverlayBackButton';
 
 interface CrmEmailComposeModalProps {
@@ -59,6 +61,8 @@ export default function CrmEmailComposeModal({
   const [attachments, setAttachments] = useState<EmailDraftAttachment[]>([]);
   const [sending, setSending] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [alertAfterDays, setAlertAfterDays] = useState('');
+  const replyAlertDays = parseAlertAfterDays(alertAfterDays);
 
   const selectedTemplate =
     templateKey === BLANK_EMAIL_TEMPLATE_ID
@@ -130,6 +134,7 @@ export default function CrmEmailComposeModal({
         templateId: selectedTemplate?.templateId,
         templateName: selectedTemplate?.name,
         sourceLabel: titleForMode(draft.mode),
+        alertAfterDays: replyAlertDays,
       });
       setStatusMessage('Email sent successfully.');
       onSent?.();
@@ -224,6 +229,12 @@ export default function CrmEmailComposeModal({
               </select>
             </label>
           )}
+
+          <ReplyAlertDaysField
+            id="crm-reply-alert-days"
+            value={alertAfterDays}
+            onChange={setAlertAfterDays}
+          />
 
           <EmailComposePanel
             subject={subject}

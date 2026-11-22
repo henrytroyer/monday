@@ -7,11 +7,16 @@ import {
   NOTIFICATION_KIND_LABEL,
   NOTIFICATION_SOURCE_LABEL,
   NOTIFICATIONS_TITLE,
+  flaggedNotifications,
   formatNotificationDate,
+  isNotificationFlagged,
   notificationRollDownMax,
   sortedNotifications,
   unreadNotificationCount,
+  unreadNotifications,
 } from '../lib/notifications';
+
+type NotificationRollout = 'all' | 'unread' | 'flagged';
 
 export function NotificationsPanel({
   me,
@@ -25,10 +30,26 @@ export function NotificationsPanel({
   className?: string;
 }) {
   const items = sortedNotifications(me);
+  const unreadItems = unreadNotifications(me);
   const unread = unreadNotificationCount(me);
+  const now = new Date();
+  const flaggedItems = flaggedNotifications(me, now);
+  const flagged = flaggedItems.length;
   const listId = 'volunteer-notifications';
   const panelRef = useRef<HTMLElement>(null);
   const [maxHeight, setMaxHeight] = useState<number | null>(null);
+  const [rollout, setRollout] = useState<NotificationRollout>('all');
+  const visible =
+    rollout === 'unread' ? unreadItems : rollout === 'flagged' ? flaggedItems : items;
+
+  function showRollout(next: NotificationRollout) {
+    if (open && rollout === next) {
+      onOpenChange(false);
+      return;
+    }
+    setRollout(next);
+    if (!open) onOpenChange(true);
+  }
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -75,23 +96,55 @@ export function NotificationsPanel({
         className={`flex shrink-0 items-center justify-between gap-3 px-4 py-3 ${open ? 'border-b border-sand/70' : ''}`}
       >
         <h2 className="text-base font-semibold text-navy">{NOTIFICATIONS_TITLE}</h2>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {flagged > 0 ? (
+            <button
+              type="button"
+              aria-expanded={open && rollout === 'flagged'}
+              aria-controls={listId}
+              aria-label={
+                open && rollout === 'flagged'
+                  ? `Roll up ${flagged} ${flagged === 1 ? 'message' : 'messages'} awaiting a reply`
+                  : `Show ${flagged} ${flagged === 1 ? 'message' : 'messages'} awaiting a reply`
+              }
+              onClick={() => showRollout('flagged')}
+              className="inline-flex items-center gap-1 rounded-full bg-alert-red px-2.5 py-0.5 text-xs font-semibold text-white hover:brightness-95"
+            >
+              <AlertIcon />
+              {flagged}
+            </button>
+          ) : null}
           {unread > 0 ? (
-            <span className="rounded-full bg-crm-terracotta px-2.5 py-0.5 text-xs font-semibold text-white">
+            <button
+              type="button"
+              aria-expanded={open && rollout === 'unread'}
+              aria-controls={listId}
+              aria-label={
+                open && rollout === 'unread'
+                  ? `Roll up ${unread} new notifications`
+                  : `Show ${unread} new notifications`
+              }
+              onClick={() => showRollout('unread')}
+              className="rounded-full bg-crm-terracotta px-2.5 py-0.5 text-xs font-semibold text-white hover:brightness-95"
+            >
               {unread} new
-            </span>
+            </button>
           ) : null}
           <button
             type="button"
-            aria-expanded={open}
+            aria-expanded={open && rollout === 'all'}
             aria-controls={listId}
-            onClick={() => onOpenChange(!open)}
+            onClick={() => showRollout('all')}
             className="flex h-7 w-7 items-center justify-center rounded-full text-navy hover:bg-sand/40"
           >
-            <span className="sr-only">{open ? 'Roll up notifications' : 'Roll down notifications'}</span>
+            <span className="sr-only">
+              {open && rollout === 'all' ? 'Roll up notifications' : 'Roll down all notifications'}
+            </span>
             <svg
               viewBox="0 0 24 24"
-              className={`h-4 w-4 transition-transform motion-reduce:transition-none ${open ? '' : 'rotate-180'}`}
+              className={`h-4 w-4 transition-transform motion-reduce:transition-none ${
+                open && rollout === 'all' ? '' : 'rotate-180'
+              }`}
               fill="none"
               stroke="currentColor"
               strokeWidth="2.2"
@@ -112,14 +165,19 @@ export function NotificationsPanel({
         inert={!open}
       >
         <div className="min-h-0 overflow-y-auto">
-          {items.length === 0 ? (
+          {visible.length === 0 ? (
             <p className="px-4 py-6 text-sm text-crm-slate">
-              No messages yet. Updates about your application and notes from the i58 team will show
-              up here.
+              {rollout === 'unread'
+                ? 'No new messages.'
+                : rollout === 'flagged'
+                  ? 'No messages are waiting on a reply.'
+                  : 'No messages yet. Updates about your application and notes from the i58 team will show up here.'}
             </p>
           ) : (
             <ul className="divide-y divide-sand/60">
-              {items.map((item) => (
+              {visible.map((item) => {
+                const awaitingReply = isNotificationFlagged(item, now);
+                return (
                 <li key={item.id} className="flex gap-3 px-4 py-3">
                   <SourceIcon source={item.source} />
                   <div className="min-w-0 flex-1">
@@ -141,6 +199,9 @@ export function NotificationsPanel({
                     </p>
                     <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-navy/50">
                       {NOTIFICATION_SOURCE_LABEL[item.source]} · {NOTIFICATION_KIND_LABEL[item.kind]}
+                      {awaitingReply ? (
+                        <span className="text-alert-red"> · Awaiting reply</span>
+                      ) : null}
                     </p>
                   </div>
                   {item.read ? null : (
@@ -150,7 +211,8 @@ export function NotificationsPanel({
                     />
                   )}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>
@@ -191,6 +253,23 @@ function rollDownBounds(
   const nextTop = next instanceof HTMLElement ? next.getBoundingClientRect().top : heroRect.bottom;
   const belowTop = nextTop > rect.top + 1 ? nextTop : heroRect.bottom;
   return { panelTop: rect.top, aboveBottom, belowTop };
+}
+
+function AlertIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      aria-hidden
+    >
+      <path d="M12 4.5 3.5 19.5h17L12 4.5Z" strokeLinejoin="round" />
+      <path d="M12 10v4" strokeLinecap="round" />
+      <path d="M12 17h.01" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function SourceIcon({ source }: { source: VolunteerNotificationSource }) {
